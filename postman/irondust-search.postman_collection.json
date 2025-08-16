@@ -1,0 +1,67 @@
+{
+  "info": {
+    "name": "IronDust Search API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "b3c9a8a0-0c2f-4d84-9a2d-3e6d4f1fdddd"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/healthz",
+          "host": ["{{baseUrl}}"],
+          "path": ["healthz"]
+        }
+      }
+    },
+    {
+      "name": "Ingest Full",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-admin-key", "value": "{{adminKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/ingest/full",
+          "host": ["{{baseUrl}}"],
+          "path": ["ingest","full"]
+        }
+      }
+    },
+    {
+      "name": "Search",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"q\": \"citrulline\",\n  \"filters\": {\n    \"in_stock\": true\n  },\n  \"sort\": [\"price_cents:asc\"],\n  \"page\": 1,\n  \"size\": 5\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"]
+        }
+      }
+    },
+    {
+      "name": "Product by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/{{productId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["products","{{productId}}"]
+        }
+      }
+    }
+  ]
+}
+
+

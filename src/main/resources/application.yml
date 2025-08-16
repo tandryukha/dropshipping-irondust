@@ -1,0 +1,18 @@
+server:
+  port: 4000
+
+app:
+  adminKey: dev_admin_key
+  baseUrl: https://www.irondust.eu
+  perPage: 100
+  indexName: products_lex
+
+meili:
+  host: ${MEILI_HOST:http://127.0.0.1:7700}
+  key: ${MEILI_KEY:local_dev_key}
+
+spring:
+  main:
+    web-application-type: reactive
+
+

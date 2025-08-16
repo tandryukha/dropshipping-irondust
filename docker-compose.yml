@@ -1,0 +1,22 @@
+services:
+  meili:
+    image: getmeili/meilisearch:v1.7
+    environment:
+      MEILI_MASTER_KEY: local_dev_key
+    ports:
+      - "7700:7700"
+    volumes:
+      - "./meili_data:/meili_data"
+  api:
+    build: .
+    environment:
+      JAVA_OPTS: ""
+      MEILI_HOST: http://meili:7700
+      MEILI_KEY: local_dev_key
+    ports:
+      - "4000:4000"
+    depends_on:
+      - meili
+
+
+
