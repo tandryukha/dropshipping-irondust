@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fitpoint — Search + PDP + Flavor (Visual Mock)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --fp-primary:#16a8c9;
+      --fp-dark:#222;
+      --fp-muted:#6b7280;
+      --fp-bg:#f6f7f9;
+      --fp-accent:#ffce3a;
+      --radius:16px;
+      --shadow:0 10px 20px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.05);
+      --ring:0 0 0 3px rgba(22,168,201,.25);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:var(--fp-bg);color:var(--fp-dark);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    }
+    img{display:block;max-width:100%}
+    button,input,select{font-family:inherit}
+    a{text-decoration:none;color:inherit}
+
+    .app{max-width:1200px;margin:0 auto;padding:20px 16px 96px;position:relative}
+
+    /* Header */
+    .header{
+      display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-bottom:16px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px}
+    .brand-badge{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--fp-primary),#67e0f5);box-shadow:var(--shadow)}
+    .brand-title{display:flex;flex-direction:column;line-height:1.05}
+    .brand-title small{color:var(--fp-muted);font-weight:600}
+
+    /* Search */
+    .search-wrap{
+      position:relative;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;
+      padding:8px 10px 8px 14px;border:1px solid #e8eaed;box-shadow:var(--shadow)
+    }
+    .search-wrap:focus-within{box-shadow:var(--ring),var(--shadow);border-color:#cfeef6}
+    .search-input{border:0;outline:0;background:transparent;width:100%;font-size:15px;padding:6px 4px}
+    .search-icon{opacity:.7}
+    .kbd{background:#eef2f4;border:1px solid #d4dade;border-bottom-width:2px;border-radius:6px;padding:4px 6px;font-size:12px;color:#3a3f45}
+    .bolt{border:0;background:transparent;width:36px;height:36px;border-radius:10px;display:grid;place-items:center}
+    .bolt span{width:20px;height:20px;border-radius:6px;background:var(--fp-primary);color:#fff;display:grid;place-items:center;font-weight:800;box-shadow:0 6px 14px rgba(22,168,201,.35)}
+
+    .actions{display:flex;gap:8px;align-items:center}
+    .cart-pill{background:#fff;border:1px solid #e3e8ef;border-radius:8px;padding:6px 8px;box-shadow:var(--shadow);min-width:70px;text-align:center}
+
+    /* Enhanced panel */
+    .panel{position:absolute;left:0;right:0;top:68px;z-index:20;background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:var(--shadow);display:none}
+    .panel.visible{display:block}
+    .panel-inner{display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:12px;padding:16px}
+    .col h4{margin:6px 0 10px;font-size:14px;color:#374151;font-weight:800;letter-spacing:.2px}
+    .product{display:grid;grid-template-columns:64px 1fr auto;gap:12px;padding:10px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:10px}
+    .product:hover{box-shadow:0 8px 16px rgba(0,0,0,.06)}
+    .badge{font-size:11px;padding:2px 6px;border-radius:999px;background:#ecfeff;color:#036972;border:1px solid #bbeef5}
+    .price{font-weight:800}
+    .add{border:0;border-radius:10px;padding:8px 10px;background:var(--fp-primary);color:#fff;font-weight:800;cursor:pointer}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:#f1f5f9;border:1px solid #e2e8f0;margin:6px 6px 0 0;font-size:13px;cursor:pointer}
+    .chip[aria-pressed="true"]{background:#e8fbff;border-color:#a9e8f4;color:#065e67}
+    .content-card{padding:10px 12px;border:1px solid #eef1f4;border-radius:14px;margin-bottom:10px;background:#fff}
+    .pill{font-size:12px;padding:4px 8px;border-radius:999px;background:#f9fafb;border:1px solid #e5e7eb;margin-left:6px}
+    .tag{font-size:11px;background:#f2f4f7;border:1px solid #e5e7eb;padding:2px 6px;border-radius:999px;margin-left:4px}
+    .divider{height:1px;background:#eef1f4;margin:8px 0}
+
+    /* PDP layout */
+    .pdp{display:grid;grid-template-columns:1.8fr 1.2fr;gap:16px;margin-top:28px}
+    .card{background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:var(--shadow);padding:16px}
+    .title{display:flex;align-items:center;gap:8px}
+    .stars{color:#f5b301}
+    .qa-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 10px}
+    .qa-chip{border:1px solid #e2e8f0;background:#f8fafc;padding:8px 12px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer}
+    .qa-chip.active{background:#e9fbff;border-color:#a9e8f4;color:#065e67}
+    .qa-ans{display:none;margin:8px 0 12px;padding:12px;border-radius:12px;background:#f8fffd;border:1px solid #d8f3e6}
+    .facts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+    .fact{padding:6px 10px;border-radius:999px;background:#eef7ff;border:1px solid #d6e7ff;font-size:12px}
+    .mini{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+    .mini .box{border:1px solid #e6ebf0;border-radius:14px;padding:10px;background:#fcfdff}
+
+    /* Flavor row (PDP) */
+    .flavors{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+    .flavor{border:1px solid #e3e8ef;background:#f8fafc;border-radius:999px;padding:6px 10px;cursor:pointer}
+    .flavor[aria-pressed="true"]{background:#e9fbff;border-color:#a9e8f4;color:#065e67}
+
+    /* PDP Add CTA */
+    .pdp-cta{display:flex;gap:10px;align-items:center;margin:10px 0}
+    .qty-inline{display:flex;align-items:center;gap:8px;border:1px solid #d8dee6;background:#f8fafc;border-radius:10px;padding:4px 8px}
+    .qty-inline button{width:28px;height:28px;border:1px solid #d8dee6;background:#fff;border-radius:8px;font-weight:800;cursor:pointer}
+    .pdp-add{background:var(--fp-primary);color:#fff;border:0;border-radius:12px;padding:10px 14px;font-weight:800;box-shadow:var(--shadow)}
+
+    .bundle{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:12px;border:1px dashed #cfeef6;background:#f7feff;border-radius:14px;padding:12px}
+    .bundle .btn{background:var(--fp-accent);border:0;border-radius:10px;padding:8px 10px;font-weight:800}
+
+    .alt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .sku{border:1px solid #edf1f4;border-radius:14px;padding:10px;background:#fff}
+    .sku .btn{margin-top:8px;background:var(--fp-primary);border:0;border-radius:10px;padding:8px 10px;color:#fff;font-weight:800;width:100%}
+    .more{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px}
+    .more .sku{padding:8px}
+
+    /* Tabs (desc/composition/reviews) */
+    .tabs{margin-top:14px}
+    .tablist{display:flex;gap:8px;flex-wrap:wrap}
+    .tab{border:1px solid #e2e8f0;background:#f8fafc;border-radius:999px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .tab[aria-selected="true"]{background:#fff;border-color:#a9e8f4;box-shadow:var(--ring)}
+    .tabpanel{display:none;margin-top:10px;border:1px solid #edf1f4;border-radius:14px;padding:12px;background:#fff}
+    .tabpanel.active{display:block}
+    table{border-collapse:collapse;width:100%}
+    td,th{border:1px solid #e5e7eb;padding:8px;text-align:left}
+    th{background:#f7fafc}
+
+    /* Command palette (simple) */
+    .overlay{position:fixed;inset:0;background:rgba(15,18,25,.35);backdrop-filter:saturate(120%) blur(8px);display:none;z-index:40}
+    .overlay.visible{display:block}
+    .palette{position:fixed;left:50%;top:14%;transform:translateX(-50%);width:min(820px,92vw);border-radius:18px;border:1px solid rgba(255,255,255,.35);background:rgba(250,252,255,.9);box-shadow:0 50px 120px rgba(0,0,0,.2);overflow:hidden;z-index:50;display:none}
+    .palette.visible{display:block}
+    .pal-head{padding:14px;border-bottom:1px solid #e9edf0;display:flex;align-items:center;gap:10px}
+    .pal-input{width:100%;border:0;outline:0;background:#fff;border:1px solid #e7ebef;border-radius:12px;padding:10px 12px}
+    .pal-input:focus{box-shadow:var(--ring)}
+    .pal-body{max-height:56vh;overflow:auto}
+    .row{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid #eef1f4}
+    .key{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:#ebfaff;color:#065e67;font-weight:800}
+    .btn-ghost{border:1px solid #dbe3e8;background:#f8fafc;border-radius:10px;padding:8px 10px;font-weight:700}
+
+    /* Flavor picker popover (appears when clicking Add) */
+    .pop{position:fixed;z-index:60;min-width:260px;background:#fff;border:1px solid #e3e8ef;border-radius:14px;box-shadow:var(--shadow);padding:12px;display:none}
+    .pop.visible{display:block}
+    .pop h5{margin:0 0 8px;font-size:14px}
+    .pop .flavors{margin:4px 0 6px}
+    .qty{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .qty button{width:28px;height:28px;border:1px solid #d8dee6;background:#f8fafc;border-radius:8px;font-weight:800;cursor:pointer}
+    .pop .confirm{margin-top:10px;width:100%;background:var(--fp-primary);color:#fff;border:0;border-radius:10px;padding:10px;font-weight:800}
+    .pop .close{position:absolute;top:6px;right:6px;border:0;background:transparent;font-size:16px;cursor:pointer}
+
+    /* Ref overlay */
+    .ref{position:fixed;right:14px;bottom:14px;z-index:70;background:var(--fp-dark);color:#fff;border:0;border-radius:10px;padding:10px 12px;font-weight:800;opacity:.85}
+    .ref:focus{box-shadow:var(--ring)}
+    .ref-img{position:fixed;inset:0;background-size:cover;background-position:center;opacity:.16;pointer-events:none;display:none;z-index:5;background-image:url("../../assets/reference/fitpoint-home.png")}
+    .ref-img.visible{display:block}
+
+    @media (max-width:900px){
+      .panel-inner{grid-template-columns:1fr}
+      .pdp{grid-template-columns:1fr}
+      .alt-grid{grid-template-columns:1fr}
+      .more{grid-template-columns:repeat(3,1fr)}
+    }
+    :focus-visible{outline:none;box-shadow:var(--ring)}
+    .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden;white-space:nowrap}
+  </style>
+</head>
+<body>
+  <div class="ref-img" id="refImage" aria-hidden="true"></div>
+
+  <div class="app" role="application" aria-label="Fitpoint mock">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand" aria-label="Fitpoint logo">
+        <div class="brand-badge" aria-hidden="true"></div>
+        <div class="brand-title">
+          <span style="font-size:18px">FITPOINT<span style="color:var(--fp-primary)">.EE</span></span>
+          <small>Sports & Nutrition</small>
+        </div>
+      </div>
+
+      <!-- Search with bolt -->
+      <div class="search-wrap" aria-label="Global search">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M21 21l-4.3-4.3m1.8-5.1a7 7 0 11-14 0 7 7 0 0114 0z" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <label for="search" class="visually-hidden">Search</label>
+        <input id="search" class="search-input" placeholder="Search whey, creatine, goals…" autocomplete="off" />
+        <button class="bolt" id="boltBtn" aria-label="Open command palette"><span>⚡</span></button>
+        <span class="kbd" aria-hidden="true">⌘K</span>
+      </div>
+
+      <div class="actions">
+        <span class="kbd" aria-hidden="true">EN</span>
+        <div class="cart-pill" aria-live="polite">Cart · <span id="cartCount">2</span></div>
+      </div>
+
+      <!-- Enhanced Search Panel -->
+      <div id="searchPanel" class="panel visible" role="dialog" aria-label="Enhanced search panel" aria-modal="false">
+        <div class="panel-inner">
+          <!-- Products column WITH Add -->
+          <div class="col">
+            <h4>Products</h4>
+
+            <!-- Each product has data-* so the popover can show flavors -->
+            <div class="product" role="listitem">
+              <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="64" height="64" style="border-radius:10px">
+              <div>
+                <div style="font-weight:800">Whey Protein Isolate — Vanilla</div>
+                <div class="muted" style="font-size:12px">1kg • 26g protein <span class="badge">In stock</span> <span class="badge">2-day delivery</span></div>
+              </div>
+              <div style="display:grid;gap:6px;justify-items:end">
+                <div class="price">€42.90</div>
+                <button class="add js-add" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>Add</button>
+              </div>
+            </div>
+
+            <div class="product">
+              <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="64" height="64" style="border-radius:10px">
+              <div>
+                <div style="font-weight:800">Creatine Monohydrate — 300g</div>
+                <div class="muted" style="font-size:12px">Top rated <span class="badge">In stock</span></div>
+              </div>
+              <div style="display:grid;gap:6px;justify-items:end">
+                <div class="price">€19.50</div>
+                <button class="add js-add" data-name="Creatine Monohydrate" data-flavors='[]'>Add</button>
+              </div>
+            </div>
+
+            <div class="product">
+              <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="64" height="64" style="border-radius:10px">
+              <div>
+                <div style="font-weight:800">BCAA 2:1:1 — Tropical</div>
+                <div class="muted" style="font-size:12px">Low sugar <span class="badge">In stock</span></div>
+              </div>
+              <div style="display:grid;gap:6px;justify-items:end">
+                <div class="price">€15.90</div>
+                <button class="add js-add" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>Add</button>
+              </div>
+            </div>
+
+            <div class="product">
+              <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="64" height="64" style="border-radius:10px">
+              <div>
+                <div style="font-weight:800">Omega-3 Softgels (120)</div>
+                <div class="muted" style="font-size:12px">Heart <span class="badge">In stock</span></div>
+              </div>
+              <div style="display:grid;gap:6px;justify-items:end">
+                <div class="price">€12.40</div>
+                <button class="add js-add" data-name="Omega-3 Softgels" data-flavors='[]'>Add</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Goals -->
+          <div class="col">
+            <h4>Goals</h4>
+            <button class="chip" role="switch" aria-pressed="false">Lean muscle<span class="pill">+ protein plan</span></button>
+            <button class="chip" role="switch" aria-pressed="true">Strength<span class="pill">+ electrolytes</span></button>
+            <button class="chip" role="switch" aria-pressed="false">Healthy weight<span class="pill">+ calorie guide</span></button>
+            <button class="chip" role="switch" aria-pressed="false">General wellness<span class="pill">+ daily essentials</span></button>
+            <div class="divider"></div>
+            <div class="muted" style="font-size:12px">Filters</div>
+            <button class="chip" role="switch" aria-pressed="false">Lactose-free</button>
+            <button class="chip" role="switch" aria-pressed="false">Vegan</button>
+            <button class="chip" role="switch" aria-pressed="false">Low sugar</button>
+            <button class="chip" role="switch" aria-pressed="false">Budget-friendly</button>
+          </div>
+
+          <!-- Content -->
+          <div class="col">
+            <h4>Content</h4>
+            <div class="content-card">
+              <div style="font-weight:800">How to time creatine?</div>
+              <div class="muted" style="font-size:12px">3-min read <span class="tag">Guide</span></div>
+            </div>
+            <div class="content-card">
+              <div style="font-weight:800">Whey vs Plant: which is better?</div>
+              <div class="muted" style="font-size:12px">5-min read <span class="tag">Article</span></div>
+            </div>
+            <div class="content-card">
+              <div style="font-weight:800">Electrolytes explained</div>
+              <div class="muted" style="font-size:12px">4-min read <span class="tag">Article</span></div>
+            </div>
+            <div class="content-card">
+              <div style="font-weight:800">Beginner stack checklist</div>
+              <div class="muted" style="font-size:12px">Printable <span class="tag">Checklist</span></div>
+            </div>
+            <button class="btn-ghost" style="width:100%;margin-top:6px">Open Coach</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- PDP Copilot -->
+    <section class="pdp" aria-label="Product detail with copilot">
+      <!-- Left -->
+      <div class="card">
+        <div class="title">
+          <span class="badge" style="background:#fff3d4;border-color:#ffe099;color:#6f4e00">Bestseller</span>
+          <h2 style="margin:0;font-size:20px">Ultra Whey Protein 2kg — <span id="pdpFlavorLabel">Chocolate</span></h2>
+        </div>
+        <div class="muted" style="font-size:14px"><span class="stars">★★★★★</span> (238) • <strong>€54.90</strong></div>
+
+        <!-- Flavor selector (PDP) -->
+        <div class="flavors" role="group" aria-label="Choose flavor">
+          <button class="flavor" aria-pressed="true" data-flavor="Chocolate">Chocolate</button>
+          <button class="flavor" aria-pressed="false" data-flavor="Vanilla">Vanilla</button>
+          <button class="flavor" aria-pressed="false" data-flavor="Cookies &amp; Cream">Cookies &amp; Cream</button>
+        </div>
+
+        <!-- PDP primary CTA: quantity + Add to cart -->
+        <div class="pdp-cta">
+          <div class="qty-inline" aria-label="Choose quantity">
+            <button id="pdpQtyMinus" aria-label="Decrease">−</button>
+            <span id="pdpQtyVal" aria-live="polite">1</span>
+            <button id="pdpQtyPlus" aria-label="Increase">+</button>
+          </div>
+          <button
+            class="pdp-add js-add"
+            id="pdpAdd"
+            data-name="Ultra Whey Protein 2kg"
+            data-flavors='["Chocolate","Vanilla","Cookies & Cream"]'>
+            Add to cart
+          </button>
+        </div>
+
+        <div class="qa-chips" role="group" aria-label="Quick questions">
+          <button class="qa-chip" data-target="#ans1">Is this right for muscle gain?</button>
+          <button class="qa-chip" data-target="#ans2">Lactose friendly?</button>
+          <button class="qa-chip" data-target="#ans3">When to take?</button>
+        </div>
+
+        <div id="ans1" class="qa-ans"><strong>Reason.</strong> High protein per serving (24g), complete amino profile, and added BCAAs support recovery and growth.</div>
+        <div id="ans2" class="qa-ans">Contains whey (milk). If lactose-sensitive, consider <em>Whey Isolate</em> or a <em>Vegan Blend</em>.</div>
+        <div id="ans3" class="qa-ans">Take 1–2 scoops post-workout or as a snack between meals. Mix with water or milk.</div>
+
+        <div class="facts">
+          <span class="fact">24g protein/serving</span><span class="fact">Low sugar</span><span class="fact">Fast absorption</span>
+        </div>
+
+        <div class="mini">
+          <div class="box"><div style="font-size:12px;color:var(--fp-muted)">Dosage</div>1–2 scoops daily with water or milk</div>
+          <div class="box"><div style="font-size:12px;color:var(--fp-muted)">Timing</div>Within 30 mins post-workout</div>
+        </div>
+
+        <div class="bundle">
+          <img src="https://picsum.photos/seed/cr/60/60" alt="Creatine add-on" style="border-radius:10px">
+          <div><strong>Add Creatine Monohydrate</strong><div class="muted" style="font-size:12px">for better strength gains</div></div>
+          <button class="btn">Add bundle €18.90</button>
+        </div>
+
+        <!-- Tabs: Description / Composition / Reviews -->
+        <div class="tabs" aria-label="Product information">
+          <div class="tablist" role="tablist">
+            <button class="tab" role="tab" aria-selected="true" aria-controls="tab-desc" id="tab-desc-btn">Description</button>
+            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-comp" id="tab-comp-btn">Composition</button>
+            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-rev" id="tab-rev-btn">Reviews</button>
+          </div>
+
+          <div class="tabpanel active" id="tab-desc" role="tabpanel" aria-labelledby="tab-desc-btn">
+            OstroVit 100% Whey Protein is a source of whey protein concentrate with 21&nbsp;g protein per serving, low fat and sugar,
+            excellent solubility and digestibility. Designed for athletes and active people.
+            <ul>
+              <li>21 g protein per serving</li>
+              <li>4.8 g BCAA per serving</li>
+              <li>No added sugar • Various flavor options</li>
+            </ul>
+          </div>
+
+          <div class="tabpanel" id="tab-comp" role="tabpanel" aria-labelledby="tab-comp-btn">
+            <table>
+              <thead><tr><th>Per serving</th><th>30 g</th><th>60 g</th><th>100 g</th></tr></thead>
+              <tbody>
+                <tr><td>Energy</td><td>479 kJ / 113 kcal</td><td>957 kJ / 226 kcal</td><td>1595 kJ / 377 kcal</td></tr>
+                <tr><td>Fats</td><td>0.7 g</td><td>1.3 g</td><td>2.2 g</td></tr>
+                <tr><td>Carbohydrates</td><td>4.5 g</td><td>9.0 g</td><td>15 g</td></tr>
+                <tr><td>— of which sugar</td><td>1.9 g</td><td>3.8 g</td><td>6.4 g</td></tr>
+                <tr><td>Protein</td><td>21 g</td><td>42 g</td><td>70 g</td></tr>
+                <tr><td>Salt</td><td>0.13 g</td><td>0.25 g</td><td>0.42 g</td></tr>
+            </tbody></table>
+            <p class="muted" style="font-size:12px;margin-top:8px">Ingredients: Whey protein concentrate (milk), emulsifier (soy lecithin), flavoring, sweetener (sucralose).</p>
+          </div>
+
+          <div class="tabpanel" id="tab-rev" role="tabpanel" aria-labelledby="tab-rev-btn">
+            <p class="muted">There are no reviews for this product yet.</p>
+            <button class="btn-ghost">Write a review</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right -->
+      <aside class="card">
+        <h3 style="margin:0 0 8px">Alternatives</h3>
+        <div class="alt-grid">
+          <div class="sku">
+            <img src="https://picsum.photos/seed/iso/240/140" alt="Whey Isolate Vanilla" style="border-radius:12px">
+            <div style="margin-top:6px;font-weight:800">Whey Isolate — Vanilla</div>
+            <div class="muted" style="font-size:12px">Lactose-reduced • 26g</div>
+            <div style="font-weight:800;margin-top:4px">€62.00</div>
+            <button class="btn">View</button>
+          </div>
+          <div class="sku">
+            <img src="https://picsum.photos/seed/veg/240/140" alt="Vegan Protein Blend" style="border-radius:12px">
+            <div style="margin-top:6px;font-weight:800">Vegan Protein Blend</div>
+            <div class="muted" style="font-size:12px">Pea + Rice • smooth</div>
+            <div style="font-weight:800;margin-top:4px">€49.90</div>
+            <button class="btn">View</button>
+          </div>
+        </div>
+
+        <h3 style="margin:16px 0 8px">More picks</h3>
+        <div class="more">
+          <div class="sku"><img src="https://picsum.photos/seed/c1/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Protein Cookies<br><strong>€3.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c2/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Protein Bars (12)<br><strong>€21.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c3/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">BCAA Powder<br><strong>€15.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c4/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Glutamine<br><strong>€12.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c5/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Omega-3<br><strong>€9.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c6/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Electrolytes<br><strong>€7.90</strong></div></div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <!-- Command palette -->
+  <div class="overlay" id="overlay" aria-hidden="true"></div>
+  <section class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="pal-head">
+      <input class="pal-input" id="palInput" placeholder="Find products, goals, content, actions…" aria-label="Command palette search">
+      <span class="kbd" aria-hidden="true">Esc</span>
+    </div>
+    <div class="pal-body" role="listbox" aria-label="Palette results">
+      <div class="row"><div class="key">KB</div><div><div style="font-weight:800">Adjustable Kettlebell</div><div style="font-size:12px;color:var(--fp-muted)">From €99 • Strength</div></div><button class="btn-ghost">Select</button></div>
+      <div class="row"><div class="key">PR</div><div><div style="font-weight:800">Whey Protein Isolate</div><div style="font-size:12px;color:var(--fp-muted)">1kg • Vanilla</div></div><button class="btn-ghost">Select</button></div>
+      <div class="row"><div class="key">%</div><div><div style="font-weight:800">Apply discount code</div><div style="font-size:12px;color:var(--fp-muted)">Enter coupon at checkout</div></div><button class="btn-ghost">Run</button></div>
+      <div class="row"><div class="key">?</div><div><div style="font-weight:800">Contact support</div><div style="font-size:12px;color:var(--fp-muted)">Chat or email</div></div><button class="btn-ghost">Open</button></div>
+    </div>
+  </section>
+
+  <!-- Flavor picker popover -->
+  <div class="pop" id="flavorPop" role="dialog" aria-modal="true" aria-labelledby="flavorTitle">
+    <button class="close" id="popClose" aria-label="Close">✕</button>
+    <h5 id="flavorTitle">Choose options</h5>
+    <div class="muted" id="flavorSubtitle" style="font-size:12px;margin-bottom:6px">Select flavor (required)</div>
+    <div class="flavors" id="flavorChips"></div>
+    <div class="qty">
+      <span class="muted" style="font-size:12px">Qty</span>
+      <button id="qtyMinus" aria-label="Decrease">−</button>
+      <span id="qtyVal" aria-live="polite">1</span>
+      <button id="qtyPlus" aria-label="Increase">+</button>
+    </div>
+    <button class="confirm" id="confirmAdd" disabled>Add to cart</button>
+  </div>
+
+  <!-- Ref button -->
+  <button class="ref" id="refBtn" aria-pressed="false" aria-label="Toggle reference overlay">Ref</button>
+
+  <script>
+    const $  = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    /* Search panel show/hide */
+    const searchInput = $('#search');
+    const searchPanel = $('#searchPanel');
+    searchInput.addEventListener('focus', ()=>searchPanel.classList.add('visible'));
+    document.addEventListener('click', (e)=>{
+      const inside = e.target.closest('.search-wrap') || e.target.closest('#searchPanel');
+      if(!inside) searchPanel.classList.remove('visible');
+    });
+
+    /* Toggle goal/filter chips */
+    $$('.chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        const on = chip.getAttribute('aria-pressed')==='true';
+        chip.setAttribute('aria-pressed', String(!on));
+      });
+    });
+
+    /* PDP Q&A chips */
+    $$('.qa-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        chip.classList.toggle('active');
+        const ans = document.querySelector(chip.dataset.target);
+        if(ans){ ans.style.display = ans.style.display==='block' ? 'none' : 'block'; }
+      });
+    });
+
+    /* PDP flavor selector */
+    const pdpFlavorLabel = $('#pdpFlavorLabel');
+    $$('.flavor').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        $$('.flavor').forEach(b=>b.setAttribute('aria-pressed','false'));
+        btn.setAttribute('aria-pressed','true');
+        pdpFlavorLabel.textContent = btn.dataset.flavor;
+      });
+    });
+
+    /* Tabs (desc/comp/rev) */
+    const tabs = $$('.tab');
+    const panels = $$('.tabpanel');
+    tabs.forEach(tab=>{
+      tab.addEventListener('click', ()=>{
+        tabs.forEach(t=>t.setAttribute('aria-selected','false'));
+        panels.forEach(p=>p.classList.remove('active'));
+        tab.setAttribute('aria-selected','true');
+        $('#'+tab.getAttribute('aria-controls')).classList.add('active');
+      });
+    });
+
+    /* Command palette */
+    const overlay = $('#overlay'), palette = $('#palette'), palInput = $('#palInput'), boltBtn = $('#boltBtn');
+    function openPalette(){ overlay.classList.add('visible'); palette.classList.add('visible'); palInput.focus(); }
+    function closePalette(){ overlay.classList.remove('visible'); palette.classList.remove('visible'); palInput.blur(); }
+    boltBtn.addEventListener('click', openPalette);
+    overlay.addEventListener('click', closePalette);
+    document.addEventListener('keydown',(e)=>{
+      if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); palette.classList.contains('visible')?closePalette():openPalette(); }
+      if(e.key==='Escape' && palette.classList.contains('visible')) closePalette();
+    });
+
+    /* Ref overlay */
+    const refBtn = $('#refBtn'), refImage = $('#refImage');
+    refBtn.addEventListener('click', ()=>{
+      const on = refImage.classList.toggle('visible');
+      refBtn.setAttribute('aria-pressed', String(on));
+    });
+
+    /* Flavor popover for Add (search panel) */
+    const pop = $('#flavorPop');
+    const flavorWrap = $('#flavorChips');
+    const flavorTitle = $('#flavorTitle');
+    const flavorSubtitle = $('#flavorSubtitle');
+    const qtyMinus = $('#qtyMinus'), qtyPlus = $('#qtyPlus'), qtyVal = $('#qtyVal'), confirmAdd = $('#confirmAdd'), popClose = $('#popClose');
+    let currentFlavor = null, currentQty = 1;
+
+    function openPopFor(button, options = {}){
+      const { initialFlavor = null, initialQty = 1 } = options;
+      // Position near the clicked Add button
+      const r = button.getBoundingClientRect();
+      pop.style.left = (r.left + window.scrollX - 40) + 'px';
+      pop.style.top  = (r.top + window.scrollY - 10 - pop.offsetHeight/2) + 'px';
+      // Set content
+      flavorTitle.textContent = 'Add: ' + (button.dataset.name || 'Product');
+      const list = JSON.parse(button.dataset.flavors || '[]');
+      flavorWrap.innerHTML = '';
+      currentFlavor = null;
+      confirmAdd.disabled = false; // default; will switch below
+      if(list.length){
+        confirmAdd.disabled = true;
+        flavorSubtitle.textContent = 'Select flavor (required)';
+        list.forEach(fl=>{
+          const b = document.createElement('button');
+          b.className = 'flavor';
+          b.setAttribute('aria-pressed','false');
+          b.textContent = fl;
+          b.addEventListener('click', ()=>{
+            Array.from(flavorWrap.children).forEach(x=>x.setAttribute('aria-pressed','false'));
+            b.setAttribute('aria-pressed','true');
+            currentFlavor = fl;
+            confirmAdd.disabled = false;
+          });
+          flavorWrap.appendChild(b);
+        });
+        // Preselect from PDP if provided
+        if(initialFlavor){
+          Array.from(flavorWrap.children).forEach(x=>{
+            if(x.textContent === initialFlavor){
+              x.click();
+            }
+          });
+        }
+      }else{
+        flavorSubtitle.textContent = 'No flavor options';
+      }
+      currentQty = Math.max(1, parseInt(initialQty,10) || 1);
+      qtyVal.textContent = String(currentQty);
+      pop.classList.add('visible');
+      confirmAdd.focus();
+    }
+    function closePop(){ pop.classList.remove('visible'); }
+    $$('.js-add').forEach(btn=>{
+      if(btn.id === 'pdpAdd') return; // custom handler below
+      btn.addEventListener('click', ()=>openPopFor(btn));
+    });
+    popClose.addEventListener('click', closePop);
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && pop.classList.contains('visible')) closePop(); });
+
+    qtyMinus.addEventListener('click', ()=>{ currentQty = Math.max(1, currentQty-1); qtyVal.textContent = String(currentQty); });
+    qtyPlus.addEventListener('click', ()=>{ currentQty = currentQty+1; qtyVal.textContent = String(currentQty); });
+
+    const cartCount = $('#cartCount');
+    confirmAdd.addEventListener('click', ()=>{
+      // Simple cart count increment for the mock
+      cartCount.textContent = String(parseInt(cartCount.textContent,10) + currentQty);
+      closePop();
+    });
+
+    /* PDP inline quantity + Add wiring */
+    const pdpQtyMinus = $('#pdpQtyMinus'), pdpQtyPlus = $('#pdpQtyPlus'), pdpQtyVal = $('#pdpQtyVal'), pdpAdd = $('#pdpAdd');
+    let pdpQty = 1;
+    if(pdpQtyMinus && pdpQtyPlus && pdpQtyVal){
+      pdpQtyMinus.addEventListener('click', ()=>{ pdpQty = Math.max(1, pdpQty-1); pdpQtyVal.textContent = String(pdpQty); });
+      pdpQtyPlus.addEventListener('click', ()=>{ pdpQty = pdpQty+1; pdpQtyVal.textContent = String(pdpQty); });
+    }
+    if(pdpAdd){
+      pdpAdd.addEventListener('click', ()=>{
+        const initialFlavor = pdpFlavorLabel ? pdpFlavorLabel.textContent : null;
+        openPopFor(pdpAdd, { initialFlavor, initialQty: pdpQty });
+      });
+    }
+  </script>
+</body>
+</html>
