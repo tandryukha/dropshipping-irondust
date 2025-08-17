@@ -187,55 +187,57 @@
       <div id="searchPanel" class="panel visible" role="dialog" aria-label="Enhanced search panel" aria-modal="false">
         <div class="panel-inner">
           <!-- Products column WITH Add -->
-          <div class="col">
+          <div class="col" id="productsCol">
             <h4>Products</h4>
 
             <!-- Each product has data-* so the popover can show flavors -->
-            <div class="product" role="listitem">
-              <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="64" height="64" style="border-radius:10px">
-              <div>
-                <div style="font-weight:800">Whey Protein Isolate — Vanilla</div>
-                <div class="muted" style="font-size:12px">1kg • 26g protein <span class="badge">In stock</span> <span class="badge">2-day delivery</span></div>
+            <div id="productsList">
+              <div class="product" role="listitem">
+                <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="64" height="64" style="border-radius:10px">
+                <div>
+                  <div style="font-weight:800">Whey Protein Isolate — Vanilla</div>
+                  <div class="muted" style="font-size:12px">1kg • 26g protein <span class="badge">In stock</span> <span class="badge">2-day delivery</span></div>
+                </div>
+                <div style="display:grid;gap:6px;justify-items:end">
+                  <div class="price">€42.90</div>
+                  <button class="add js-add" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>Add</button>
+                </div>
               </div>
-              <div style="display:grid;gap:6px;justify-items:end">
-                <div class="price">€42.90</div>
-                <button class="add js-add" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>Add</button>
-              </div>
-            </div>
 
-            <div class="product">
-              <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="64" height="64" style="border-radius:10px">
-              <div>
-                <div style="font-weight:800">Creatine Monohydrate — 300g</div>
-                <div class="muted" style="font-size:12px">Top rated <span class="badge">In stock</span></div>
+              <div class="product">
+                <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="64" height="64" style="border-radius:10px">
+                <div>
+                  <div style="font-weight:800">Creatine Monohydrate — 300g</div>
+                  <div class="muted" style="font-size:12px">Top rated <span class="badge">In stock</span></div>
+                </div>
+                <div style="display:grid;gap:6px;justify-items:end">
+                  <div class="price">€19.50</div>
+                  <button class="add js-add" data-name="Creatine Monohydrate" data-flavors='[]'>Add</button>
+                </div>
               </div>
-              <div style="display:grid;gap:6px;justify-items:end">
-                <div class="price">€19.50</div>
-                <button class="add js-add" data-name="Creatine Monohydrate" data-flavors='[]'>Add</button>
-              </div>
-            </div>
 
-            <div class="product">
-              <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="64" height="64" style="border-radius:10px">
-              <div>
-                <div style="font-weight:800">BCAA 2:1:1 — Tropical</div>
-                <div class="muted" style="font-size:12px">Low sugar <span class="badge">In stock</span></div>
+              <div class="product">
+                <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="64" height="64" style="border-radius:10px">
+                <div>
+                  <div style="font-weight:800">BCAA 2:1:1 — Tropical</div>
+                  <div class="muted" style="font-size:12px">Low sugar <span class="badge">In stock</span></div>
+                </div>
+                <div style="display:grid;gap:6px;justify-items:end">
+                  <div class="price">€15.90</div>
+                  <button class="add js-add" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>Add</button>
+                </div>
               </div>
-              <div style="display:grid;gap:6px;justify-items:end">
-                <div class="price">€15.90</div>
-                <button class="add js-add" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>Add</button>
-              </div>
-            </div>
 
-            <div class="product">
-              <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="64" height="64" style="border-radius:10px">
-              <div>
-                <div style="font-weight:800">Omega-3 Softgels (120)</div>
-                <div class="muted" style="font-size:12px">Heart <span class="badge">In stock</span></div>
-              </div>
-              <div style="display:grid;gap:6px;justify-items:end">
-                <div class="price">€12.40</div>
-                <button class="add js-add" data-name="Omega-3 Softgels" data-flavors='[]'>Add</button>
+              <div class="product">
+                <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="64" height="64" style="border-radius:10px">
+                <div>
+                  <div style="font-weight:800">Omega-3 Softgels (120)</div>
+                  <div class="muted" style="font-size:12px">Heart <span class="badge">In stock</span></div>
+                </div>
+                <div style="display:grid;gap:6px;justify-items:end">
+                  <div class="price">€12.40</div>
+                  <button class="add js-add" data-name="Omega-3 Softgels" data-flavors='[]'>Add</button>
+                </div>
               </div>
             </div>
           </div>
@@ -446,6 +448,7 @@
   <script>
     const $  = sel => document.querySelector(sel);
     const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const API_BASE = new URLSearchParams(location.search).get('api') || 'http://localhost:4000';
 
     /* Search panel show/hide */
     const searchInput = $('#search');
@@ -566,10 +569,17 @@
       confirmAdd.focus();
     }
     function closePop(){ pop.classList.remove('visible'); }
-    $$('.js-add').forEach(btn=>{
-      if(btn.id === 'pdpAdd') return; // custom handler below
-      btn.addEventListener('click', ()=>openPopFor(btn));
-    });
+    function attachAddHandlers(root){
+      const scope = root || document;
+      scope.querySelectorAll('.js-add').forEach(btn=>{
+        if(btn.id === 'pdpAdd') return; // custom handler below
+        // Avoid duplicate bindings
+        if(btn.__hasAddHandler) return;
+        btn.__hasAddHandler = true;
+        btn.addEventListener('click', ()=>openPopFor(btn));
+      });
+    }
+    attachAddHandlers(document);
     popClose.addEventListener('click', closePop);
     document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && pop.classList.contains('visible')) closePop(); });
 
@@ -595,6 +605,66 @@
         const initialFlavor = pdpFlavorLabel ? pdpFlavorLabel.textContent : null;
         openPopFor(pdpAdd, { initialFlavor, initialQty: pdpQty });
       });
+    }
+
+    /* Live search wiring (keeps everything else hard-coded) */
+    const productsList = $('#productsList');
+    function debounce(fn, delay=300){ let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), delay); }; }
+    function renderProductHTML(item){
+      const img = (item && item.images && item.images[0]) || 'https://picsum.photos/seed/p/120/120';
+      const name = (item && item.name) || 'Unnamed';
+      const priceCents = item && item.price_cents;
+      const price = typeof priceCents === 'number' ? (priceCents/100).toFixed(2) : '';
+      const currency = (item && item.currency) || 'EUR';
+      const currencySymbol = currency === 'EUR' ? '€' : '';
+      const inStock = item && item.in_stock;
+      const subtitleBits = [];
+      if(Array.isArray(item?.categories_names) && item.categories_names.length){ subtitleBits.push(item.categories_names[0]); }
+      if(typeof item?.rating === 'number' && typeof item?.review_count === 'number'){
+        subtitleBits.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
+      }
+      const subtitle = subtitleBits.join(' • ');
+      return `
+        <div class="product" role="listitem">
+          <img src="${img}" alt="${name}" width="64" height="64" style="border-radius:10px">
+          <div>
+            <div style="font-weight:800">${name}</div>
+            <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class="badge">In stock</span>':''}</div>
+          </div>
+          <div style="display:grid;gap:6px;justify-items:end">
+            <div class="price">${currencySymbol}${price}</div>
+            <button class="add js-add" data-name="${name}" data-flavors='[]'>Add</button>
+          </div>
+        </div>`;
+    }
+    async function runSearch(q){
+      if(!productsList) return;
+      const query = (q||'').trim();
+      if(query.length < 2){ return; }
+      productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
+      try{
+        const res = await fetch(API_BASE + '/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: query, filters: {}, sort: [], page: 1, size: 6 })
+        });
+        if(!res.ok){ throw new Error('HTTP '+res.status); }
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if(items.length === 0){
+          productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>';
+          return;
+        }
+        productsList.innerHTML = items.map(renderProductHTML).join('');
+        attachAddHandlers(productsList);
+      }catch(err){
+        productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
+      }
+    }
+    const debouncedSearch = debounce(runSearch, 350);
+    if(searchInput){
+      searchInput.addEventListener('input', (e)=>debouncedSearch(e.target.value));
+      searchInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); runSearch(searchInput.value); } });
     }
   </script>
 </body>
