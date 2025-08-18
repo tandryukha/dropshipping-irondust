@@ -57,7 +57,7 @@
     .panel.visible{display:block}
     .panel-inner{display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:12px;padding:16px}
     .col h4{margin:6px 0 10px;font-size:14px;color:#374151;font-weight:800;letter-spacing:.2px}
-    .product{display:grid;grid-template-columns:64px 1fr auto;gap:12px;padding:10px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:10px}
+    .product{display:grid;grid-template-columns:64px 1fr auto;gap:12px;padding:10px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:10px;cursor:pointer}
     .product:hover{box-shadow:0 8px 16px rgba(0,0,0,.06)}
     .badge{font-size:11px;padding:2px 6px;border-radius:999px;background:#ecfeff;color:#036972;border:1px solid #bbeef5}
     .price{font-weight:800}
@@ -288,12 +288,12 @@
       <div class="card">
         <div class="title">
           <span class="badge" style="background:#fff3d4;border-color:#ffe099;color:#6f4e00">Bestseller</span>
-          <h2 style="margin:0;font-size:20px">Ultra Whey Protein 2kg — <span id="pdpFlavorLabel">Chocolate</span></h2>
+          <h2 style="margin:0;font-size:20px"><span id="pdpProductName">Ultra Whey Protein 2kg</span> — <span id="pdpFlavorLabel">Chocolate</span></h2>
         </div>
-        <div class="muted" style="font-size:14px"><span class="stars">★★★★★</span> (238) • <strong>€54.90</strong></div>
+        <div class="muted" style="font-size:14px"><span class="stars" id="pdpStars">★★★★★</span> (<span id="pdpReviewCount">238</span>) • <strong id="pdpPrice">€54.90</strong></div>
 
         <!-- Flavor selector (PDP) -->
-        <div class="flavors" role="group" aria-label="Choose flavor">
+        <div class="flavors" id="pdpFlavors" role="group" aria-label="Choose flavor">
           <button class="flavor" aria-pressed="true" data-flavor="Chocolate">Chocolate</button>
           <button class="flavor" aria-pressed="false" data-flavor="Vanilla">Vanilla</button>
           <button class="flavor" aria-pressed="false" data-flavor="Cookies &amp; Cream">Cookies &amp; Cream</button>
@@ -625,7 +625,7 @@
       }
       const subtitle = subtitleBits.join(' • ');
       return `
-        <div class="product" role="listitem">
+        <div class="product" role="listitem" data-id="${item?.id||''}">
           <img src="${img}" alt="${name}" width="64" height="64" style="border-radius:10px">
           <div>
             <div style="font-weight:800">${name}</div>
@@ -657,6 +657,7 @@
         }
         productsList.innerHTML = items.map(renderProductHTML).join('');
         attachAddHandlers(productsList);
+        attachOpenHandlers(productsList);
       }catch(err){
         productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
       }
@@ -665,6 +666,90 @@
     if(searchInput){
       searchInput.addEventListener('input', (e)=>debouncedSearch(e.target.value));
       searchInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); runSearch(searchInput.value); } });
+    }
+
+    /* Product Overview wiring (open PDP from search result) */
+    function formatPrice(cents, currency){
+      if(typeof cents !== 'number') return '';
+      const symbol = currency === 'EUR' ? '€' : '';
+      return symbol + (cents/100).toFixed(2);
+    }
+    function renderStars(val){
+      if(typeof val !== 'number' || isNaN(val)) return '★★★★★';
+      const full = Math.round(Math.max(0, Math.min(5, val)));
+      return '★★★★★'.slice(0, full) + '☆☆☆☆☆'.slice(0, 5-full);
+    }
+    function extractFlavors(dynamicAttrs){
+      try{
+        const obj = dynamicAttrs || {};
+        const keys = Object.keys(obj);
+        const k = keys.find(x=>/flav|taste|maitse/i.test(x));
+        if(k && Array.isArray(obj[k])) return obj[k];
+      }catch(_){/* noop */}
+      return [];
+    }
+    const pdpProductName = $('#pdpProductName');
+    const pdpPrice = $('#pdpPrice');
+    const pdpStars = $('#pdpStars');
+    const pdpReviewCount = $('#pdpReviewCount');
+    const pdpFlavors = $('#pdpFlavors');
+    const pdpFlavorLabelEl = $('#pdpFlavorLabel');
+
+    function bindFlavorButtons(container){
+      container.querySelectorAll('.flavor').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          container.querySelectorAll('.flavor').forEach(b=>b.setAttribute('aria-pressed','false'));
+          btn.setAttribute('aria-pressed','true');
+          if(pdpFlavorLabelEl){ pdpFlavorLabelEl.textContent = btn.dataset.flavor || btn.textContent; }
+        });
+      });
+    }
+    function renderPdpFlavors(list){
+      if(!pdpFlavors) return;
+      if(!Array.isArray(list) || list.length===0){
+        pdpFlavors.innerHTML = '';
+        if(pdpFlavorLabelEl) pdpFlavorLabelEl.textContent = '';
+        pdpAdd?.setAttribute('data-flavors','[]');
+        return;
+      }
+      pdpFlavors.innerHTML = list.map((fl,idx)=>`<button class="flavor" aria-pressed="${idx===0}" data-flavor="${fl}">${fl}</button>`).join('');
+      bindFlavorButtons(pdpFlavors);
+      if(pdpFlavorLabelEl) pdpFlavorLabelEl.textContent = list[0] || '';
+      if(pdpAdd) pdpAdd.setAttribute('data-flavors', JSON.stringify(list));
+    }
+    async function openProduct(productId){
+      try{
+        const res = await fetch(API_BASE + '/products/' + encodeURIComponent(productId));
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const prod = await res.json();
+        if(pdpProductName) pdpProductName.textContent = prod?.name || 'Product';
+        if(pdpPrice) pdpPrice.textContent = formatPrice(prod?.price_cents, prod?.currency||'EUR');
+        if(pdpStars) pdpStars.textContent = renderStars(typeof prod?.rating === 'number' ? prod.rating : undefined);
+        if(pdpReviewCount) pdpReviewCount.textContent = String(prod?.review_count ?? '0');
+        const flavors = extractFlavors(prod?.dynamic_attrs);
+        renderPdpFlavors(flavors);
+        if(pdpAdd){
+          pdpAdd.setAttribute('data-name', prod?.name || 'Product');
+        }
+      }catch(err){
+        console.warn('Failed to open product', err);
+      }
+    }
+    function attachOpenHandlers(root){
+      const scope = root || document;
+      scope.querySelectorAll('#productsList .product').forEach(card=>{
+        if(card.__openHandler) return;
+        card.__openHandler = true;
+        card.addEventListener('click', (e)=>{
+          if(e.target.closest('.js-add')) return; // ignore Add click
+          const id = card.getAttribute('data-id');
+          if(id){
+            openProduct(id);
+            // hide search panel after navigating to product
+            searchPanel?.classList.remove('visible');
+          }
+        });
+      });
     }
   </script>
 </body>
