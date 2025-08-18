@@ -286,6 +286,7 @@
     <section class="pdp" aria-label="Product detail with copilot">
       <!-- Left -->
       <div class="card">
+        <img id="pdpImage" src="https://picsum.photos/seed/hero/720/360" alt="Product image" style="max-width:100%;max-height:260px;width:auto;height:auto;object-fit:contain;border-radius:12px;display:block;margin:0 auto 8px;background:#fff">
         <div class="title">
           <span class="badge" style="background:#fff3d4;border-color:#ffe099;color:#6f4e00">Bestseller</span>
           <h2 style="margin:0;font-size:20px"><span id="pdpProductName">Ultra Whey Protein 2kg</span> — <span id="pdpFlavorLabel">Chocolate</span></h2>
@@ -349,8 +350,8 @@
           </div>
 
           <div class="tabpanel active" id="tab-desc" role="tabpanel" aria-labelledby="tab-desc-btn">
-            OstroVit 100% Whey Protein is a source of whey protein concentrate with 21&nbsp;g protein per serving, low fat and sugar,
-            excellent solubility and digestibility. Designed for athletes and active people.
+            <div id="pdpDescText">OstroVit 100% Whey Protein is a source of whey protein concentrate with 21&nbsp;g protein per serving, low fat and sugar,
+            excellent solubility and digestibility. Designed for athletes and active people.</div>
             <ul>
               <li>21 g protein per serving</li>
               <li>4.8 g BCAA per serving</li>
@@ -694,6 +695,8 @@
     const pdpReviewCount = $('#pdpReviewCount');
     const pdpFlavors = $('#pdpFlavors');
     const pdpFlavorLabelEl = $('#pdpFlavorLabel');
+    const pdpImage = $('#pdpImage');
+    const pdpDescText = $('#pdpDescText');
 
     function bindFlavorButtons(container){
       container.querySelectorAll('.flavor').forEach(btn=>{
@@ -726,6 +729,14 @@
         if(pdpPrice) pdpPrice.textContent = formatPrice(prod?.price_cents, prod?.currency||'EUR');
         if(pdpStars) pdpStars.textContent = renderStars(typeof prod?.rating === 'number' ? prod.rating : undefined);
         if(pdpReviewCount) pdpReviewCount.textContent = String(prod?.review_count ?? '0');
+        if(pdpImage && Array.isArray(prod?.images) && prod.images.length){
+          pdpImage.src = prod.images[0];
+          pdpImage.alt = prod?.name || 'Product image';
+        }
+        if(pdpDescText && typeof prod?.search_text === 'string' && prod.search_text){
+          // show a concise snippet from search_text as description fallback
+          pdpDescText.textContent = prod.search_text.slice(0, 320);
+        }
         const flavors = extractFlavors(prod?.dynamic_attrs);
         renderPdpFlavors(flavors);
         if(pdpAdd){
