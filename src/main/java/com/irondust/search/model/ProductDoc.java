@@ -9,7 +9,7 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ProductDoc {
     private String id;                    // wc_<productId>
-    private String parent_id;             // null for now
+    private String parent_id;             // variation grouping id
     private String type;                  // simple|variable|bundle|grouped
     private String sku;
     private String slug;

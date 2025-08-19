@@ -3,6 +3,9 @@ package com.irondust.search.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.irondust.search.config.AppProperties;
 import com.irondust.search.model.ProductDoc;
+import com.irondust.search.model.RawProduct;
+import com.irondust.search.model.EnrichedProduct;
+import com.irondust.search.service.enrichment.EnrichmentPipeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,16 +22,19 @@ public class IngestService {
     private final WooStoreService wooStoreService;
     private final MeiliService meiliService;
     private final AppProperties appProperties;
+    private final EnrichmentPipeline enrichmentPipeline;
 
-    public IngestService(WooStoreService wooStoreService, MeiliService meiliService, AppProperties appProperties) {
+    public IngestService(WooStoreService wooStoreService, MeiliService meiliService, 
+                        AppProperties appProperties, EnrichmentPipeline enrichmentPipeline) {
         this.wooStoreService = wooStoreService;
         this.meiliService = meiliService;
         this.appProperties = appProperties;
+        this.enrichmentPipeline = enrichmentPipeline;
     }
 
     public Mono<Integer> ingestFull() {
         return wooStoreService.paginateProducts()
-                .map(this::transform)
+                .map(this::transformWithEnrichment)
                 .collectList()
                 .flatMap(allDocs -> {
                     // discover dynamic facets
@@ -39,10 +45,11 @@ public class IngestService {
                         }
                     }
                     List<String> filterable = new ArrayList<>();
-                    filterable.addAll(List.of("in_stock", "categories_slugs", "categories_ids", "brand_slug", "price_cents"));
+                    filterable.addAll(List.of("in_stock", "categories_slugs", "categories_ids", "brand_slug", "price_cents", 
+                                             "form", "diet_tags", "goal_tags", "parent_id"));
                     filterable.addAll(dynamicFacetFields);
-                    List<String> sortable = List.of("price_cents", "rating", "review_count", "in_stock");
-                    List<String> searchable = List.of("name", "search_text", "sku");
+                    List<String> sortable = List.of("price_cents", "price", "price_per_serving", "price_per_100g", "rating", "review_count", "in_stock");
+                    List<String> searchable = List.of("name", "search_text", "sku", "ingredients_key");
 
                     // ensure index and settings first, then upload in chunks
                     return meiliService.ensureIndexWithSettings(filterable, sortable, searchable)
@@ -54,7 +61,7 @@ public class IngestService {
 
     public Mono<Integer> ingestByIds(List<Long> productIds) {
         return wooStoreService.fetchProductsByIds(productIds)
-                .map(this::transform)
+                .map(this::transformWithEnrichment)
                 .collectList()
                 .flatMap(docs -> {
                     if (docs.isEmpty()) {
@@ -65,92 +72,81 @@ public class IngestService {
                 });
     }
 
-    private ProductDoc transform(JsonNode p) {
+    private ProductDoc transformWithEnrichment(JsonNode p) {
+        // Create raw product from JSON
+        RawProduct raw = RawProduct.fromJsonNode(p);
+        
+        // Apply enrichment pipeline
+        EnrichedProduct enriched = enrichmentPipeline.enrich(raw);
+        
+        // Convert enriched product to ProductDoc for Meilisearch
         ProductDoc d = new ProductDoc();
-        long productId = p.path("id").asLong();
-        d.setId("wc_" + productId);
-        d.setParent_id(null);
-        d.setType(p.path("type").asText(null));
-        d.setSku(p.path("sku").asText(null));
-        d.setSlug(p.path("slug").asText(null));
-        d.setName(p.path("name").asText(null));
-        d.setPermalink(p.path("permalink").asText(null));
+        d.setId(enriched.getId());
+        d.setParent_id(enriched.getParent_id());
+        d.setType(enriched.getType());
+        d.setSku(enriched.getSku());
+        d.setSlug(enriched.getSlug());
+        d.setName(enriched.getName());
+        d.setPermalink(enriched.getPermalink());
+        d.setPrice_cents(enriched.getPrice_cents());
+        d.setCurrency(enriched.getCurrency());
+        d.setIn_stock(enriched.getIn_stock());
+        d.setLow_stock_remaining(enriched.getLow_stock_remaining());
+        d.setRating(enriched.getRating());
+        d.setReview_count(enriched.getReview_count());
+        d.setImages(enriched.getImages());
+        d.setCategories_ids(enriched.getCategories_ids());
+        d.setCategories_slugs(enriched.getCategories_slugs());
+        d.setCategories_names(enriched.getCategories_names());
+        d.setBrand_slug(enriched.getBrand_slug());
+        d.setBrand_name(enriched.getBrand_name());
+        d.setDynamic_attrs(enriched.getDynamic_attrs());
+        d.setSearch_text(enriched.getSearch_text());
 
-        JsonNode prices = p.path("prices");
-        if (!prices.isMissingNode()) {
-            try {
-                d.setPrice_cents(Integer.parseInt(prices.path("price").asText("0")));
-            } catch (NumberFormatException e) { d.setPrice_cents(null); }
-            d.setCurrency(prices.path("currency_code").asText(null));
+        // Add enriched fields to dynamic_attrs for backward compatibility
+        Map<String, List<String>> enrichedAttrs = new LinkedHashMap<>(enriched.getDynamic_attrs() != null ? enriched.getDynamic_attrs() : new LinkedHashMap<>());
+        
+        if (enriched.getForm() != null) {
+            enrichedAttrs.put("form", List.of(enriched.getForm()));
+        }
+        if (enriched.getFlavor() != null) {
+            enrichedAttrs.put("flavor", List.of(enriched.getFlavor()));
+        }
+        if (enriched.getNet_weight_g() != null) {
+            enrichedAttrs.put("net_weight_g", List.of(String.valueOf(enriched.getNet_weight_g())));
+        }
+        if (enriched.getServings() != null) {
+            enrichedAttrs.put("servings", List.of(String.valueOf(enriched.getServings())));
+        }
+        if (enriched.getServing_size_g() != null) {
+            enrichedAttrs.put("serving_size_g", List.of(String.valueOf(enriched.getServing_size_g())));
+        }
+        if (enriched.getPrice() != null) {
+            enrichedAttrs.put("price", List.of(String.valueOf(enriched.getPrice())));
+        }
+        if (enriched.getPrice_per_serving() != null) {
+            enrichedAttrs.put("price_per_serving", List.of(String.valueOf(enriched.getPrice_per_serving())));
+        }
+        if (enriched.getPrice_per_100g() != null) {
+            enrichedAttrs.put("price_per_100g", List.of(String.valueOf(enriched.getPrice_per_100g())));
+        }
+        if (enriched.getGoal_tags() != null && !enriched.getGoal_tags().isEmpty()) {
+            enrichedAttrs.put("goal_tags", enriched.getGoal_tags());
+        }
+        if (enriched.getDiet_tags() != null && !enriched.getDiet_tags().isEmpty()) {
+            enrichedAttrs.put("diet_tags", enriched.getDiet_tags());
+        }
+        if (enriched.getIngredients_key() != null && !enriched.getIngredients_key().isEmpty()) {
+            enrichedAttrs.put("ingredients_key", enriched.getIngredients_key());
+        }
+        if (enriched.getVariant_group_id() != null) {
+            enrichedAttrs.put("variant_group_id", List.of(enriched.getVariant_group_id()));
+        }
+        if (enriched.getWarnings() != null && !enriched.getWarnings().isEmpty()) {
+            enrichedAttrs.put("warnings", enriched.getWarnings());
         }
 
-        d.setIn_stock(p.path("is_in_stock").asBoolean(false));
-        d.setLow_stock_remaining(p.path("low_stock_remaining").isInt() ? p.path("low_stock_remaining").asInt() : null);
-        d.setRating(p.path("average_rating").isNumber() ? p.path("average_rating").asDouble() : 0.0);
-        d.setReview_count(p.path("review_count").isInt() ? p.path("review_count").asInt() : 0);
-
-        List<String> images = new ArrayList<>();
-        if (p.path("images").isArray()) {
-            for (JsonNode img : p.path("images")) {
-                String src = img.path("src").asText(null);
-                if (src != null) images.add(src);
-            }
-        }
-        d.setImages(images);
-
-        List<Integer> catIds = new ArrayList<>();
-        List<String> catSlugs = new ArrayList<>();
-        List<String> catNames = new ArrayList<>();
-        if (p.path("categories").isArray()) {
-            for (JsonNode c : p.path("categories")) {
-                if (c.path("id").isInt()) catIds.add(c.path("id").asInt());
-                if (c.path("slug").isTextual()) catSlugs.add(c.path("slug").asText());
-                if (c.path("name").isTextual()) catNames.add(c.path("name").asText());
-            }
-        }
-        d.setCategories_ids(catIds);
-        d.setCategories_slugs(catSlugs);
-        d.setCategories_names(catNames);
-
-        Map<String, List<String>> dynamic = new LinkedHashMap<>();
-        String brandSlug = null;
-        String brandName = null;
-        if (p.path("attributes").isArray()) {
-            for (JsonNode a : p.path("attributes")) {
-                String taxonomy = a.path("taxonomy").asText("");
-                if (taxonomy == null || taxonomy.isBlank()) continue;
-                if (taxonomy.equals("pa_tootja")) {
-                    if (a.path("terms").isArray() && a.path("terms").size() > 0) {
-                        JsonNode t = a.path("terms").get(0);
-                        brandSlug = t.path("slug").asText(null);
-                        brandName = t.path("name").asText(null);
-                    }
-                }
-                if (taxonomy.startsWith("pa_")) {
-                    String key = "attr_" + taxonomy;
-                    List<String> vals = new ArrayList<>();
-                    if (a.path("terms").isArray()) {
-                        for (JsonNode t : a.path("terms")) {
-                            String slug = t.path("slug").asText(null);
-                            if (slug != null) vals.add(slug);
-                        }
-                    }
-                    dynamic.put(key, vals);
-                }
-            }
-        }
-        d.setBrand_slug(brandSlug);
-        d.setBrand_name(brandName);
-        d.setDynamic_attrs(dynamic);
-
-        String description = p.path("description").asText("");
-        String stripped = description.replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ").trim();
-        StringBuilder searchText = new StringBuilder();
-        if (d.getName() != null) searchText.append(d.getName()).append(' ');
-        searchText.append(stripped).append(' ');
-        if (!catNames.isEmpty()) searchText.append(String.join(" ", catNames)).append(' ');
-        if (brandName != null) searchText.append(brandName);
-        d.setSearch_text(searchText.toString().trim());
+        d.setDynamic_attrs(enrichedAttrs);
 
         return d;
     }

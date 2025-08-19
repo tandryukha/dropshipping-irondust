@@ -15,4 +15,9 @@ spring:
   main:
     web-application-type: reactive
 
+logging:
+  level:
+    com.irondust.search.service.enrichment: DEBUG
+    com.irondust.search.service.IngestService: DEBUG
+
 
