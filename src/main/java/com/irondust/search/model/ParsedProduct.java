@@ -89,8 +89,20 @@ public class ParsedProduct {
     /** 
      * Number of servings per container.
      * Extracted from WooCommerce attributes or calculated from net weight / serving size.
+     * If a range is present on the label, {@link #servings_min} and {@link #servings_max}
+     * will be populated instead and this field can remain null.
      */
     private Integer servings;
+    
+    /**
+     * Minimum number of servings when a range is provided (e.g., 30–60 servings).
+     */
+    private Integer servings_min;
+    
+    /**
+     * Maximum number of servings when a range is provided (e.g., 30–60 servings).
+     */
+    private Integer servings_max;
     
     /** 
      * Weight per serving in grams.
@@ -108,6 +120,18 @@ public class ParsedProduct {
      * Calculated when both price and servings are available.
      */
     private Double price_per_serving;
+    
+    /**
+     * Minimum price per serving when a serving range is present.
+     * Computed as price / servings_max (more servings → lower price per serving).
+     */
+    private Double price_per_serving_min;
+    
+    /**
+     * Maximum price per serving when a serving range is present.
+     * Computed as price / servings_min (fewer servings → higher price per serving).
+     */
+    private Double price_per_serving_max;
     
     /** 
      * Price per 100g in euros ((price * 100) / net_weight_g).
@@ -209,12 +233,20 @@ public class ParsedProduct {
     public void setNet_weight_g(Double net_weight_g) { this.net_weight_g = net_weight_g; }
     public Integer getServings() { return servings; }
     public void setServings(Integer servings) { this.servings = servings; }
+    public Integer getServings_min() { return servings_min; }
+    public void setServings_min(Integer servings_min) { this.servings_min = servings_min; }
+    public Integer getServings_max() { return servings_max; }
+    public void setServings_max(Integer servings_max) { this.servings_max = servings_max; }
     public Double getServing_size_g() { return serving_size_g; }
     public void setServing_size_g(Double serving_size_g) { this.serving_size_g = serving_size_g; }
     public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
     public Double getPrice_per_serving() { return price_per_serving; }
     public void setPrice_per_serving(Double price_per_serving) { this.price_per_serving = price_per_serving; }
+    public Double getPrice_per_serving_min() { return price_per_serving_min; }
+    public void setPrice_per_serving_min(Double price_per_serving_min) { this.price_per_serving_min = price_per_serving_min; }
+    public Double getPrice_per_serving_max() { return price_per_serving_max; }
+    public void setPrice_per_serving_max(Double price_per_serving_max) { this.price_per_serving_max = price_per_serving_max; }
     public Double getPrice_per_100g() { return price_per_100g; }
     public void setPrice_per_100g(Double price_per_100g) { this.price_per_100g = price_per_100g; }
     public List<String> getGoal_tags() { return goal_tags; }

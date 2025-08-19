@@ -65,7 +65,7 @@ public class IngestService {
                     filterable.addAll(List.of("in_stock", "categories_slugs", "categories_ids", "brand_slug", "price_cents", 
                                              "form", "diet_tags", "goal_tags", "parent_id"));
                     filterable.addAll(dynamicFacetFields);
-                    List<String> sortable = List.of("price_cents", "price", "price_per_serving", "price_per_100g", "rating", "review_count", "in_stock");
+                    List<String> sortable = List.of("price_cents", "price", "price_per_serving", "price_per_serving_min", "price_per_serving_max", "price_per_100g", "rating", "review_count", "in_stock");
                     List<String> searchable = List.of("name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", "synonyms_en", "synonyms_ru", "synonyms_et");
 
                     // ensure index and settings first, then upload in chunks
@@ -157,9 +157,13 @@ public class IngestService {
         d.setFlavor(enriched.getFlavor());
         d.setNet_weight_g(enriched.getNet_weight_g());
         d.setServings(enriched.getServings());
+        d.setServings_min(enriched.getServings_min());
+        d.setServings_max(enriched.getServings_max());
         d.setServing_size_g(enriched.getServing_size_g());
         d.setPrice(enriched.getPrice());
         d.setPrice_per_serving(enriched.getPrice_per_serving());
+        d.setPrice_per_serving_min(enriched.getPrice_per_serving_min());
+        d.setPrice_per_serving_max(enriched.getPrice_per_serving_max());
         d.setPrice_per_100g(enriched.getPrice_per_100g());
         d.setGoal_tags(enriched.getGoal_tags());
         d.setDiet_tags(enriched.getDiet_tags());

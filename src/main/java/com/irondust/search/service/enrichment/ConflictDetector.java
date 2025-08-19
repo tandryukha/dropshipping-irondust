@@ -31,8 +31,10 @@ public class ConflictDetector implements EnricherStep {
             }
         }
 
-        // Missing criticals
-        if (soFar.getServings() == null) warnings.add(Warn.missingCritical(raw.getId(), "servings"));
+        // Missing criticals: allow either exact servings or a range to satisfy
+        if (soFar.getServings() == null && (soFar.getServings_min() == null || soFar.getServings_max() == null)) {
+            warnings.add(Warn.missingCritical(raw.getId(), "servings"));
+        }
         if (soFar.getNet_weight_g() == null) warnings.add(Warn.missingCritical(raw.getId(), "net_weight_g"));
         if (soFar.getForm() == null) warnings.add(Warn.missingCritical(raw.getId(), "form"));
 

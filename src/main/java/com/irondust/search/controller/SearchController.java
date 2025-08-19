@@ -88,9 +88,13 @@ public class SearchController {
         d.setFlavor((String) m.get("flavor"));
         d.setNet_weight_g((m.get("net_weight_g") instanceof Number)? ((Number) m.get("net_weight_g")).doubleValue() : null);
         d.setServings((m.get("servings") instanceof Number)? ((Number) m.get("servings")).intValue() : null);
+        d.setServings_min((m.get("servings_min") instanceof Number)? ((Number) m.get("servings_min")).intValue() : null);
+        d.setServings_max((m.get("servings_max") instanceof Number)? ((Number) m.get("servings_max")).intValue() : null);
         d.setServing_size_g((m.get("serving_size_g") instanceof Number)? ((Number) m.get("serving_size_g")).doubleValue() : null);
         d.setPrice((m.get("price") instanceof Number)? ((Number) m.get("price")).doubleValue() : null);
         d.setPrice_per_serving((m.get("price_per_serving") instanceof Number)? ((Number) m.get("price_per_serving")).doubleValue() : null);
+        d.setPrice_per_serving_min((m.get("price_per_serving_min") instanceof Number)? ((Number) m.get("price_per_serving_min")).doubleValue() : null);
+        d.setPrice_per_serving_max((m.get("price_per_serving_max") instanceof Number)? ((Number) m.get("price_per_serving_max")).doubleValue() : null);
         d.setPrice_per_100g((m.get("price_per_100g") instanceof Number)? ((Number) m.get("price_per_100g")).doubleValue() : null);
         d.setGoal_tags((List<String>) m.get("goal_tags"));
         d.setDiet_tags((List<String>) m.get("diet_tags"));

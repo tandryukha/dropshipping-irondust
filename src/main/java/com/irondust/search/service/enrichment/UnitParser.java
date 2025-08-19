@@ -25,6 +25,11 @@ public class UnitParser implements EnricherStep {
         "(\\d+)\\s*(servings|annust|portsjonit|порций)", 
         Pattern.CASE_INSENSITIVE
     );
+    // Range pattern: e.g., "30-60 servings", "30–60 portsjonit", "30 to 60 servings"
+    private static final Pattern SERVINGS_RANGE_PATTERN = Pattern.compile(
+        "(\\d{1,4})\\s*(?:-|–|to)\\s*(\\d{1,4})\\s*(servings|annust|portsjonit|порций)",
+        Pattern.CASE_INSENSITIVE
+    );
     
     private static final Pattern NET_WEIGHT_PATTERN = Pattern.compile(
         "(\\d+(?:[.,]\\d+)?)\\s*(kg|g|l|ml)\\b", 
@@ -70,18 +75,30 @@ public class UnitParser implements EnricherStep {
             confidence.put("servings", 0.95);
             sources.put("servings", "attribute");
         } else {
-            servings = parseServingsFromText(raw);
-            if (servings != null) {
-                updates.put("servings", servings);
-                confidence.put("servings", 0.8);
-                sources.put("servings", "regex");
+            // Try range first
+            Integer[] srvRange = parseServingsRangeFromText(raw);
+            if (srvRange != null) {
+                updates.put("servings_min", srvRange[0]);
+                updates.put("servings_max", srvRange[1]);
+                confidence.put("servings_min", 0.85);
+                confidence.put("servings_max", 0.85);
+                sources.put("servings_min", "regex");
+                sources.put("servings_max", "regex");
             } else {
+                // Fallback to exact single value patterns
+                servings = parseServingsFromText(raw);
+                if (servings != null) {
+                    updates.put("servings", servings);
+                    confidence.put("servings", 0.8);
+                    sources.put("servings", "regex");
+                } else {
                 // Capsule/tablet specific: from attribute count or caps pattern, only if product is capsules/tabs
                 Integer caps = parseServingsForCapsOrTabs(raw, soFar);
                 if (caps != null) {
                     updates.put("servings", caps);
                     confidence.put("servings", 0.9);
                     sources.put("servings", "attribute|regex");
+                }
                 }
             }
         }
@@ -165,6 +182,27 @@ public class UnitParser implements EnricherStep {
             } catch (NumberFormatException e) {
                 warnings.add(Warn.unitAmbiguity(raw.getId(), "servings", 
                     "Failed to parse servings from text: " + matcher.group()));
+            }
+        }
+        return null;
+    }
+
+    private Integer[] parseServingsRangeFromText(RawProduct raw) {
+        String text = raw.getSearch_text();
+        if (text == null) return null;
+        Matcher matcher = SERVINGS_RANGE_PATTERN.matcher(text);
+        if (matcher.find()) {
+            try {
+                int a = Integer.parseInt(matcher.group(1));
+                int b = Integer.parseInt(matcher.group(2));
+                int min = Math.min(a, b);
+                int max = Math.max(a, b);
+                if (min > 0 && max <= 2000 && min <= max) {
+                    return new Integer[] { min, max };
+                }
+            } catch (NumberFormatException e) {
+                warnings.add(Warn.unitAmbiguity(raw.getId(), "servings", 
+                    "Failed to parse servings range from text: " + matcher.group()));
             }
         }
         return null;

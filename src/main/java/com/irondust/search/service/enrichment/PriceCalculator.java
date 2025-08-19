@@ -27,12 +27,25 @@ public class PriceCalculator implements EnricherStep {
             sources.put("price", "derived");
         }
 
-        // Calculate price per serving
+        // Calculate price per serving for exact servings
         if (soFar.getPrice() != null && soFar.getServings() != null && soFar.getServings() > 0) {
             double pricePerServing = soFar.getPrice() / soFar.getServings();
             updates.put("price_per_serving", Math.round(pricePerServing * 100.0) / 100.0);
             confidence.put("price_per_serving", 0.95);
             sources.put("price_per_serving", "derived");
+        }
+        // Calculate price per serving range when servings_min/max present
+        if (soFar.getPrice() != null && soFar.getServings_min() != null && soFar.getServings_max() != null
+                && soFar.getServings_min() > 0 && soFar.getServings_max() > 0) {
+            double p = soFar.getPrice();
+            double min = Math.round((p / soFar.getServings_max()) * 100.0) / 100.0; // lower price per serving
+            double max = Math.round((p / soFar.getServings_min()) * 100.0) / 100.0; // higher price per serving
+            updates.put("price_per_serving_min", min);
+            updates.put("price_per_serving_max", max);
+            confidence.put("price_per_serving_min", 0.95);
+            confidence.put("price_per_serving_max", 0.95);
+            sources.put("price_per_serving_min", "derived");
+            sources.put("price_per_serving_max", "derived");
         }
 
         // Calculate price per 100g (for powders)

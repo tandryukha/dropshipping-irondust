@@ -131,6 +131,12 @@ public class EnrichmentPipeline {
                 if (!ai.isEmpty()) {
                     // Fill missing core fields only
                     java.util.Set<String> fieldsFilledByAi = applyAiFill(enriched, ai);
+                    // Re-compute derived price metrics if AI filled servings or serving range/size
+                    if (fieldsFilledByAi.contains("servings") ||
+                        (fieldsFilledByAi.contains("servings_min") && fieldsFilledByAi.contains("servings_max")) ||
+                        fieldsFilledByAi.contains("serving_size_g")) {
+                        recomputeDerivedAfterAi(enriched);
+                    }
                     // Generate UX fields
                     applyAiGenerate(enriched, ai);
                     // Attach safety/conflicts metadata
@@ -163,11 +169,17 @@ public class EnrichmentPipeline {
                     }
                     // If AI filled some critical fields, drop corresponding missing-critical warnings
                     if (fieldsFilledByAi != null && !fieldsFilledByAi.isEmpty()) {
-                        allWarnings.removeIf(w ->
-                            w != null && "MISSING_CRITICAL".equals(w.getCode()) &&
-                            raw.getId().equals(w.getProductId()) &&
-                            fieldsFilledByAi.contains(w.getField())
-                        );
+                        allWarnings.removeIf(w -> {
+                            if (w == null || !"MISSING_CRITICAL".equals(w.getCode())) return false;
+                            if (!raw.getId().equals(w.getProductId())) return false;
+                            String field = w.getField();
+                            if (fieldsFilledByAi.contains(field)) return true;
+                            // Special-case: servings warning satisfied by range fills
+                            if ("servings".equals(field) && fieldsFilledByAi.contains("servings_min") && fieldsFilledByAi.contains("servings_max")) {
+                                return true;
+                            }
+                            return false;
+                        });
                     }
                     // Metadata
                     if (ai.get("ai_input_hash") instanceof String h) enriched.setAi_input_hash(h);
@@ -201,6 +213,8 @@ public class EnrichmentPipeline {
         java.util.Set<String> fieldsFilled = new java.util.LinkedHashSet<>();
         Object fillObj = ai.get("fill");
         if (!(fillObj instanceof Map<?, ?> fill)) return fieldsFilled;
+        // Log fill keys and thresholds for debugging
+        log.info("AI fill summary: product={} keys={}", enriched.getId(), fill.keySet());
         if (enriched.getForm() == null && fill.get("form") instanceof Map<?, ?> fm) {
             Object v = ((Map<String, Object>) fm).get("value");
             if (v instanceof String s) { enriched.setForm(s); fieldsFilled.add("form"); }
@@ -209,19 +223,116 @@ public class EnrichmentPipeline {
             Object v = ((Map<String, Object>) fl).get("value");
             if (v instanceof String s) { enriched.setFlavor(s); fieldsFilled.add("flavor"); }
         }
-        // Allow high-confidence AI fills for servings and serving_size_g when enabled by env
+        // Allow AI fills for critical numerics when enabled by env
         boolean allowAiCrit = Boolean.parseBoolean(System.getenv().getOrDefault("AI_ALLOW_HIGH_CONF_CRITICAL", "true"));
-        if (allowAiCrit && enriched.getServings() == null && fill.get("servings") instanceof Map<?, ?> sv) {
-            Object v = ((Map<String, Object>) sv).get("value");
-            Object c = ((Map<String, Object>) sv).get("confidence");
-            double conf = (c instanceof Number) ? ((Number) c).doubleValue() : 0.0;
-            if (conf >= 0.9 && v instanceof Number n) { enriched.setServings(n.intValue()); fieldsFilled.add("servings"); }
+        double aiCritThreshold;
+        try {
+            aiCritThreshold = Double.parseDouble(System.getenv().getOrDefault("AI_CRIT_CONF_THRESHOLD", "0.9"));
+        } catch (Exception e) {
+            aiCritThreshold = 0.9;
         }
-        if (allowAiCrit && enriched.getServing_size_g() == null && fill.get("serving_size_g") instanceof Map<?, ?> ssg) {
-            Object v = ((Map<String, Object>) ssg).get("value");
-            Object c = ((Map<String, Object>) ssg).get("confidence");
-            double conf = (c instanceof Number) ? ((Number) c).doubleValue() : 0.0;
-            if (conf >= 0.9 && v instanceof Number n) { enriched.setServing_size_g(n.doubleValue()); fieldsFilled.add("serving_size_g"); }
+        double servingsThreshold;
+        try {
+            servingsThreshold = Double.parseDouble(System.getenv().getOrDefault("AI_CONF_THRESHOLD_SERVINGS", "0.75"));
+        } catch (Exception e) {
+            servingsThreshold = Math.min(0.75, aiCritThreshold);
+        }
+        double servingSizeThreshold;
+        try {
+            servingSizeThreshold = Double.parseDouble(System.getenv().getOrDefault("AI_CONF_THRESHOLD_SERVING_SIZE_G", "0.75"));
+        } catch (Exception e) {
+            servingSizeThreshold = Math.min(0.75, aiCritThreshold);
+        }
+        log.info("AI thresholds: product={} aiCritThreshold={} servingsThreshold={} servingSizeThreshold={}",
+            enriched.getId(), aiCritThreshold, servingsThreshold, servingSizeThreshold);
+        if (allowAiCrit && enriched.getServings() == null && fill.containsKey("servings")) {
+            Object node = fill.get("servings");
+            log.info("AI fill raw: product={} field=servings class={} value={}", enriched.getId(), node != null ? node.getClass().getName() : "null", node);
+            boolean applied = false;
+            double conf = 0.0;
+            Object v = null;
+            if (node instanceof Map<?, ?> sv) {
+                v = ((Map<String, Object>) sv).get("value");
+                Object c = ((Map<String, Object>) sv).get("confidence");
+                conf = (c instanceof Number) ? ((Number) c).doubleValue() : 0.0;
+                if (conf >= servingsThreshold && v instanceof Number n) { enriched.setServings(n.intValue()); fieldsFilled.add("servings"); applied = true; }
+            } else if (node instanceof Number n) {
+                v = n;
+                conf = Math.max(servingsThreshold, 0.8); // assume reasonable confidence when model returns bare number
+                enriched.setServings(n.intValue()); fieldsFilled.add("servings"); applied = true;
+            } else if (node instanceof String s) {
+                try {
+                    int sv = Integer.parseInt(s.trim());
+                    v = sv;
+                    conf = Math.max(servingsThreshold, 0.8);
+                    enriched.setServings(sv); fieldsFilled.add("servings"); applied = true;
+                } catch (Exception ignored) {}
+            }
+            log.info("AI fill attempt: product={} field=servings value={} confidence={} threshold={} applied={}",
+                enriched.getId(), v, conf, servingsThreshold, applied);
+        }
+        if (allowAiCrit && enriched.getServings_min() == null && enriched.getServings() == null && fill.containsKey("servings_min")) {
+            Object node = fill.get("servings_min");
+            log.info("AI fill raw: product={} field=servings_min class={} value={}", enriched.getId(), node != null ? node.getClass().getName() : "null", node);
+            boolean applied = false;
+            double conf = 0.0;
+            Object v = null;
+            if (node instanceof Map<?, ?> smin) {
+                v = ((Map<String, Object>) smin).get("value");
+                Object c = ((Map<String, Object>) smin).get("confidence");
+                conf = (c instanceof Number) ? ((Number) c).doubleValue() : 0.0;
+                if (conf >= servingsThreshold && v instanceof Number n) { enriched.setServings_min(n.intValue()); fieldsFilled.add("servings_min"); applied = true; }
+            } else if (node instanceof Number n) {
+                v = n;
+                conf = Math.max(servingsThreshold, 0.8);
+                enriched.setServings_min(n.intValue()); fieldsFilled.add("servings_min"); applied = true;
+            } else if (node instanceof String s) {
+                try { int sv = Integer.parseInt(s.trim()); v = sv; conf = Math.max(servingsThreshold, 0.8); enriched.setServings_min(sv); fieldsFilled.add("servings_min"); applied = true; } catch (Exception ignored) {}
+            }
+            log.info("AI fill attempt: product={} field=servings_min value={} confidence={} threshold={} applied={}",
+                enriched.getId(), v, conf, servingsThreshold, applied);
+        }
+        if (allowAiCrit && enriched.getServings_max() == null && enriched.getServings() == null && fill.containsKey("servings_max")) {
+            Object node = fill.get("servings_max");
+            log.info("AI fill raw: product={} field=servings_max class={} value={}", enriched.getId(), node != null ? node.getClass().getName() : "null", node);
+            boolean applied = false;
+            double conf = 0.0;
+            Object v = null;
+            if (node instanceof Map<?, ?> smax) {
+                v = ((Map<String, Object>) smax).get("value");
+                Object c = ((Map<String, Object>) smax).get("confidence");
+                conf = (c instanceof Number) ? ((Number) c).doubleValue() : 0.0;
+                if (conf >= servingsThreshold && v instanceof Number n) { enriched.setServings_max(n.intValue()); fieldsFilled.add("servings_max"); applied = true; }
+            } else if (node instanceof Number n) {
+                v = n;
+                conf = Math.max(servingsThreshold, 0.8);
+                enriched.setServings_max(n.intValue()); fieldsFilled.add("servings_max"); applied = true;
+            } else if (node instanceof String s) {
+                try { int sv = Integer.parseInt(s.trim()); v = sv; conf = Math.max(servingsThreshold, 0.8); enriched.setServings_max(sv); fieldsFilled.add("servings_max"); applied = true; } catch (Exception ignored) {}
+            }
+            log.info("AI fill attempt: product={} field=servings_max value={} confidence={} threshold={} applied={}",
+                enriched.getId(), v, conf, servingsThreshold, applied);
+        }
+        if (allowAiCrit && enriched.getServing_size_g() == null && fill.containsKey("serving_size_g")) {
+            Object node = fill.get("serving_size_g");
+            log.info("AI fill raw: product={} field=serving_size_g class={} value={}", enriched.getId(), node != null ? node.getClass().getName() : "null", node);
+            boolean applied = false;
+            double conf = 0.0;
+            Object v = null;
+            if (node instanceof Map<?, ?> ssg) {
+                v = ((Map<String, Object>) ssg).get("value");
+                Object c = ((Map<String, Object>) ssg).get("confidence");
+                conf = (c instanceof Number) ? ((Number) c).doubleValue() : 0.0;
+                if (conf >= servingSizeThreshold && v instanceof Number n) { enriched.setServing_size_g(n.doubleValue()); fieldsFilled.add("serving_size_g"); applied = true; }
+            } else if (node instanceof Number n) {
+                v = n;
+                conf = Math.max(servingSizeThreshold, 0.8);
+                enriched.setServing_size_g(n.doubleValue()); fieldsFilled.add("serving_size_g"); applied = true;
+            } else if (node instanceof String s) {
+                try { double sv = Double.parseDouble(s.trim().replace(",", ".")); v = sv; conf = Math.max(servingSizeThreshold, 0.8); enriched.setServing_size_g(sv); fieldsFilled.add("serving_size_g"); applied = true; } catch (Exception ignored) {}
+            }
+            log.info("AI fill attempt: product={} field=serving_size_g value={} confidence={} threshold={} applied={}",
+                enriched.getId(), v, conf, servingSizeThreshold, applied);
         }
         if ((enriched.getIngredients_key() == null || enriched.getIngredients_key().isEmpty()) && fill.get("ingredients_key") instanceof Map<?, ?> ik) {
             Object v = ((Map<String, Object>) ik).get("value");
@@ -248,6 +359,47 @@ public class EnrichmentPipeline {
         if (faq instanceof List<?> l) enriched.setFaq((List<Map<String, String>>) (List<?>) l);
         Object syn = gen.get("synonyms_multi");
         if (syn instanceof Map<?, ?> m) enriched.setSynonyms_multi((Map<String, List<String>>) (Map<?, ?>) m);
+    }
+
+    /**
+     * Recomputes derived fields on the enriched product after AI fills critical numerics.
+     */
+    private void recomputeDerivedAfterAi(EnrichedProduct enriched) {
+        // Derive servings from serving_size_g if possible (post-AI)
+        if (enriched.getServings() == null && (enriched.getServings_min() == null || enriched.getServings_max() == null)
+                && enriched.getNet_weight_g() != null && enriched.getServing_size_g() != null
+                && enriched.getNet_weight_g() > 0 && enriched.getServing_size_g() > 0) {
+            double s = enriched.getNet_weight_g() / enriched.getServing_size_g();
+            if (s > 0 && s <= 1000) {
+                enriched.setServings((int) Math.round(s));
+            }
+        }
+
+        // Ensure price (euros)
+        if (enriched.getPrice() == null && enriched.getPrice_cents() != null) {
+            enriched.setPrice(enriched.getPrice_cents() / 100.0);
+        }
+        Double price = enriched.getPrice();
+        if (price != null) {
+            // Exact servings
+            if (enriched.getServings() != null && enriched.getServings() > 0) {
+                double pps = Math.round((price / enriched.getServings()) * 100.0) / 100.0;
+                enriched.setPrice_per_serving(pps);
+            }
+            // Range
+            if (enriched.getServings_min() != null && enriched.getServings_max() != null
+                    && enriched.getServings_min() > 0 && enriched.getServings_max() > 0) {
+                double min = Math.round((price / enriched.getServings_max()) * 100.0) / 100.0;
+                double max = Math.round((price / enriched.getServings_min()) * 100.0) / 100.0;
+                enriched.setPrice_per_serving_min(min);
+                enriched.setPrice_per_serving_max(max);
+            }
+            // price_per_100g if weight present
+            if (enriched.getNet_weight_g() != null && enriched.getNet_weight_g() > 0) {
+                double p100 = Math.round(((price * 100) / enriched.getNet_weight_g()) * 100.0) / 100.0;
+                enriched.setPrice_per_100g(p100);
+            }
+        }
     }
 
     /**
@@ -280,6 +432,12 @@ public class EnrichmentPipeline {
                 case "servings":
                     parsed.setServings((Integer) value);
                     break;
+                case "servings_min":
+                    parsed.setServings_min((Integer) value);
+                    break;
+                case "servings_max":
+                    parsed.setServings_max((Integer) value);
+                    break;
                 case "serving_size_g":
                     parsed.setServing_size_g((Double) value);
                     break;
@@ -288,6 +446,12 @@ public class EnrichmentPipeline {
                     break;
                 case "price_per_serving":
                     parsed.setPrice_per_serving((Double) value);
+                    break;
+                case "price_per_serving_min":
+                    parsed.setPrice_per_serving_min((Double) value);
+                    break;
+                case "price_per_serving_max":
+                    parsed.setPrice_per_serving_max((Double) value);
                     break;
                 case "price_per_100g":
                     parsed.setPrice_per_100g((Double) value);

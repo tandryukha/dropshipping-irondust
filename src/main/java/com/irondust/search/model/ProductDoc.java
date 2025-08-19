@@ -40,9 +40,13 @@ public class ProductDoc {
     private String flavor;
     private Double net_weight_g;
     private Integer servings;
+    private Integer servings_min;
+    private Integer servings_max;
     private Double serving_size_g;
     private Double price; // euros
     private Double price_per_serving;
+    private Double price_per_serving_min;
+    private Double price_per_serving_max;
     private Double price_per_100g;
     private List<String> goal_tags;
     private List<String> diet_tags;
@@ -107,12 +111,20 @@ public class ProductDoc {
     public void setNet_weight_g(Double net_weight_g) { this.net_weight_g = net_weight_g; }
     public Integer getServings() { return servings; }
     public void setServings(Integer servings) { this.servings = servings; }
+    public Integer getServings_min() { return servings_min; }
+    public void setServings_min(Integer servings_min) { this.servings_min = servings_min; }
+    public Integer getServings_max() { return servings_max; }
+    public void setServings_max(Integer servings_max) { this.servings_max = servings_max; }
     public Double getServing_size_g() { return serving_size_g; }
     public void setServing_size_g(Double serving_size_g) { this.serving_size_g = serving_size_g; }
     public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
     public Double getPrice_per_serving() { return price_per_serving; }
     public void setPrice_per_serving(Double price_per_serving) { this.price_per_serving = price_per_serving; }
+    public Double getPrice_per_serving_min() { return price_per_serving_min; }
+    public void setPrice_per_serving_min(Double price_per_serving_min) { this.price_per_serving_min = price_per_serving_min; }
+    public Double getPrice_per_serving_max() { return price_per_serving_max; }
+    public void setPrice_per_serving_max(Double price_per_serving_max) { this.price_per_serving_max = price_per_serving_max; }
     public Double getPrice_per_100g() { return price_per_100g; }
     public void setPrice_per_100g(Double price_per_100g) { this.price_per_100g = price_per_100g; }
     public List<String> getGoal_tags() { return goal_tags; }
