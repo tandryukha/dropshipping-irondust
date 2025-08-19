@@ -54,6 +54,8 @@ public class MeiliService {
         if (!CollectionUtils.isEmpty(searchableAttrs)) settings.put("searchableAttributes", searchableAttrs);
         if (!CollectionUtils.isEmpty(filterableAttrs)) settings.put("filterableAttributes", filterableAttrs);
         if (!CollectionUtils.isEmpty(sortableAttrs)) settings.put("sortableAttributes", sortableAttrs);
+        // Phase 1: enable distinct attribute for variation grouping
+        settings.put("distinctAttribute", "parent_id");
         return meiliClient.patch().uri("/indexes/{uid}/settings", index)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(settings)

@@ -76,7 +76,11 @@ public class Normalizer implements EnricherStep {
         List<String> formAttrs = raw.getDynamic_attrs().get("attr_pa_valjalaske-vorm");
         if (formAttrs != null && !formAttrs.isEmpty()) {
             String slug = formAttrs.get(0);
-            return FORM_MAP.get(slug);
+            String canonical = FORM_MAP.get(slug);
+            if (canonical != null) return canonical;
+            // Try stripping locale suffixes like -et, -ru, -en
+            String stripped = stripLocaleSuffix(slug);
+            return FORM_MAP.get(stripped);
         }
         return null;
     }
@@ -87,7 +91,10 @@ public class Normalizer implements EnricherStep {
         List<String> flavorAttrs = raw.getDynamic_attrs().get("attr_pa_maitse");
         if (flavorAttrs != null && !flavorAttrs.isEmpty()) {
             String slug = flavorAttrs.get(0);
-            return FLAVOR_MAP.get(slug);
+            String mapped = FLAVOR_MAP.get(slug);
+            if (mapped != null) return mapped;
+            String stripped = stripLocaleSuffix(slug);
+            return FLAVOR_MAP.get(stripped);
         }
         return null;
     }
@@ -96,6 +103,15 @@ public class Normalizer implements EnricherStep {
                                  Map<String, Double> confidence, Map<String, String> sources) {
         // This would handle any decimal normalization if needed
         // For now, we'll rely on the UnitParser to handle this
+    }
+
+    private String stripLocaleSuffix(String slug) {
+        if (slug == null) return null;
+        // Remove trailing -et/-ru/-en if present
+        if (slug.endsWith("-et") || slug.endsWith("-ru") || slug.endsWith("-en")) {
+            return slug.substring(0, Math.max(0, slug.length() - 3));
+        }
+        return slug;
     }
 
     @Override

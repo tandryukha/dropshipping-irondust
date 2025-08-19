@@ -19,5 +19,6 @@ logging:
   level:
     com.irondust.search.service.enrichment: DEBUG
     com.irondust.search.service.IngestService: DEBUG
+    com.irondust.search.service.enrichment.AIEnricher: INFO
 
 

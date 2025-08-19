@@ -49,7 +49,7 @@ public class IngestService {
                                              "form", "diet_tags", "goal_tags", "parent_id"));
                     filterable.addAll(dynamicFacetFields);
                     List<String> sortable = List.of("price_cents", "price", "price_per_serving", "price_per_100g", "rating", "review_count", "in_stock");
-                    List<String> searchable = List.of("name", "search_text", "sku", "ingredients_key");
+                    List<String> searchable = List.of("name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", "synonyms_en", "synonyms_ru", "synonyms_et");
 
                     // ensure index and settings first, then upload in chunks
                     return meiliService.ensureIndexWithSettings(filterable, sortable, searchable)
@@ -76,6 +76,9 @@ public class IngestService {
         // Create raw product from JSON
         RawProduct raw = RawProduct.fromJsonNode(p);
         
+        // Ensure warnings state is clean per product
+        enrichmentPipeline.clearWarnings();
+
         // Apply enrichment pipeline
         EnrichedProduct enriched = enrichmentPipeline.enrich(raw);
         
@@ -103,41 +106,40 @@ public class IngestService {
         d.setDynamic_attrs(enriched.getDynamic_attrs());
         d.setSearch_text(enriched.getSearch_text());
 
+        // Phase 1 parsed/enriched fields
+        d.setForm(enriched.getForm());
+        d.setFlavor(enriched.getFlavor());
+        d.setNet_weight_g(enriched.getNet_weight_g());
+        d.setServings(enriched.getServings());
+        d.setServing_size_g(enriched.getServing_size_g());
+        d.setPrice(enriched.getPrice());
+        d.setPrice_per_serving(enriched.getPrice_per_serving());
+        d.setPrice_per_100g(enriched.getPrice_per_100g());
+        d.setGoal_tags(enriched.getGoal_tags());
+        d.setDiet_tags(enriched.getDiet_tags());
+        d.setIngredients_key(enriched.getIngredients_key());
+
+        // Flatten AI synonyms if present (optional, Phase 1+)
+        if (enriched.getSynonyms_multi() != null) {
+            Map<String, java.util.List<String>> syn = enriched.getSynonyms_multi();
+            java.util.List<String> en = syn.getOrDefault("en", java.util.List.of());
+            java.util.List<String> ru = syn.getOrDefault("ru", java.util.List.of());
+            java.util.List<String> et = syn.getOrDefault("et", java.util.List.of());
+            d.setSynonyms_en(en);
+            d.setSynonyms_ru(ru);
+            d.setSynonyms_et(et);
+        }
+
+        // AI UX fields
+        d.setBenefit_snippet(enriched.getBenefit_snippet());
+        d.setFaq(enriched.getFaq());
+
         // Add enriched fields to dynamic_attrs for backward compatibility
         Map<String, List<String>> enrichedAttrs = new LinkedHashMap<>(enriched.getDynamic_attrs() != null ? enriched.getDynamic_attrs() : new LinkedHashMap<>());
         
-        if (enriched.getForm() != null) {
-            enrichedAttrs.put("form", List.of(enriched.getForm()));
-        }
+        // Keep flavor for UI compatibility (chips), leave other derived fields as top-level
         if (enriched.getFlavor() != null) {
             enrichedAttrs.put("flavor", List.of(enriched.getFlavor()));
-        }
-        if (enriched.getNet_weight_g() != null) {
-            enrichedAttrs.put("net_weight_g", List.of(String.valueOf(enriched.getNet_weight_g())));
-        }
-        if (enriched.getServings() != null) {
-            enrichedAttrs.put("servings", List.of(String.valueOf(enriched.getServings())));
-        }
-        if (enriched.getServing_size_g() != null) {
-            enrichedAttrs.put("serving_size_g", List.of(String.valueOf(enriched.getServing_size_g())));
-        }
-        if (enriched.getPrice() != null) {
-            enrichedAttrs.put("price", List.of(String.valueOf(enriched.getPrice())));
-        }
-        if (enriched.getPrice_per_serving() != null) {
-            enrichedAttrs.put("price_per_serving", List.of(String.valueOf(enriched.getPrice_per_serving())));
-        }
-        if (enriched.getPrice_per_100g() != null) {
-            enrichedAttrs.put("price_per_100g", List.of(String.valueOf(enriched.getPrice_per_100g())));
-        }
-        if (enriched.getGoal_tags() != null && !enriched.getGoal_tags().isEmpty()) {
-            enrichedAttrs.put("goal_tags", enriched.getGoal_tags());
-        }
-        if (enriched.getDiet_tags() != null && !enriched.getDiet_tags().isEmpty()) {
-            enrichedAttrs.put("diet_tags", enriched.getDiet_tags());
-        }
-        if (enriched.getIngredients_key() != null && !enriched.getIngredients_key().isEmpty()) {
-            enrichedAttrs.put("ingredients_key", enriched.getIngredients_key());
         }
         if (enriched.getVariant_group_id() != null) {
             enrichedAttrs.put("variant_group_id", List.of(enriched.getVariant_group_id()));

@@ -13,6 +13,9 @@ services:
       JAVA_OPTS: ""
       MEILI_HOST: http://meili:7700
       MEILI_KEY: local_dev_key
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      AI_ENRICH: ${AI_ENRICH:-true}
+      AI_ALLOW_HIGH_CONF_CRITICAL: ${AI_ALLOW_HIGH_CONF_CRITICAL:-true}
     ports:
       - "4000:4000"
     depends_on:

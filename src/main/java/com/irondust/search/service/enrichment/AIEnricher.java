@@ -1,0 +1,133 @@
+package com.irondust.search.service.enrichment;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.irondust.search.model.ParsedProduct;
+import com.irondust.search.model.RawProduct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+
+/**
+ * Optional AI enricher. Runs once per product when enabled via environment variables.
+ *
+ * Env:
+ *  - OPENAI_API_KEY: required to enable
+ *  - OPENAI_MODEL: optional, default gpt-4o-mini
+ *  - AI_ENRICH: if set to "true" (default true when key present), enable
+ */
+public class AIEnricher {
+    private static final Logger log = LoggerFactory.getLogger(AIEnricher.class);
+    private static final String OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final HttpClient http = HttpClient.newHttpClient();
+    private final String apiKey;
+    private final String model;
+
+    public AIEnricher() {
+        this.apiKey = System.getenv("OPENAI_API_KEY");
+        String m = System.getenv("OPENAI_MODEL");
+        this.model = (m == null || m.isBlank()) ? "gpt-4o-mini" : m;
+    }
+
+    public boolean isEnabled() {
+        if (apiKey == null || apiKey.isBlank()) return false;
+        String enabled = System.getenv("AI_ENRICH");
+        return enabled != null && enabled.equalsIgnoreCase("true");
+    }
+
+    public Map<String, Object> enrich(RawProduct raw, ParsedProduct parsed) {
+        try {
+            String input = buildInputJson(raw, parsed);
+            String inputHash = sha256Hex(input);
+
+            Map<String, Object> req = new LinkedHashMap<>();
+            req.put("model", model);
+            req.put("temperature", 0);
+            req.put("response_format", Map.of("type", "json_object"));
+            List<Map<String, String>> messages = new ArrayList<>();
+            messages.add(Map.of("role", "system", "content", "You are a product enrichment engine. Reply STRICT JSON per schema."));
+            messages.add(Map.of("role", "user", "content", buildPrompt(input)));
+            req.put("messages", messages);
+
+            String body = mapper.writeValueAsString(req);
+            log.info("AI request → product={} model={} hash={}", raw.getId(), model, inputHash);
+            HttpRequest httpReq = HttpRequest.newBuilder()
+                    .uri(URI.create(OPENAI_URL))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            HttpResponse<String> resp = http.send(httpReq, HttpResponse.BodyHandlers.ofString());
+            log.info("AI response ← product={} status={}", raw.getId(), resp.statusCode());
+            if (resp.statusCode() >= 300) {
+                log.warn("AI enrich failed status {}: {}", resp.statusCode(), resp.body());
+                return Map.of();
+            }
+            Map<String, Object> parsedResp = mapper.readValue(resp.body(), new TypeReference<Map<String, Object>>(){});
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) parsedResp.get("choices");
+            if (choices == null || choices.isEmpty()) return Map.of();
+            Map<String, Object> msg = (Map<String, Object>) ((Map<String, Object>) choices.get(0).get("message"));
+            String content = String.valueOf(msg.get("content"));
+            // content is a JSON string matching our schema
+            Map<String, Object> out = mapper.readValue(content, new TypeReference<Map<String, Object>>(){});
+            out.put("ai_input_hash", inputHash);
+            out.put("ai_enrichment_ts", System.currentTimeMillis() / 1000);
+            out.put("enrichment_version", 1);
+            return out;
+        } catch (Exception e) {
+            log.warn("AI enrichment error: {}", e.toString());
+            return Map.of();
+        }
+    }
+
+    private String buildPrompt(String inputJson) {
+        return "Given product JSON below, validate parsed fields and fill nulls; then generate UX fields. " +
+               "Return ONLY this JSON object with keys fill, generate, safety_flags, conflicts.\n" +
+               "Schema: { fill: {form, flavor, servings, serving_size_g, ingredients_key, goal_tags, diet_tags}, " +
+               "generate: {benefit_snippet, faq: [{q,a}], synonyms_multi: {en:[], ru:[], et:[]}}, safety_flags: [{flag,confidence,evidence}], " +
+               "conflicts: [{field, det_value, ai_value, evidence}] }.\n" +
+               "Rules: Prefer explicit numeric evidence. You MAY use title, slug or SKU cues like '60caps', '60vcaps', '90 tablets' as evidence for servings. " +
+               "If your value differs from the provided deterministic value, include it in 'conflicts'. Use short evidence quotes. Max 160 chars for benefit_snippet.\n" +
+               "INPUT:" + inputJson;
+    }
+
+    private String buildInputJson(RawProduct raw, ParsedProduct parsed) throws Exception {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", raw.getId());
+        m.put("name", raw.getName());
+        m.put("slug", raw.getSlug());
+        m.put("sku", raw.getSku());
+        m.put("search_text", raw.getSearch_text());
+        m.put("brand", raw.getBrand_name());
+        m.put("categories", raw.getCategories_names());
+        m.put("attrs", raw.getDynamic_attrs());
+        Map<String, Object> parsedCore = new LinkedHashMap<>();
+        parsedCore.put("form", parsed.getForm());
+        parsedCore.put("flavor", parsed.getFlavor());
+        parsedCore.put("net_weight_g", parsed.getNet_weight_g());
+        parsedCore.put("servings", parsed.getServings());
+        parsedCore.put("serving_size_g", parsed.getServing_size_g());
+        parsedCore.put("goal_tags", parsed.getGoal_tags());
+        parsedCore.put("diet_tags", parsed.getDiet_tags());
+        m.put("parsed", parsedCore);
+        return mapper.writeValueAsString(m);
+    }
+
+    private static String sha256Hex(String s) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] d = md.digest(s.getBytes(StandardCharsets.UTF_8));
+        StringBuilder sb = new StringBuilder();
+        for (byte b : d) sb.append(String.format("%02x", b));
+        return sb.toString();
+    }
+}
+
+

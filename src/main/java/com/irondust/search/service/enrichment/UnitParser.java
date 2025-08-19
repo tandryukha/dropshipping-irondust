@@ -15,6 +15,11 @@ public class UnitParser implements EnricherStep {
         "(\\d+(?:[.,]\\d+)?)\\s*(g|ml)\\s*(?:per|/)?\\s*(serving|portsjon)", 
         Pattern.CASE_INSENSITIVE
     );
+    // Fallback: capture e.g., "(5 g)" close to the word portsjon/serving in the same sentence
+    private static final Pattern SERVING_SIZE_FALLBACK = Pattern.compile(
+        "portsjon[^.!?\n]*?\\(\\s*(\\d+(?:[.,]\\d+)?)\\s*(g|ml)\\s*\\)",
+        Pattern.CASE_INSENSITIVE
+    );
     
     private static final Pattern SERVINGS_PATTERN = Pattern.compile(
         "(\\d+)\\s*(servings|annust|portsjonit|порций)", 
@@ -23,6 +28,12 @@ public class UnitParser implements EnricherStep {
     
     private static final Pattern NET_WEIGHT_PATTERN = Pattern.compile(
         "(\\d+(?:[.,]\\d+)?)\\s*(kg|g|l|ml)\\b", 
+        Pattern.CASE_INSENSITIVE
+    );
+
+    // Capsules/tablets servings pattern (title/text): e.g., "60 caps", "120 tablets"
+    private static final Pattern CAPS_SERVINGS_PATTERN = Pattern.compile(
+        "(\\d{1,4})\\s*(caps|capsules|kaps|kapslid|tablets|tabs)",
         Pattern.CASE_INSENSITIVE
     );
 
@@ -64,6 +75,14 @@ public class UnitParser implements EnricherStep {
                 updates.put("servings", servings);
                 confidence.put("servings", 0.8);
                 sources.put("servings", "regex");
+            } else {
+                // Capsule/tablet specific: from attribute count or caps pattern, only if product is capsules/tabs
+                Integer caps = parseServingsForCapsOrTabs(raw, soFar);
+                if (caps != null) {
+                    updates.put("servings", caps);
+                    confidence.put("servings", 0.9);
+                    sources.put("servings", "attribute|regex");
+                }
             }
         }
 
@@ -151,6 +170,34 @@ public class UnitParser implements EnricherStep {
         return null;
     }
 
+    private Integer parseServingsForCapsOrTabs(RawProduct raw, ParsedProduct soFar) {
+        String form = soFar != null ? soFar.getForm() : null;
+        boolean isCaps = form != null && (form.equalsIgnoreCase("capsules") || form.equalsIgnoreCase("tabs"));
+
+        // Attribute-based count first
+        if (isCaps && raw.getDynamic_attrs() != null) {
+            List<String> cnt = raw.getDynamic_attrs().get("attr_pa_tablettide-arv");
+            if (cnt != null && !cnt.isEmpty()) {
+                try {
+                    int v = Integer.parseInt(cnt.get(0));
+                    if (v > 0 && v <= 2000) return v;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        // Fallback from title/text pattern
+        if (isCaps) {
+            String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
+            Matcher m = CAPS_SERVINGS_PATTERN.matcher(text);
+            if (m.find()) {
+                try {
+                    int v = Integer.parseInt(m.group(1));
+                    if (v > 0 && v <= 2000) return v;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return null;
+    }
+
     private Double parseServingSizeFromText(RawProduct raw) {
         String text = raw.getSearch_text();
         if (text == null) return null;
@@ -166,6 +213,17 @@ public class UnitParser implements EnricherStep {
             } catch (NumberFormatException e) {
                 warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g", 
                     "Failed to parse serving size from text: " + matcher.group()));
+            }
+        }
+        // Fallback pattern
+        Matcher fb = SERVING_SIZE_FALLBACK.matcher(text);
+        if (fb.find()) {
+            try {
+                double value = Double.parseDouble(fb.group(1).replace(",", "."));
+                return value;
+            } catch (NumberFormatException e) {
+                warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g", 
+                    "Failed to parse fallback serving size: " + fb.group()));
             }
         }
         return null;
