@@ -35,6 +35,9 @@ function renderProductHTML(item){
   const inStock = item?.in_stock;
   const subtitleBits = [];
   if (Array.isArray(item?.categories_names) && item.categories_names.length) subtitleBits.push(item.categories_names[0]);
+  if (typeof item?.form === 'string' && item.form) subtitleBits.push(item.form);
+  if (typeof item?.serving_size_g === 'number') subtitleBits.push(`${item.serving_size_g} g/serv`);
+  if (typeof item?.price_per_serving === 'number') subtitleBits.push(`€${item.price_per_serving.toFixed(2)}/serv`);
   if (typeof item?.rating === 'number' && typeof item?.review_count === 'number') subtitleBits.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
   const subtitle = subtitleBits.join(' • ');
   return `
@@ -46,7 +49,7 @@ function renderProductHTML(item){
       </div>
       <div style="display:grid;gap:6px;justify-items:end">
         <div class="price">${symbol}${price}</div>
-        <button class="add js-add" data-name="${name}" data-flavors='[]'>Add</button>
+        <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>Add</button>
       </div>
     </div>`;
 }

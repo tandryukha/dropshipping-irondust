@@ -16,6 +16,11 @@ function formatPrice(cents, currency='EUR'){
   const symbol = currency === 'EUR' ? '€' : '';
   return symbol + (cents/100).toFixed(2);
 }
+function formatEuro(value, currency='EUR'){
+  if(typeof value !== 'number' || isNaN(value)) return '';
+  const symbol = currency === 'EUR' ? '€' : '';
+  return symbol + value.toFixed(2);
+}
 function extractFlavors(dynamicAttrs){
   try{
     const obj = dynamicAttrs || {};
@@ -63,6 +68,11 @@ export function mountPdp() {
     pdpQtyMinus: $('#pdpQtyMinus'),
     pdpQtyPlus: $('#pdpQtyPlus'),
     pdpQtyVal: $('#pdpQtyVal'),
+    pdpFacts: document.querySelector('.facts'),
+    qaChips: document.querySelector('.qa-chips'),
+    ans1: $('#ans1'),
+    ans2: $('#ans2'),
+    ans3: $('#ans3'),
   });
 
   // Bind existing static flavor buttons if present
@@ -98,10 +108,57 @@ export function mountPdp() {
         els.pdpImage.src = prod.images[0];
         els.pdpImage.alt = prod?.name || 'Product image';
       }
-      if (typeof prod?.search_text === 'string' && prod.search_text) {
-        els.pdpDescText.textContent = prod.search_text.slice(0, 320);
+      // Description prefers enriched benefit_snippet, falls back to search_text
+      const desc = (typeof prod?.benefit_snippet === 'string' && prod.benefit_snippet)
+        ? prod.benefit_snippet
+        : (typeof prod?.search_text === 'string' ? prod.search_text.slice(0, 320) : '');
+      if (els.pdpDescText) els.pdpDescText.textContent = desc;
+
+      // Flavors: prefer explicit flavor, else parse from dynamic attributes
+      const flavors = (()=>{
+        const fromAttrs = extractFlavors(prod?.dynamic_attrs);
+        if (Array.isArray(fromAttrs) && fromAttrs.length) return fromAttrs;
+        if (typeof prod?.flavor === 'string' && prod.flavor.trim()) return [prod.flavor.trim()];
+        return [];
+      })();
+      renderPdpFlavors(flavors);
+      if (!flavors.length && typeof prod?.flavor === 'string') {
+        els.pdpFlavorLabel.textContent = prod.flavor;
       }
-      renderPdpFlavors(extractFlavors(prod?.dynamic_attrs));
+
+      // Facts: render enriched fields if available
+      if (els.pdpFacts) {
+        const facts = [];
+        if (typeof prod?.form === 'string' && prod.form) facts.push(`Form: ${prod.form}`);
+        if (typeof prod?.net_weight_g === 'number') facts.push(`Net: ${prod.net_weight_g} g`);
+        if (typeof prod?.serving_size_g === 'number') facts.push(`Serving size: ${prod.serving_size_g} g`);
+        if (typeof prod?.servings === 'number') {
+          facts.push(`Servings: ${prod.servings}`);
+        } else if (typeof prod?.servings_min === 'number' && typeof prod?.servings_max === 'number') {
+          facts.push(`Servings: ${prod.servings_min}–${prod.servings_max}`);
+        }
+        if (typeof prod?.price_per_serving === 'number') facts.push(`Per serving: ${formatEuro(prod.price_per_serving, prod?.currency||'EUR')}`);
+        if (typeof prod?.price_per_100g === 'number') facts.push(`Per 100g: ${formatEuro(prod.price_per_100g, prod?.currency||'EUR')}`);
+        if (Array.isArray(prod?.goal_tags)) prod.goal_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
+        if (Array.isArray(prod?.diet_tags)) prod.diet_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
+        els.pdpFacts.innerHTML = facts.map(x=>`<span class="fact">${x}</span>`).join('');
+      }
+
+      // FAQ: map first three items to existing chips/answers
+      if (Array.isArray(prod?.faq) && prod.faq.length) {
+        const faqs = prod.faq.slice(0,3);
+        if (els.qaChips) {
+          els.qaChips.innerHTML = faqs.map((f, i)=>`<button class="qa-chip" data-target="#ans${i+1}">${(f?.q||'Question')}</button>`).join('');
+        }
+        const ansEls = [els.ans1, els.ans2, els.ans3];
+        faqs.forEach((f, i)=>{
+          if (!ansEls[i]) return;
+          ansEls[i].innerHTML = '';
+          const wrap = document.createElement('div');
+          wrap.textContent = f?.a || '';
+          ansEls[i].appendChild(wrap);
+        });
+      }
       els.pdpAdd?.setAttribute('data-name', prod?.name || 'Product');
     } catch(err) {
       console.warn('Failed to open product', err);

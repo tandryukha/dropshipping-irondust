@@ -85,7 +85,15 @@ public class SearchController {
         d.setSearch_text((String) m.get("search_text"));
         // phase 1 fields
         d.setForm((String) m.get("form"));
-        d.setFlavor((String) m.get("flavor"));
+        Object fl = m.get("flavor");
+        if (fl instanceof String s) {
+            d.setFlavor(s);
+        } else if (fl instanceof List<?> l && !l.isEmpty()) {
+            Object first = l.get(0);
+            if (first != null) {
+                d.setFlavor(String.valueOf(first));
+            }
+        }
         d.setNet_weight_g((m.get("net_weight_g") instanceof Number)? ((Number) m.get("net_weight_g")).doubleValue() : null);
         d.setServings((m.get("servings") instanceof Number)? ((Number) m.get("servings")).intValue() : null);
         d.setServings_min((m.get("servings_min") instanceof Number)? ((Number) m.get("servings_min")).intValue() : null);
