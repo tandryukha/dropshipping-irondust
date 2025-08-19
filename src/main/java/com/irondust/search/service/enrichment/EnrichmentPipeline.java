@@ -130,7 +130,7 @@ public class EnrichmentPipeline {
                 Map<String, Object> ai = aiEnricher.enrich(raw, parsed);
                 if (!ai.isEmpty()) {
                     // Fill missing core fields only
-                    applyAiFill(enriched, ai);
+                    java.util.Set<String> fieldsFilledByAi = applyAiFill(enriched, ai);
                     // Generate UX fields
                     applyAiGenerate(enriched, ai);
                     // Attach safety/conflicts metadata
@@ -138,18 +138,36 @@ public class EnrichmentPipeline {
                         enriched.setSafety_flags((List<Map<String, Object>>) (List<?>) s);
                     }
                     if (ai.get("conflicts") instanceof List<?> c) {
-                        enriched.setConflicts((List<Map<String, Object>>) (List<?>) c);
-                        for (Object o : c) {
-                            if (o instanceof Map<?, ?> m) {
-                                allWarnings.add(Warn.fieldConflict(
-                                    raw.getId(),
-                                    String.valueOf(m.get("field")),
-                                    String.valueOf(m.get("det_value")),
-                                    String.valueOf(m.get("ai_value")),
-                                    String.valueOf(m.get("evidence"))
-                                ));
+                        // Filter out conflicts where deterministic value is null (not a true conflict)
+                        List<Map<String, Object>> conflictsRaw = (List<Map<String, Object>>) (List<?>) c;
+                        List<Map<String, Object>> filteredConflicts = new ArrayList<>();
+                        for (Object o : conflictsRaw) {
+                            if (!(o instanceof Map<?, ?>)) continue;
+                            Map<String, Object> m = (Map<String, Object>) o;
+                            Object detVal = m.get("det_value");
+                            if (detVal == null) {
+                                continue; // skip pseudo-conflicts when no deterministic value exists
                             }
+                            filteredConflicts.add(m);
+                            allWarnings.add(Warn.fieldConflict(
+                                raw.getId(),
+                                String.valueOf(m.get("field")),
+                                String.valueOf(detVal),
+                                String.valueOf(m.get("ai_value")),
+                                String.valueOf(m.get("evidence"))
+                            ));
                         }
+                        if (!filteredConflicts.isEmpty()) {
+                            enriched.setConflicts(filteredConflicts);
+                        }
+                    }
+                    // If AI filled some critical fields, drop corresponding missing-critical warnings
+                    if (fieldsFilledByAi != null && !fieldsFilledByAi.isEmpty()) {
+                        allWarnings.removeIf(w ->
+                            w != null && "MISSING_CRITICAL".equals(w.getCode()) &&
+                            raw.getId().equals(w.getProductId()) &&
+                            fieldsFilledByAi.contains(w.getField())
+                        );
                     }
                     // Metadata
                     if (ai.get("ai_input_hash") instanceof String h) enriched.setAi_input_hash(h);
@@ -179,16 +197,17 @@ public class EnrichmentPipeline {
     }
 
     @SuppressWarnings("unchecked")
-    private void applyAiFill(EnrichedProduct enriched, Map<String, Object> ai) {
+    private java.util.Set<String> applyAiFill(EnrichedProduct enriched, Map<String, Object> ai) {
+        java.util.Set<String> fieldsFilled = new java.util.LinkedHashSet<>();
         Object fillObj = ai.get("fill");
-        if (!(fillObj instanceof Map<?, ?> fill)) return;
+        if (!(fillObj instanceof Map<?, ?> fill)) return fieldsFilled;
         if (enriched.getForm() == null && fill.get("form") instanceof Map<?, ?> fm) {
             Object v = ((Map<String, Object>) fm).get("value");
-            if (v instanceof String s) enriched.setForm(s);
+            if (v instanceof String s) { enriched.setForm(s); fieldsFilled.add("form"); }
         }
         if (enriched.getFlavor() == null && fill.get("flavor") instanceof Map<?, ?> fl) {
             Object v = ((Map<String, Object>) fl).get("value");
-            if (v instanceof String s) enriched.setFlavor(s);
+            if (v instanceof String s) { enriched.setFlavor(s); fieldsFilled.add("flavor"); }
         }
         // Allow high-confidence AI fills for servings and serving_size_g when enabled by env
         boolean allowAiCrit = Boolean.parseBoolean(System.getenv().getOrDefault("AI_ALLOW_HIGH_CONF_CRITICAL", "true"));
@@ -196,26 +215,27 @@ public class EnrichmentPipeline {
             Object v = ((Map<String, Object>) sv).get("value");
             Object c = ((Map<String, Object>) sv).get("confidence");
             double conf = (c instanceof Number) ? ((Number) c).doubleValue() : 0.0;
-            if (conf >= 0.9 && v instanceof Number n) enriched.setServings(n.intValue());
+            if (conf >= 0.9 && v instanceof Number n) { enriched.setServings(n.intValue()); fieldsFilled.add("servings"); }
         }
         if (allowAiCrit && enriched.getServing_size_g() == null && fill.get("serving_size_g") instanceof Map<?, ?> ssg) {
             Object v = ((Map<String, Object>) ssg).get("value");
             Object c = ((Map<String, Object>) ssg).get("confidence");
             double conf = (c instanceof Number) ? ((Number) c).doubleValue() : 0.0;
-            if (conf >= 0.9 && v instanceof Number n) enriched.setServing_size_g(n.doubleValue());
+            if (conf >= 0.9 && v instanceof Number n) { enriched.setServing_size_g(n.doubleValue()); fieldsFilled.add("serving_size_g"); }
         }
         if ((enriched.getIngredients_key() == null || enriched.getIngredients_key().isEmpty()) && fill.get("ingredients_key") instanceof Map<?, ?> ik) {
             Object v = ((Map<String, Object>) ik).get("value");
-            if (v instanceof List<?> l) enriched.setIngredients_key((List<String>) (List<?>) l);
+            if (v instanceof List<?> l) { enriched.setIngredients_key((List<String>) (List<?>) l); fieldsFilled.add("ingredients_key"); }
         }
         if ((enriched.getGoal_tags() == null || enriched.getGoal_tags().isEmpty()) && fill.get("goal_tags") instanceof Map<?, ?> gt) {
             Object v = ((Map<String, Object>) gt).get("value");
-            if (v instanceof List<?> l) enriched.setGoal_tags((List<String>) (List<?>) l);
+            if (v instanceof List<?> l) { enriched.setGoal_tags((List<String>) (List<?>) l); fieldsFilled.add("goal_tags"); }
         }
         if ((enriched.getDiet_tags() == null || enriched.getDiet_tags().isEmpty()) && fill.get("diet_tags") instanceof Map<?, ?> dt) {
             Object v = ((Map<String, Object>) dt).get("value");
-            if (v instanceof List<?> l) enriched.setDiet_tags((List<String>) (List<?>) l);
+            if (v instanceof List<?> l) { enriched.setDiet_tags((List<String>) (List<?>) l); fieldsFilled.add("diet_tags"); }
         }
+        return fieldsFilled;
     }
 
     @SuppressWarnings("unchecked")

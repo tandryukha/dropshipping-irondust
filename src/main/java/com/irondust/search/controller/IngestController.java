@@ -4,8 +4,10 @@ import com.irondust.search.config.AppProperties;
 import com.irondust.search.service.IngestService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 import java.util.Map;
 import java.util.List;
@@ -23,15 +25,15 @@ public class IngestController {
         this.appProperties = appProperties;
     }
 
-    @PostMapping("/full")
+    @PostMapping(value = "/full", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<IngestDtos.IngestReport>> ingestFull(@RequestHeader(value = "x-admin-key", required = false) String adminKey) {
         if (adminKey == null || !adminKey.equals(appProperties.getAdminKey())) {
             return Mono.just(ResponseEntity.status(401).build());
         }
-        return ingestService.ingestFull().map(report -> ResponseEntity.ok(report));
+        return ingestService.ingestFull().map(ResponseEntity::ok);
     }
 
-    @PostMapping("/products")
+    @PostMapping(value = "/products", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<IngestDtos.IngestReport>> ingestProducts(
             @RequestHeader(value = "x-admin-key", required = false) String adminKey,
             @RequestBody IngestDtos.TargetedIngestRequest body) {
@@ -47,8 +49,10 @@ public class IngestController {
             return Mono.just(ResponseEntity.badRequest().body(empty));
         }
         return ingestService.ingestByIds(body.getIds())
-                .map(report -> ResponseEntity.ok(report));
+                .map(ResponseEntity::ok);
     }
+
+    // Removed SSE streaming endpoint
 }
 
 

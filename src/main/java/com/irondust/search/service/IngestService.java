@@ -35,7 +35,17 @@ public class IngestService {
 
     public Mono<IngestDtos.IngestReport> ingestFull() {
         return wooStoreService.paginateProducts()
-                .map(this::transformWithEnrichmentWithReport)
+                .index()
+                .map(tuple -> {
+                    int current = (int) (tuple.getT1() + 1);
+                    JsonNode json = tuple.getT2();
+                    DocWithReport r = transformWithEnrichmentWithReport(json);
+                    int warnCount = r.report.getWarnings() != null ? r.report.getWarnings().size() : 0;
+                    int confCount = r.report.getConflicts() != null ? r.report.getConflicts().size() : 0;
+                    log.info("Full ingest progress: {} items processed so far; id={} warnings={} conflicts={}",
+                            current, r.report.getId(), warnCount, confCount);
+                    return r;
+                })
                 .collectList()
                 .flatMap(results -> {
                     List<ProductDoc> allDocs = new ArrayList<>();
@@ -68,7 +78,19 @@ public class IngestService {
 
     public Mono<IngestDtos.IngestReport> ingestByIds(List<Long> productIds) {
         return wooStoreService.fetchProductsByIds(productIds)
-                .map(this::transformWithEnrichmentWithReport)
+                .index()
+                .map(tuple -> {
+                    int current = (int) (tuple.getT1() + 1);
+                    JsonNode json = tuple.getT2();
+                    DocWithReport r = transformWithEnrichmentWithReport(json);
+                    int total = productIds.size();
+                    int pct = (int) Math.round((current * 100.0) / Math.max(total, 1));
+                    int warnCount = r.report.getWarnings() != null ? r.report.getWarnings().size() : 0;
+                    int confCount = r.report.getConflicts() != null ? r.report.getConflicts().size() : 0;
+                    log.info("Targeted ingest progress: {}/{} ({}%) id={} warnings={} conflicts={}",
+                            current, total, pct, r.report.getId(), warnCount, confCount);
+                    return r;
+                })
                 .collectList()
                 .flatMap(results -> {
                     if (results.isEmpty()) {
@@ -84,6 +106,8 @@ public class IngestService {
                             .then(Mono.fromSupplier(() -> buildReport(docs.size(), reports)));
                 });
     }
+
+    // Removed streaming SSE helpers; using only final JSON report endpoints
 
     private static class DocWithReport {
         final ProductDoc doc;

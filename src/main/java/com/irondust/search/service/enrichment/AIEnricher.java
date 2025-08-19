@@ -95,7 +95,8 @@ public class AIEnricher {
                "generate: {benefit_snippet, faq: [{q,a}], synonyms_multi: {en:[], ru:[], et:[]}}, safety_flags: [{flag,confidence,evidence}], " +
                "conflicts: [{field, det_value, ai_value, evidence}] }.\n" +
                "Rules: Prefer explicit numeric evidence. You MAY use title, slug or SKU cues like '60caps', '60vcaps', '90 tablets' as evidence for servings. " +
-               "If your value differs from the provided deterministic value, include it in 'conflicts'. Use short evidence quotes. Max 160 chars for benefit_snippet.\n" +
+               "Only include a conflict when a deterministic value exists (det_value != null) AND you have a different value; if det_value is null, put your value under 'fill' only. " +
+               "Use short evidence quotes. Max 160 chars for benefit_snippet.\n" +
                "INPUT:" + inputJson;
     }
 

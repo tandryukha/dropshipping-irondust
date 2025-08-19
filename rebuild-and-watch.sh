@@ -9,6 +9,24 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}🔄 Rebuilding and restarting backend services...${NC}"
 
+# Safer bash settings
+set -euo pipefail
+
+# Load environment from .env so docker-compose gets consistent vars in all calls
+if [ -f .env ]; then
+	echo -e "${YELLOW}🗂️  Loading environment from .env...${NC}"
+	set -a
+	. ./.env
+	set +a
+else
+	echo -e "${YELLOW}⚠️  .env not found. Ensure OPENAI_API_KEY is exported in your shell if AI enrichment is desired.${NC}"
+fi
+
+# Quick sanity note about AI env
+if [ -z "${OPENAI_API_KEY:-}" ]; then
+	echo -e "${YELLOW}⚠️  OPENAI_API_KEY is empty. AI enrichment will be disabled by the app.${NC}"
+fi
+
 # Check if docker-compose is running and stop it
 if docker-compose ps | grep -q "Up"; then
     echo -e "${YELLOW}📦 Stopping running docker-compose services...${NC}"
@@ -20,11 +38,11 @@ echo -e "${YELLOW}🔨 Stopping and removing API service...${NC}"
 docker-compose stop api && docker-compose rm -f api
 
 echo -e "${YELLOW}🔨 Rebuilding and starting API service with environment variables...${NC}"
-OPENAI_API_KEY=$(grep -m1 '^OPENAI_API_KEY=' .env | cut -d'=' -f2-) AI_ENRICH=true docker-compose up -d --build api | cat
+AI_ENRICH="${AI_ENRICH:-true}" docker-compose up -d --build api | cat
 
-# Start other services if they exist
+# Start other services if they exist (avoid recreating API with different env)
 echo -e "${YELLOW}🚀 Starting other services...${NC}"
-docker-compose up -d
+docker-compose up -d --no-recreate
 
 # Wait a moment for services to fully start
 echo -e "${YELLOW}⏳ Waiting for services to start...${NC}"
