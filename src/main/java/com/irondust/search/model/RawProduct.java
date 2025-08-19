@@ -7,35 +7,108 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Represents raw product data as received from WooCommerce Store API.
+ * This is the initial data structure before any enrichment or processing.
+ * 
+ * <p>RawProduct contains all the original fields from WooCommerce including:
+ * <ul>
+ *   <li>Basic product information (id, name, sku, etc.)</li>
+ *   <li>Pricing and inventory data</li>
+ *   <li>Categories and brand information</li>
+ *   <li>Dynamic attributes (WooCommerce product attributes)</li>
+ *   <li>Search text (concatenated from name, description, categories)</li>
+ * </ul>
+ * 
+ * <p>This class serves as the input to the enrichment pipeline and should not
+ * be modified during processing. All enrichment results are stored in
+ * {@link ParsedProduct} and {@link EnrichedProduct}.
+ * 
+ * @see ParsedProduct
+ * @see EnrichedProduct
+ * @see com.irondust.search.service.enrichment.EnrichmentPipeline
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class RawProduct {
-    private String id;                    // wc_<productId>
-    private String type;                  // simple|variable|bundle|grouped
+    /** Unique product identifier in format "wc_<productId>" */
+    private String id;
+    
+    /** Product type: simple, variable, bundle, grouped */
+    private String type;
+    
+    /** Stock keeping unit */
     private String sku;
+    
+    /** URL-friendly product slug */
     private String slug;
+    
+    /** Product display name */
     private String name;
+    
+    /** Full product URL */
     private String permalink;
+    
+    /** Product description (HTML content) */
     private String description;
 
+    /** Price in cents */
     private Integer price_cents;
+    
+    /** Currency code (e.g., "EUR") */
     private String currency;
+    
+    /** Whether product is currently in stock */
     private Boolean in_stock;
+    
+    /** Remaining stock if low stock threshold is reached */
     private Integer low_stock_remaining;
+    
+    /** Average product rating (0.0 - 5.0) */
     private Double rating;
+    
+    /** Number of product reviews */
     private Integer review_count;
+    
+    /** List of product image URLs */
     private List<String> images;
 
+    /** Category IDs */
     private List<Integer> categories_ids;
+    
+    /** Category slugs */
     private List<String> categories_slugs;
+    
+    /** Category display names */
     private List<String> categories_names;
 
+    /** Brand slug */
     private String brand_slug;
+    
+    /** Brand display name */
     private String brand_name;
 
-    private Map<String, List<String>> dynamic_attrs; // attr_pa_* fields collected at ingest
+    /** 
+     * Dynamic attributes from WooCommerce product attributes.
+     * Keys are in format "attr_pa_<taxonomy>" where taxonomy is the WooCommerce attribute name.
+     * Values are lists of attribute term slugs.
+     */
+    private Map<String, List<String>> dynamic_attrs;
+    
+    /** 
+     * Searchable text concatenated from name, description, categories, and brand.
+     * HTML tags are stripped and whitespace is normalized.
+     */
     private String search_text;
 
-    // Constructor from JsonNode (for backward compatibility)
+    /**
+     * Creates a RawProduct instance from a WooCommerce JSON response.
+     * 
+     * <p>This method parses the standard WooCommerce Store API response format
+     * and extracts all relevant fields into the RawProduct structure.
+     * 
+     * @param p The JSON node containing WooCommerce product data
+     * @return A populated RawProduct instance
+     */
     public static RawProduct fromJsonNode(JsonNode p) {
         RawProduct raw = new RawProduct();
         long productId = p.path("id").asLong();

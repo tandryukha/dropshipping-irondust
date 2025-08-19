@@ -9,13 +9,58 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+/**
+ * Orchestrates the product enrichment pipeline that transforms raw WooCommerce data
+ * into structured, searchable product information.
+ * 
+ * <p>The enrichment pipeline follows a deterministic-first approach where all
+ * possible parsing is done using rules and patterns before any AI processing.
+ * This ensures consistency, explainability, and cost efficiency.
+ * 
+ * <h3>Pipeline Flow</h3>
+ * <ol>
+ *   <li><strong>RawProduct</strong> - Initial data from WooCommerce</li>
+ *   <li><strong>Deterministic Parsing</strong> - Rule-based field extraction and normalization</li>
+ *   <li><strong>ParsedProduct</strong> - Intermediate state with parsed fields</li>
+ *   <li><strong>AI Enrichment</strong> - AI-generated content (Phase 2)</li>
+ *   <li><strong>EnrichedProduct</strong> - Final data model for search</li>
+ * </ol>
+ * 
+ * <h3>Deterministic Enrichment Steps</h3>
+ * <ul>
+ *   <li><strong>Normalizer</strong> - Locale/slug to canonical mappings</li>
+ *   <li><strong>UnitParser</strong> - Extract grams/ml/servings from attributes and text</li>
+ *   <li><strong>ServingCalculator</strong> - Compute servings if missing</li>
+ *   <li><strong>PriceCalculator</strong> - Calculate derived price fields</li>
+ *   <li><strong>TaxonomyParser</strong> - Extract goal and diet tags</li>
+ *   <li><strong>VariationGrouper</strong> - Group product variations</li>
+ * </ul>
+ * 
+ * <p>Each step implements the {@link EnricherStep} interface and can be
+ * easily added, removed, or reordered. The pipeline collects warnings and
+ * conflicts for monitoring and debugging.
+ * 
+ * @see EnricherStep
+ * @see EnrichmentDelta
+ * @see Warn
+ * @see RawProduct
+ * @see ParsedProduct
+ * @see EnrichedProduct
+ */
 @Service
 public class EnrichmentPipeline {
     private static final Logger log = LoggerFactory.getLogger(EnrichmentPipeline.class);
 
+    /** Ordered list of deterministic enrichment steps */
     private final List<EnricherStep> deterministicSteps;
+    
+    /** Collection of warnings from all enrichment steps */
     private final List<Warn> allWarnings = new ArrayList<>();
 
+    /**
+     * Initializes the enrichment pipeline with all deterministic enrichment steps
+     * in the correct order for processing.
+     */
     public EnrichmentPipeline() {
         // Initialize deterministic enrichment steps in order
         this.deterministicSteps = Arrays.asList(
@@ -28,6 +73,19 @@ public class EnrichmentPipeline {
         );
     }
 
+    /**
+     * Enriches a raw product through the complete deterministic pipeline.
+     * 
+     * <p>This method processes the raw product through all deterministic enrichment
+     * steps in sequence. Each step can add, modify, or validate fields in the
+     * parsed product. Warnings are collected for monitoring and debugging.
+     * 
+     * <p>The method is idempotent - running it multiple times on the same input
+     * will produce the same output.
+     * 
+     * @param raw The raw product data from WooCommerce
+     * @return An enriched product with all deterministic parsing applied
+     */
     public EnrichedProduct enrich(RawProduct raw) {
         log.info("Starting enrichment for product {}", raw.getId());
         
@@ -73,6 +131,15 @@ public class EnrichmentPipeline {
         return enriched;
     }
 
+    /**
+     * Applies an enrichment delta to a parsed product.
+     * 
+     * <p>This method updates the parsed product with the field changes, confidence
+     * scores, and provenance information from an enrichment step.
+     * 
+     * @param parsed The parsed product to update
+     * @param delta The enrichment delta containing updates
+     */
     private void applyDelta(ParsedProduct parsed, EnrichmentDelta delta) {
         if (delta.getUpdates() == null) return;
 
@@ -80,7 +147,7 @@ public class EnrichmentPipeline {
             String field = entry.getKey();
             Object value = entry.getValue();
             
-            // Apply the update using reflection or switch statement
+            // Apply the update using switch statement
             switch (field) {
                 case "form":
                     parsed.setForm((String) value);
@@ -135,10 +202,21 @@ public class EnrichmentPipeline {
         }
     }
 
+    /**
+     * Gets all warnings collected during enrichment.
+     * 
+     * @return A copy of all warnings from the enrichment process
+     */
     public List<Warn> getAllWarnings() {
         return new ArrayList<>(allWarnings);
     }
 
+    /**
+     * Clears all collected warnings.
+     * 
+     * <p>This method should be called between processing different batches
+     * of products to prevent warnings from accumulating.
+     */
     public void clearWarnings() {
         allWarnings.clear();
     }

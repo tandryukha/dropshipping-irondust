@@ -5,6 +5,43 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Represents a product after deterministic parsing and enrichment.
+ * This class extends the raw product data with normalized, computed, and parsed fields.
+ * 
+ * <p>ParsedProduct contains all fields from {@link RawProduct} plus additional
+ * fields that are computed deterministically through the enrichment pipeline:
+ * 
+ * <h3>Core Fields (from RawProduct)</h3>
+ * <ul>
+ *   <li>Basic product information (id, name, sku, etc.)</li>
+ *   <li>Pricing and inventory data</li>
+ *   <li>Categories and brand information</li>
+ *   <li>Dynamic attributes</li>
+ * </ul>
+ * 
+ * <h3>Parsed Fields (deterministic enrichment)</h3>
+ * <ul>
+ *   <li><strong>Form</strong>: Normalized product form (powder, capsules, tabs, etc.)</li>
+ *   <li><strong>Flavor</strong>: Normalized flavor description</li>
+ *   <li><strong>Net weight</strong>: Weight in grams, normalized from various units</li>
+ *   <li><strong>Servings</strong>: Number of servings per container</li>
+ *   <li><strong>Serving size</strong>: Weight per serving in grams</li>
+ *   <li><strong>Price calculations</strong>: Price per serving, price per 100g</li>
+ *   <li><strong>Goal tags</strong>: Fitness/health goals (preworkout, strength, etc.)</li>
+ *   <li><strong>Diet tags</strong>: Dietary restrictions (vegan, gluten-free, etc.)</li>
+ *   <li><strong>Ingredients</strong>: Key ingredient tokens</li>
+ *   <li><strong>Variation grouping</strong>: Parent ID for product variations</li>
+ * </ul>
+ * 
+ * <p>This class serves as the intermediate state in the enrichment pipeline.
+ * It contains all deterministic parsing results and is ready for AI enrichment
+ * to produce the final {@link EnrichedProduct}.
+ * 
+ * @see RawProduct
+ * @see EnrichedProduct
+ * @see com.irondust.search.service.enrichment.EnrichmentPipeline
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ParsedProduct {
     // Core fields from RawProduct
@@ -31,21 +68,93 @@ public class ParsedProduct {
     private String search_text;
 
     // Parsed fields (deterministic)
-    private String form; // powder|capsules|tabs|drink|gel|bar
+    /** 
+     * Normalized product form. One of: powder, capsules, tabs, drink, gel, bar.
+     * Extracted from WooCommerce attributes or inferred from product text.
+     */
+    private String form;
+    
+    /** 
+     * Normalized flavor description. Examples: unflavored, citrus, berry, etc.
+     * Extracted from WooCommerce attributes or inferred from product text.
+     */
     private String flavor;
+    
+    /** 
+     * Net weight in grams. Normalized from various units (kg, g, ml, l).
+     * Extracted from WooCommerce attributes or parsed from product text.
+     */
     private Double net_weight_g;
+    
+    /** 
+     * Number of servings per container.
+     * Extracted from WooCommerce attributes or calculated from net weight / serving size.
+     */
     private Integer servings;
+    
+    /** 
+     * Weight per serving in grams.
+     * Parsed from product text using regex patterns.
+     */
     private Double serving_size_g;
-    private Double price; // euros
+    
+    /** 
+     * Price in euros (calculated from price_cents / 100).
+     */
+    private Double price;
+    
+    /** 
+     * Price per serving in euros (price / servings).
+     * Calculated when both price and servings are available.
+     */
     private Double price_per_serving;
+    
+    /** 
+     * Price per 100g in euros ((price * 100) / net_weight_g).
+     * Useful for comparing value across different product sizes.
+     */
     private Double price_per_100g;
+    
+    /** 
+     * Fitness and health goal tags. Examples: preworkout, strength, endurance, etc.
+     * Extracted from categories and product text using keyword matching.
+     */
     private List<String> goal_tags;
+    
+    /** 
+     * Dietary restriction tags. Examples: vegan, gluten_free, lactose_free, etc.
+     * Extracted from WooCommerce attributes and product text.
+     */
     private List<String> diet_tags;
+    
+    /** 
+     * Key ingredient tokens for search and filtering.
+     * Extracted from product name and description when explicitly mentioned.
+     */
     private List<String> ingredients_key;
+    
+    /** 
+     * Parent ID for product variations. Used to group related products.
+     * Generated from brand + normalized base title.
+     */
     private String parent_id;
+    
+    /** 
+     * Variant group ID for product variations. Currently same as parent_id.
+     */
     private String variant_group_id;
+    
+    /** 
+     * Warning messages from the enrichment process.
+     * Contains issues like missing critical fields, unit ambiguities, etc.
+     */
     private List<String> warnings;
-    private Map<String, String> provenance; // field -> source (attribute|regex|derived)
+    
+    /** 
+     * Provenance information for each enriched field.
+     * Maps field names to their source: "attribute", "regex", "derived", etc.
+     */
+    private Map<String, String> provenance;
 
     // Getters and setters for core fields
     public String getId() { return id; }
@@ -123,7 +232,16 @@ public class ParsedProduct {
     public Map<String, String> getProvenance() { return provenance; }
     public void setProvenance(Map<String, String> provenance) { this.provenance = provenance; }
 
-    // Helper method to copy from RawProduct
+    /**
+     * Creates a ParsedProduct instance from a RawProduct.
+     * 
+     * <p>This method copies all fields from the RawProduct to create a new
+     * ParsedProduct instance. The parsed fields (form, flavor, etc.) will be
+     * populated by the enrichment pipeline.
+     * 
+     * @param raw The RawProduct to copy from
+     * @return A new ParsedProduct with all raw fields copied
+     */
     public static ParsedProduct fromRawProduct(RawProduct raw) {
         ParsedProduct parsed = new ParsedProduct();
         parsed.setId(raw.getId());

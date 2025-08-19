@@ -1,3 +1,4 @@
 - docker compose has some strange base images: FROM maven:3.9-eclipse-temurin-21 AS build FROM eclipse-temurin:21-jre
 - should be able to index/reindex one product id/list
 - test coverage to protect what we have now at least on the backend?
+- domain structure of the packages
