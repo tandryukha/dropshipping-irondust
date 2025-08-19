@@ -199,8 +199,9 @@ public class IngestService {
         // Build per-product report
         IngestDtos.ProductReport rep = new IngestDtos.ProductReport();
         rep.setId(enriched.getId());
-        rep.setWarnings(enriched.getWarnings());
-        rep.setConflicts(enriched.getConflicts());
+        // Standardize to empty arrays instead of nulls for easier client handling
+        rep.setWarnings(enriched.getWarnings() != null ? enriched.getWarnings() : java.util.List.of());
+        rep.setConflicts(enriched.getConflicts() != null ? enriched.getConflicts() : java.util.List.of());
 
         return new DocWithReport(d, rep);
     }

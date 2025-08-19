@@ -171,11 +171,9 @@ public class UnitParser implements EnricherStep {
     }
 
     private Integer parseServingsForCapsOrTabs(RawProduct raw, ParsedProduct soFar) {
-        String form = soFar != null ? soFar.getForm() : null;
-        boolean isCaps = form != null && (form.equalsIgnoreCase("capsules") || form.equalsIgnoreCase("tabs"));
-
-        // Attribute-based count first
-        if (isCaps && raw.getDynamic_attrs() != null) {
+        // Try attribute-based count regardless of normalized form; the presence of this
+        // attribute implies capsules/tablets packaging
+        if (raw.getDynamic_attrs() != null) {
             List<String> cnt = raw.getDynamic_attrs().get("attr_pa_tablettide-arv");
             if (cnt != null && !cnt.isEmpty()) {
                 try {
@@ -184,16 +182,15 @@ public class UnitParser implements EnricherStep {
                 } catch (NumberFormatException ignored) {}
             }
         }
-        // Fallback from title/text pattern
-        if (isCaps) {
-            String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
-            Matcher m = CAPS_SERVINGS_PATTERN.matcher(text);
-            if (m.find()) {
-                try {
-                    int v = Integer.parseInt(m.group(1));
-                    if (v > 0 && v <= 2000) return v;
-                } catch (NumberFormatException ignored) {}
-            }
+        // Fallback from title/text pattern like "60 caps", "120 tablets", etc.,
+        // even if form wasn't normalized yet
+        String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
+        Matcher m = CAPS_SERVINGS_PATTERN.matcher(text);
+        if (m.find()) {
+            try {
+                int v = Integer.parseInt(m.group(1));
+                if (v > 0 && v <= 2000) return v;
+            } catch (NumberFormatException ignored) {}
         }
         return null;
     }

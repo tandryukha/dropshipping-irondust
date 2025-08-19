@@ -38,7 +38,7 @@ echo -e "${YELLOW}🔨 Stopping and removing API service...${NC}"
 docker-compose stop api && docker-compose rm -f api
 
 echo -e "${YELLOW}🔨 Rebuilding and starting API service with environment variables...${NC}"
-AI_ENRICH="${AI_ENRICH:-true}" docker-compose up -d --build api | cat
+AI_ENRICH="${AI_ENRICH:-true}" docker-compose up -d --build --force-recreate api | cat
 
 # Start other services if they exist (avoid recreating API with different env)
 echo -e "${YELLOW}🚀 Starting other services...${NC}"
@@ -58,5 +58,5 @@ echo -e "${BLUE}   API: http://localhost:4000${NC}"
 echo -e "${BLUE}   MeiliSearch: http://localhost:7700${NC}"
 echo ""
 
-# Follow logs for all services
-docker-compose logs -f
+# Follow only new logs for all services (omit history)
+docker-compose logs -f --tail=0

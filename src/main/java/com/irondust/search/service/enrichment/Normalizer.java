@@ -8,6 +8,12 @@ import java.util.*;
 public class Normalizer implements EnricherStep {
     private final List<Warn> warnings = new ArrayList<>();
 
+    // Heuristic detection patterns
+    private static final java.util.regex.Pattern GRAMS_PATTERN = java.util.regex.Pattern.compile("\\b\\d{2,4}\\s?(g|gramm)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern CAPS_TOKENS = java.util.regex.Pattern.compile("\\b(caps|capsule|vcaps|kaps|kapslid|tabletid|tablet|tabs)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern TABS_TOKENS = java.util.regex.Pattern.compile("\\b(tabs?|tabletid|tablet)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern PULBER_TOKEN = java.util.regex.Pattern.compile("pulber", java.util.regex.Pattern.CASE_INSENSITIVE);
+
     // Form mappings from Estonian slugs to canonical forms
     private static final Map<String, String> FORM_MAP = Map.of(
         "pulber", "powder",
@@ -54,6 +60,14 @@ public class Normalizer implements EnricherStep {
             updates.put("form", form);
             confidence.put("form", 0.95);
             sources.put("form", "attribute");
+        } else {
+            // Heuristic fallback when attributes missing and evidence is unambiguous
+            String hForm = inferFormHeuristic(raw);
+            if (hForm != null) {
+                updates.put("form", hForm);
+                confidence.put("form", 0.6);
+                sources.put("form", "heuristic");
+            }
         }
 
         // Normalize flavor from attributes
@@ -68,6 +82,46 @@ public class Normalizer implements EnricherStep {
         normalizeDecimals(raw, updates, confidence, sources);
 
         return new EnrichmentDelta(updates, confidence, sources, null);
+    }
+
+    private String inferFormHeuristic(RawProduct raw) {
+        StringBuilder sb = new StringBuilder();
+        if (raw.getName() != null) sb.append(raw.getName()).append(' ');
+        if (raw.getSlug() != null) sb.append(raw.getSlug()).append(' ');
+        if (raw.getSearch_text() != null) sb.append(raw.getSearch_text());
+        String text = sb.toString().toLowerCase();
+
+        boolean mentionsCaps = CAPS_TOKENS.matcher(text).find();
+        boolean mentionsTabs = TABS_TOKENS.matcher(text).find();
+        boolean mentionsPulberWord = PULBER_TOKEN.matcher(text).find();
+        boolean hasGramsInText = GRAMS_PATTERN.matcher(text).find();
+
+        boolean categorySuggestsPowder = false;
+        if (raw.getCategories_names() != null) {
+            for (String c : raw.getCategories_names()) {
+                String cl = c.toLowerCase();
+                if (cl.contains("kreatiin") || cl.contains("monohüdraat") || cl.contains("monohudraat")
+                    || cl.contains("üksikud aminohapped") || cl.contains("uksikud aminohapped")) {
+                    categorySuggestsPowder = true;
+                    break;
+                }
+            }
+        }
+
+        // Evidence aggregation
+        boolean powderEvidence = mentionsPulberWord || (categorySuggestsPowder && hasGramsInText);
+        boolean capsEvidence = mentionsCaps;
+
+        // Require unambiguous evidence (XOR)
+        if (powderEvidence ^ capsEvidence) {
+            if (capsEvidence) {
+                // Choose tabs if tab/tabletid is explicitly mentioned, else capsules
+                return mentionsTabs ? "tabs" : "capsules";
+            } else {
+                return "powder";
+            }
+        }
+        return null;
     }
 
     private String normalizeForm(RawProduct raw) {
