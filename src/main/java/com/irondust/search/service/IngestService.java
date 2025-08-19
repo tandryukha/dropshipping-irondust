@@ -14,6 +14,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import com.irondust.search.dto.IngestDtos;
 
 @Service
 public class IngestService {
@@ -32,11 +33,17 @@ public class IngestService {
         this.enrichmentPipeline = enrichmentPipeline;
     }
 
-    public Mono<Integer> ingestFull() {
+    public Mono<IngestDtos.IngestReport> ingestFull() {
         return wooStoreService.paginateProducts()
-                .map(this::transformWithEnrichment)
+                .map(this::transformWithEnrichmentWithReport)
                 .collectList()
-                .flatMap(allDocs -> {
+                .flatMap(results -> {
+                    List<ProductDoc> allDocs = new ArrayList<>();
+                    List<IngestDtos.ProductReport> reports = new ArrayList<>();
+                    for (var r : results) {
+                        allDocs.add(r.doc);
+                        reports.add(r.report);
+                    }
                     // discover dynamic facets
                     Set<String> dynamicFacetFields = new LinkedHashSet<>();
                     for (ProductDoc doc : allDocs) {
@@ -55,24 +62,39 @@ public class IngestService {
                     return meiliService.ensureIndexWithSettings(filterable, sortable, searchable)
                             .thenMany(Flux.fromIterable(chunk(allDocs, 500)))
                             .concatMap(meiliService::addOrReplaceDocuments)
-                            .then(Mono.just(allDocs.size()));
+                            .then(Mono.fromSupplier(() -> buildReport(allDocs.size(), reports)));
                 });
     }
 
-    public Mono<Integer> ingestByIds(List<Long> productIds) {
+    public Mono<IngestDtos.IngestReport> ingestByIds(List<Long> productIds) {
         return wooStoreService.fetchProductsByIds(productIds)
-                .map(this::transformWithEnrichment)
+                .map(this::transformWithEnrichmentWithReport)
                 .collectList()
-                .flatMap(docs -> {
-                    if (docs.isEmpty()) {
-                        return Mono.just(0);
+                .flatMap(results -> {
+                    if (results.isEmpty()) {
+                        return Mono.just(buildReport(0, List.of()));
+                    }
+                    List<ProductDoc> docs = new ArrayList<>();
+                    List<IngestDtos.ProductReport> reports = new ArrayList<>();
+                    for (var r : results) {
+                        docs.add(r.doc);
+                        reports.add(r.report);
                     }
                     return meiliService.addOrReplaceDocuments(docs)
-                            .then(Mono.just(docs.size()));
+                            .then(Mono.fromSupplier(() -> buildReport(docs.size(), reports)));
                 });
     }
 
-    private ProductDoc transformWithEnrichment(JsonNode p) {
+    private static class DocWithReport {
+        final ProductDoc doc;
+        final IngestDtos.ProductReport report;
+        DocWithReport(ProductDoc doc, IngestDtos.ProductReport report) {
+            this.doc = doc;
+            this.report = report;
+        }
+    }
+
+    private DocWithReport transformWithEnrichmentWithReport(JsonNode p) {
         // Create raw product from JSON
         RawProduct raw = RawProduct.fromJsonNode(p);
         
@@ -150,7 +172,13 @@ public class IngestService {
 
         d.setDynamic_attrs(enrichedAttrs);
 
-        return d;
+        // Build per-product report
+        IngestDtos.ProductReport rep = new IngestDtos.ProductReport();
+        rep.setId(enriched.getId());
+        rep.setWarnings(enriched.getWarnings());
+        rep.setConflicts(enriched.getConflicts());
+
+        return new DocWithReport(d, rep);
     }
 
     private static <T> List<List<T>> chunk(List<T> input, int size) {
@@ -159,6 +187,21 @@ public class IngestService {
             chunks.add(input.subList(i, Math.min(input.size(), i + size)));
         }
         return chunks;
+    }
+
+    private IngestDtos.IngestReport buildReport(int indexed, List<IngestDtos.ProductReport> products) {
+        IngestDtos.IngestReport report = new IngestDtos.IngestReport();
+        report.setIndexed(indexed);
+        report.setProducts(products);
+        int warningsTotal = 0;
+        int conflictsTotal = 0;
+        for (IngestDtos.ProductReport pr : products) {
+            if (pr.getWarnings() != null) warningsTotal += pr.getWarnings().size();
+            if (pr.getConflicts() != null) conflictsTotal += pr.getConflicts().size();
+        }
+        report.setWarnings_total(warningsTotal);
+        report.setConflicts_total(conflictsTotal);
+        return report;
     }
 }
 

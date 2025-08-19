@@ -9,16 +9,21 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}🔄 Rebuilding and restarting backend services...${NC}"
 
-# Stop all services
-echo -e "${YELLOW}📦 Stopping all services...${NC}"
-docker-compose down
+# Check if docker-compose is running and stop it
+if docker-compose ps | grep -q "Up"; then
+    echo -e "${YELLOW}📦 Stopping running docker-compose services...${NC}"
+    docker-compose down
+fi
 
-# Rebuild the API service
-echo -e "${YELLOW}🔨 Rebuilding API service...${NC}"
-docker-compose build --no-cache api
+# Stop and remove API service specifically, then rebuild and start with environment variables
+echo -e "${YELLOW}🔨 Stopping and removing API service...${NC}"
+docker-compose stop api && docker-compose rm -f api
 
-# Start all services
-echo -e "${YELLOW}🚀 Starting all services...${NC}"
+echo -e "${YELLOW}🔨 Rebuilding and starting API service with environment variables...${NC}"
+OPENAI_API_KEY=$(grep -m1 '^OPENAI_API_KEY=' .env | cut -d'=' -f2-) AI_ENRICH=true docker-compose up -d --build api | cat
+
+# Start other services if they exist
+echo -e "${YELLOW}🚀 Starting other services...${NC}"
 docker-compose up -d
 
 # Wait a moment for services to fully start

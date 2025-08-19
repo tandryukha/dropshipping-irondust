@@ -24,25 +24,30 @@ public class IngestController {
     }
 
     @PostMapping("/full")
-    public Mono<ResponseEntity<Map<String, Object>>> ingestFull(@RequestHeader(value = "x-admin-key", required = false) String adminKey) {
+    public Mono<ResponseEntity<IngestDtos.IngestReport>> ingestFull(@RequestHeader(value = "x-admin-key", required = false) String adminKey) {
         if (adminKey == null || !adminKey.equals(appProperties.getAdminKey())) {
-            return Mono.just(ResponseEntity.status(401).body(Map.of("error", "unauthorized")));
+            return Mono.just(ResponseEntity.status(401).build());
         }
-        return ingestService.ingestFull().map(count -> ResponseEntity.ok(Map.of("indexed", count)));
+        return ingestService.ingestFull().map(report -> ResponseEntity.ok(report));
     }
 
     @PostMapping("/products")
-    public Mono<ResponseEntity<Map<String, Object>>> ingestProducts(
+    public Mono<ResponseEntity<IngestDtos.IngestReport>> ingestProducts(
             @RequestHeader(value = "x-admin-key", required = false) String adminKey,
             @RequestBody IngestDtos.TargetedIngestRequest body) {
         if (adminKey == null || !adminKey.equals(appProperties.getAdminKey())) {
-            return Mono.just(ResponseEntity.status(401).body(Map.of("error", "unauthorized")));
+            return Mono.just(ResponseEntity.status(401).build());
         }
         if (body == null || body.getIds() == null || body.getIds().isEmpty()) {
-            return Mono.just(ResponseEntity.badRequest().body(Map.of("error", "ids required")));
+            IngestDtos.IngestReport empty = new IngestDtos.IngestReport();
+            empty.setIndexed(0);
+            empty.setConflicts_total(0);
+            empty.setWarnings_total(0);
+            empty.setProducts(java.util.List.of());
+            return Mono.just(ResponseEntity.badRequest().body(empty));
         }
         return ingestService.ingestByIds(body.getIds())
-                .map(count -> ResponseEntity.ok(Map.of("indexed", count)));
+                .map(report -> ResponseEntity.ok(report));
     }
 }
 
