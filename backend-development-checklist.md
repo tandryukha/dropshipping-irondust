@@ -1,0 +1,5 @@
+- change is made
+- server restarted
+- verified e2e with curl if possible (please don't if involves AI and thus costs money)
+- if API changed/extended: postman collection updated
+- Readme is up-to-date

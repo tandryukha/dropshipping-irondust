@@ -52,6 +52,19 @@ public class IngestService {
                 });
     }
 
+    public Mono<Integer> ingestByIds(List<Long> productIds) {
+        return wooStoreService.fetchProductsByIds(productIds)
+                .map(this::transform)
+                .collectList()
+                .flatMap(docs -> {
+                    if (docs.isEmpty()) {
+                        return Mono.just(0);
+                    }
+                    return meiliService.addOrReplaceDocuments(docs)
+                            .then(Mono.just(docs.size()));
+                });
+    }
+
     private ProductDoc transform(JsonNode p) {
         ProductDoc d = new ProductDoc();
         long productId = p.path("id").asLong();

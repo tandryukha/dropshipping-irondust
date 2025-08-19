@@ -37,6 +37,25 @@ public class WooStoreService {
         });
     }
 
+    public Mono<JsonNode> fetchProductById(long productId) {
+        return wooClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/wp-json/wc/store/v1/products/{id}")
+                        .build(productId))
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .bodyToMono(JsonNode.class);
+    }
+
+    public Flux<JsonNode> fetchProductsByIds(List<Long> ids) {
+        return Flux.fromIterable(ids)
+                .concatMap(id -> fetchProductById(id)
+                        .onErrorResume(e -> {
+                            log.warn("Failed to fetch product {}: {}", id, e.toString());
+                            return Mono.empty();
+                        }));
+    }
+
     private void fetchPage(int page, int perPage, reactor.core.publisher.FluxSink<JsonNode> sink) {
         wooClient.get()
                 .uri(uriBuilder -> uriBuilder

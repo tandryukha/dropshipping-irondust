@@ -32,6 +32,25 @@
       }
     },
     {
+      "name": "Ingest Products (by IDs)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-admin-key", "value": "{{adminKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ids\": [31476, 31477]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ingest/products",
+          "host": ["{{baseUrl}}"],
+          "path": ["ingest","products"]
+        }
+      }
+    },
+    {
       "name": "Search",
       "request": {
         "method": "POST",
