@@ -48,12 +48,24 @@ public class PriceCalculator implements EnricherStep {
             sources.put("price_per_serving_max", "derived");
         }
 
-        // Calculate price per 100g (for powders)
+        // Calculate price per 100g for weight-based forms only (powder/drink/gel/bar)
         if (soFar.getPrice() != null && soFar.getNet_weight_g() != null && soFar.getNet_weight_g() > 0) {
-            double pricePer100g = (soFar.getPrice() * 100) / soFar.getNet_weight_g();
-            updates.put("price_per_100g", Math.round(pricePer100g * 100.0) / 100.0);
-            confidence.put("price_per_100g", 0.95);
-            sources.put("price_per_100g", "derived");
+            String form = soFar.getForm();
+            boolean weightBased = "powder".equals(form) || "drink".equals(form) || "gel".equals(form) || "bar".equals(form) || form == null;
+            if (weightBased) {
+                double pricePer100g = (soFar.getPrice() * 100) / soFar.getNet_weight_g();
+                updates.put("price_per_100g", Math.round(pricePer100g * 100.0) / 100.0);
+                confidence.put("price_per_100g", 0.95);
+                sources.put("price_per_100g", "derived");
+            }
+        }
+
+        // Calculate price per unit for count-based forms (capsules/tabs)
+        if (soFar.getPrice() != null && soFar.getUnit_count() != null && soFar.getUnit_count() > 0) {
+            double ppu = soFar.getPrice() / soFar.getUnit_count();
+            updates.put("price_per_unit", Math.round(ppu * 100.0) / 100.0);
+            confidence.put("price_per_unit", 0.95);
+            sources.put("price_per_unit", "derived");
         }
 
         return new EnrichmentDelta(updates, confidence, sources, null);

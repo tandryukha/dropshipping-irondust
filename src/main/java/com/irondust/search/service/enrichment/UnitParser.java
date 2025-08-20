@@ -12,7 +12,7 @@ public class UnitParser implements EnricherStep {
 
     // Regex patterns for extracting units
     private static final Pattern SERVING_SIZE_PATTERN = Pattern.compile(
-        "(\\d+(?:[.,]\\d+)?)\\s*(g|ml)\\s*(?:per|/)?\\s*(serving|portsjon)", 
+        "(\\d+(?:[.,]\\d+)?)\\s*(mg|g|ml)\\s*(?:per|/)?\\s*(serving|portsjon|capsule|cap|kapsel|kaps|kapslid|tablet|tabs|tabletid)", 
         Pattern.CASE_INSENSITIVE
     );
     // Fallback: capture e.g., "(5 g)" close to the word portsjon/serving in the same sentence
@@ -42,6 +42,18 @@ public class UnitParser implements EnricherStep {
         Pattern.CASE_INSENSITIVE
     );
 
+    // Units per serving: e.g., "2 capsules per serving", "2 kapslit portsjoni kohta"
+    private static final Pattern UNITS_PER_SERVING_PATTERN = Pattern.compile(
+        "(\\d{1,3})\\s*(caps|capsule|capsules|kaps|kapsel|kapslid|tab|tabs|tablet|tabletid)\\s*(?:per|/)?\\s*(serving|dose|portsjon|annus)",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    // Unit mass per cap/tab: e.g., "per capsule 500 mg", "per tab 0.5 g"
+    private static final Pattern UNIT_MASS_PATTERN = Pattern.compile(
+        "(per\\s*(capsule|cap|kapsel|kaps|kapslid|tablet|tab|tabs)[^0-9]{0,10}|\\bpro\\b[^0-9]{0,10})?(\\d+(?:[.,]\\d+)?)\\s*(mg|g)",
+        Pattern.CASE_INSENSITIVE
+    );
+
     @Override
     public boolean supports(RawProduct raw) {
         return true; // UnitParser supports all products
@@ -53,7 +65,7 @@ public class UnitParser implements EnricherStep {
         Map<String, Double> confidence = new HashMap<>();
         Map<String, String> sources = new HashMap<>();
 
-        // Parse net weight from attributes first, then fallback to regex
+        // Parse net weight from attributes first, then fallback to regex or derivation
         Double netWeight = parseNetWeight(raw);
         if (netWeight != null) {
             updates.put("net_weight_g", netWeight);
@@ -109,6 +121,44 @@ public class UnitParser implements EnricherStep {
             updates.put("serving_size_g", servingSize);
             confidence.put("serving_size_g", 0.8);
             sources.put("serving_size_g", "regex");
+        }
+
+        // Parse unit_count (caps/tabs pieces)
+        Integer unitCount = parseUnitCount(raw);
+        if (unitCount != null) {
+            updates.put("unit_count", unitCount);
+            confidence.put("unit_count", 0.9);
+            sources.put("unit_count", "attribute|regex");
+        }
+
+        // Parse units_per_serving
+        Integer ups = parseUnitsPerServing(raw);
+        if (ups != null) {
+            updates.put("units_per_serving", ups);
+            confidence.put("units_per_serving", 0.8);
+            sources.put("units_per_serving", "regex");
+        }
+
+        // Parse unit_mass_g
+        Double umg = parseUnitMassG(raw);
+        if (umg != null) {
+            updates.put("unit_mass_g", umg);
+            confidence.put("unit_mass_g", 0.8);
+            sources.put("unit_mass_g", "regex");
+        }
+
+        // Derive net_weight_g from servings x serving_size_g if still missing
+        if (!updates.containsKey("net_weight_g")) {
+            Double ss = servingSize;
+            Integer sv = (Integer) updates.getOrDefault("servings", soFar.getServings());
+            if (ss != null && sv != null && sv > 0) {
+                double derived = ss * sv;
+                if (derived > 0 && derived <= 100000) {
+                    updates.put("net_weight_g", derived);
+                    confidence.put("net_weight_g", 0.75);
+                    sources.put("net_weight_g", "derived");
+                }
+            }
         }
 
         return new EnrichmentDelta(updates, confidence, sources, null);
@@ -242,8 +292,11 @@ public class UnitParser implements EnricherStep {
             try {
                 double value = Double.parseDouble(matcher.group(1).replace(",", "."));
                 String unit = matcher.group(2).toLowerCase();
-                
-                // Convert to grams (assume 1:1 for ml for now)
+
+                // Convert to grams (assume 1:1 for ml for now; mg -> g)
+                if (unit.equals("mg")) {
+                    return value / 1000.0;
+                }
                 return value;
             } catch (NumberFormatException e) {
                 warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g", 
@@ -260,6 +313,46 @@ public class UnitParser implements EnricherStep {
                 warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g", 
                     "Failed to parse fallback serving size: " + fb.group()));
             }
+        }
+        return null;
+    }
+
+    private Integer parseUnitCount(RawProduct raw) {
+        // Attribute: tablettide-arv
+        if (raw.getDynamic_attrs() != null) {
+            List<String> cnt = raw.getDynamic_attrs().get("attr_pa_tablettide-arv");
+            if (cnt != null && !cnt.isEmpty()) {
+                try { int v = Integer.parseInt(cnt.get(0)); if (v > 0 && v <= 5000) return v; } catch (Exception ignored) {}
+            }
+        }
+        // Pattern from title/text like "60 caps", "120 tablets"
+        String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
+        Matcher m = CAPS_SERVINGS_PATTERN.matcher(text);
+        if (m.find()) {
+            try { int v = Integer.parseInt(m.group(1)); if (v > 0 && v <= 5000) return v; } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
+    private Integer parseUnitsPerServing(RawProduct raw) {
+        String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
+        Matcher m = UNITS_PER_SERVING_PATTERN.matcher(text);
+        if (m.find()) {
+            try { int v = Integer.parseInt(m.group(1)); if (v > 0 && v <= 50) return v; } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
+    private Double parseUnitMassG(RawProduct raw) {
+        String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
+        Matcher m = UNIT_MASS_PATTERN.matcher(text);
+        if (m.find()) {
+            try {
+                double v = Double.parseDouble(m.group(3).replace(",", "."));
+                String unit = m.group(4).toLowerCase();
+                if ("mg".equals(unit)) return v / 1000.0;
+                return v;
+            } catch (Exception ignored) {}
         }
         return null;
     }

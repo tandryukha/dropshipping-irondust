@@ -35,9 +35,16 @@ function renderProductHTML(item){
   const inStock = item?.in_stock;
   const subtitleBits = [];
   if (Array.isArray(item?.categories_names) && item.categories_names.length) subtitleBits.push(item.categories_names[0]);
-  if (typeof item?.form === 'string' && item.form) subtitleBits.push(item.form);
-  if (typeof item?.serving_size_g === 'number') subtitleBits.push(`${item.serving_size_g} g/serv`);
-  if (typeof item?.price_per_serving === 'number') subtitleBits.push(`€${item.price_per_serving.toFixed(2)}/serv`);
+  const form = (typeof item?.form === 'string' ? item.form : '');
+  if (form) subtitleBits.push(form);
+  const isCountBased = form === 'capsules' || form === 'tabs';
+  if (isCountBased) {
+    if (typeof item?.unit_count === 'number') subtitleBits.push(`${item.unit_count} pcs`);
+    if (typeof item?.price_per_unit === 'number') subtitleBits.push(`${symbol}${item.price_per_unit.toFixed(2)}/unit`);
+  } else {
+    if (typeof item?.serving_size_g === 'number') subtitleBits.push(`${item.serving_size_g} g/serv`);
+    if (typeof item?.price_per_serving === 'number') subtitleBits.push(`€${item.price_per_serving.toFixed(2)}/serv`);
+  }
   if (typeof item?.rating === 'number' && typeof item?.review_count === 'number') subtitleBits.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
   const subtitle = subtitleBits.join(' • ');
   return `

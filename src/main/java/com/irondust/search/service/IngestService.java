@@ -62,10 +62,18 @@ public class IngestService {
                         }
                     }
                     List<String> filterable = new ArrayList<>();
-                    filterable.addAll(List.of("in_stock", "categories_slugs", "categories_ids", "brand_slug", "price_cents", 
-                                             "form", "diet_tags", "goal_tags", "parent_id"));
+                    filterable.addAll(List.of(
+                            "in_stock", "categories_slugs", "categories_ids", "brand_slug", "price_cents",
+                            "form", "diet_tags", "goal_tags", "parent_id",
+                            // count-based packaging
+                            "unit_count", "units_per_serving"
+                    ));
                     filterable.addAll(dynamicFacetFields);
-                    List<String> sortable = List.of("price_cents", "price", "price_per_serving", "price_per_serving_min", "price_per_serving_max", "price_per_100g", "rating", "review_count", "in_stock");
+                    List<String> sortable = List.of(
+                            "price_cents", "price", "price_per_serving", "price_per_serving_min", "price_per_serving_max",
+                            "price_per_100g", "price_per_unit", "unit_count",
+                            "rating", "review_count", "in_stock"
+                    );
                     List<String> searchable = List.of("name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", "synonyms_en", "synonyms_ru", "synonyms_et");
 
                     // ensure index and settings first, then upload in chunks
@@ -160,6 +168,10 @@ public class IngestService {
         d.setServings_min(enriched.getServings_min());
         d.setServings_max(enriched.getServings_max());
         d.setServing_size_g(enriched.getServing_size_g());
+        d.setUnit_count(enriched.getUnit_count());
+        d.setUnits_per_serving(enriched.getUnits_per_serving());
+        d.setUnit_mass_g(enriched.getUnit_mass_g());
+        d.setPrice_per_unit(enriched.getPrice_per_unit());
         d.setPrice(enriched.getPrice());
         d.setPrice_per_serving(enriched.getPrice_per_serving());
         d.setPrice_per_serving_min(enriched.getPrice_per_serving_min());

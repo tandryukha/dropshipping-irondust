@@ -159,6 +159,10 @@ public class EnrichedProduct extends ParsedProduct {
         enriched.setPrice_per_serving_min(parsed.getPrice_per_serving_min());
         enriched.setPrice_per_serving_max(parsed.getPrice_per_serving_max());
         enriched.setPrice_per_100g(parsed.getPrice_per_100g());
+        enriched.setUnit_count(parsed.getUnit_count());
+        enriched.setUnits_per_serving(parsed.getUnits_per_serving());
+        enriched.setUnit_mass_g(parsed.getUnit_mass_g());
+        enriched.setPrice_per_unit(parsed.getPrice_per_unit());
         enriched.setGoal_tags(parsed.getGoal_tags());
         enriched.setDiet_tags(parsed.getDiet_tags());
         enriched.setIngredients_key(parsed.getIngredients_key());

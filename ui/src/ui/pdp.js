@@ -26,7 +26,7 @@ function extractFlavors(dynamicAttrs){
     const obj = dynamicAttrs || {};
     const k = Object.keys(obj).find(x=>/flav|taste|maitse/i.test(x));
     if(k && Array.isArray(obj[k])) return obj[k];
-  }catch(_){}
+  }catch(_){ }
   return [];
 }
 
@@ -129,16 +129,30 @@ export function mountPdp() {
       // Facts: render enriched fields if available
       if (els.pdpFacts) {
         const facts = [];
-        if (typeof prod?.form === 'string' && prod.form) facts.push(`Form: ${prod.form}`);
-        if (typeof prod?.net_weight_g === 'number') facts.push(`Net: ${prod.net_weight_g} g`);
-        if (typeof prod?.serving_size_g === 'number') facts.push(`Serving size: ${prod.serving_size_g} g`);
-        if (typeof prod?.servings === 'number') {
-          facts.push(`Servings: ${prod.servings}`);
-        } else if (typeof prod?.servings_min === 'number' && typeof prod?.servings_max === 'number') {
-          facts.push(`Servings: ${prod.servings_min}–${prod.servings_max}`);
+        const form = typeof prod?.form === 'string' ? prod.form : '';
+        const isCountBased = form === 'capsules' || form === 'tabs';
+        if (form) facts.push(`Form: ${form}`);
+        if (!isCountBased) {
+          if (typeof prod?.net_weight_g === 'number') facts.push(`Net: ${prod.net_weight_g} g`);
+          if (typeof prod?.serving_size_g === 'number') facts.push(`Serving size: ${prod.serving_size_g} g`);
+          if (typeof prod?.servings === 'number') {
+            facts.push(`Servings: ${prod.servings}`);
+          } else if (typeof prod?.servings_min === 'number' && typeof prod?.servings_max === 'number') {
+            facts.push(`Servings: ${prod.servings_min}–${prod.servings_max}`);
+          }
+          if (typeof prod?.price_per_serving === 'number') facts.push(`Per serving: ${formatEuro(prod.price_per_serving, prod?.currency||'EUR')}`);
+          if (typeof prod?.price_per_100g === 'number') facts.push(`Per 100g: ${formatEuro(prod.price_per_100g, prod?.currency||'EUR')}`);
+        } else {
+          if (typeof prod?.unit_count === 'number') facts.push(`Units: ${prod.unit_count}`);
+          if (typeof prod?.units_per_serving === 'number') facts.push(`Dose: ${prod.units_per_serving} ${form === 'tabs' ? 'tabs' : 'caps'}`);
+          if (typeof prod?.unit_mass_g === 'number') facts.push(`Per ${form === 'tabs' ? 'tab' : 'cap'}: ${Math.round(prod.unit_mass_g*1000)} mg`);
+          if (typeof prod?.price_per_unit === 'number') facts.push(`Per unit: ${formatEuro(prod.price_per_unit, prod?.currency||'EUR')}`);
+          // If units_per_serving present, compute servings; else prefer not to show derived servings to avoid confusion
+          if (typeof prod?.units_per_serving === 'number' && prod.units_per_serving > 0 && typeof prod?.unit_count === 'number') {
+            const srv = Math.floor(prod.unit_count / prod.units_per_serving);
+            if (srv > 0) facts.push(`Servings: ${srv}`);
+          }
         }
-        if (typeof prod?.price_per_serving === 'number') facts.push(`Per serving: ${formatEuro(prod.price_per_serving, prod?.currency||'EUR')}`);
-        if (typeof prod?.price_per_100g === 'number') facts.push(`Per 100g: ${formatEuro(prod.price_per_100g, prod?.currency||'EUR')}`);
         if (Array.isArray(prod?.goal_tags)) prod.goal_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
         if (Array.isArray(prod?.diet_tags)) prod.diet_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
         els.pdpFacts.innerHTML = facts.map(x=>`<span class="fact">${x}</span>`).join('');

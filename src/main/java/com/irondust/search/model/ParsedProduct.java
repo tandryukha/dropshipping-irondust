@@ -138,6 +138,16 @@ public class ParsedProduct {
      * Useful for comparing value across different product sizes.
      */
     private Double price_per_100g;
+
+    // Count-based packaging fields (capsules/tabs)
+    /** Total number of units (capsules/tabs) in the package. */
+    private Integer unit_count;
+    /** Number of units per serving (capsules/tabs per serving). */
+    private Integer units_per_serving;
+    /** Mass per unit in grams (e.g., 500 mg → 0.5 g per capsule/tab). */
+    private Double unit_mass_g;
+    /** Price per unit in euros (price / unit_count). */
+    private Double price_per_unit;
     
     /** 
      * Fitness and health goal tags. Examples: preworkout, strength, endurance, etc.
@@ -249,6 +259,14 @@ public class ParsedProduct {
     public void setPrice_per_serving_max(Double price_per_serving_max) { this.price_per_serving_max = price_per_serving_max; }
     public Double getPrice_per_100g() { return price_per_100g; }
     public void setPrice_per_100g(Double price_per_100g) { this.price_per_100g = price_per_100g; }
+    public Integer getUnit_count() { return unit_count; }
+    public void setUnit_count(Integer unit_count) { this.unit_count = unit_count; }
+    public Integer getUnits_per_serving() { return units_per_serving; }
+    public void setUnits_per_serving(Integer units_per_serving) { this.units_per_serving = units_per_serving; }
+    public Double getUnit_mass_g() { return unit_mass_g; }
+    public void setUnit_mass_g(Double unit_mass_g) { this.unit_mass_g = unit_mass_g; }
+    public Double getPrice_per_unit() { return price_per_unit; }
+    public void setPrice_per_unit(Double price_per_unit) { this.price_per_unit = price_per_unit; }
     public List<String> getGoal_tags() { return goal_tags; }
     public void setGoal_tags(List<String> goal_tags) { this.goal_tags = goal_tags; }
     public List<String> getDiet_tags() { return diet_tags; }

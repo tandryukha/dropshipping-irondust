@@ -14,14 +14,25 @@ public class Normalizer implements EnricherStep {
     private static final java.util.regex.Pattern TABS_TOKENS = java.util.regex.Pattern.compile("\\b(tabs?|tabletid|tablet)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final java.util.regex.Pattern PULBER_TOKEN = java.util.regex.Pattern.compile("pulber", java.util.regex.Pattern.CASE_INSENSITIVE);
 
-    // Form mappings from Estonian slugs to canonical forms
-    private static final Map<String, String> FORM_MAP = Map.of(
-        "pulber", "powder",
-        "kapslid", "capsules", 
-        "tabletid", "tabs",
-        "jook", "drink",
-        "geel", "gel",
-        "baar", "bar"
+    // Form mappings from Estonian (and common English) slugs to canonical forms
+    private static final Map<String, String> FORM_MAP = Map.ofEntries(
+        Map.entry("pulber", "powder"),
+        Map.entry("powder", "powder"),
+        Map.entry("kapslid", "capsules"),
+        Map.entry("kapsel", "capsules"),
+        Map.entry("capsules", "capsules"),
+        Map.entry("capsule", "capsules"),
+        Map.entry("caps", "capsules"),
+        Map.entry("tabletid", "tabs"),
+        Map.entry("tablet", "tabs"),
+        Map.entry("tablets", "tabs"),
+        Map.entry("tabs", "tabs"),
+        Map.entry("jook", "drink"),
+        Map.entry("drink", "drink"),
+        Map.entry("geel", "gel"),
+        Map.entry("gel", "gel"),
+        Map.entry("baar", "bar"),
+        Map.entry("bar", "bar")
     );
 
     // Flavor mappings from Estonian slugs to canonical flavors
@@ -109,32 +120,53 @@ public class Normalizer implements EnricherStep {
         }
 
         // Evidence aggregation
-        boolean powderEvidence = mentionsPulberWord || (categorySuggestsPowder && hasGramsInText);
         boolean capsEvidence = mentionsCaps;
+        boolean powderEvidence = mentionsPulberWord || (categorySuggestsPowder && hasGramsInText) || (!capsEvidence && hasGramsInText);
 
-        // Require unambiguous evidence (XOR)
-        if (powderEvidence ^ capsEvidence) {
-            if (capsEvidence) {
-                // Choose tabs if tab/tabletid is explicitly mentioned, else capsules
-                return mentionsTabs ? "tabs" : "capsules";
-            } else {
-                return "powder";
-            }
+        // Prefer capsule/tablet if explicitly mentioned
+        if (capsEvidence && !powderEvidence) {
+            return mentionsTabs ? "tabs" : "capsules";
+        }
+        // If grams present and no capsule/tablet signal, assume powder
+        if (powderEvidence && !capsEvidence) {
+            return "powder";
         }
         return null;
     }
 
     private String normalizeForm(RawProduct raw) {
         if (raw.getDynamic_attrs() == null) return null;
-        
+
+        // Primary expected key
         List<String> formAttrs = raw.getDynamic_attrs().get("attr_pa_valjalaske-vorm");
+        if (formAttrs == null || formAttrs.isEmpty()) {
+            // Fallback: find any attribute whose taxonomy key mentions "vorm"
+            for (Map.Entry<String, java.util.List<String>> e : raw.getDynamic_attrs().entrySet()) {
+                String k = e.getKey();
+                if (k != null && k.contains("vorm")) {
+                    formAttrs = e.getValue();
+                    if (formAttrs != null && !formAttrs.isEmpty()) break;
+                }
+            }
+        }
+
         if (formAttrs != null && !formAttrs.isEmpty()) {
             String slug = formAttrs.get(0);
             String canonical = FORM_MAP.get(slug);
             if (canonical != null) return canonical;
             // Try stripping locale suffixes like -et, -ru, -en
             String stripped = stripLocaleSuffix(slug);
-            return FORM_MAP.get(stripped);
+            canonical = FORM_MAP.get(stripped);
+            if (canonical != null) return canonical;
+            // Heuristic fallback by substring
+            String s = stripped != null ? stripped : slug;
+            String sl = s.toLowerCase();
+            if (sl.contains("kaps")) return "capsules";
+            if (sl.contains("tablet")) return "tabs";
+            if (sl.contains("pulber") || sl.contains("powder")) return "powder";
+            if (sl.contains("jook") || sl.contains("drink")) return "drink";
+            if (sl.contains("geel") || sl.contains("gel")) return "gel";
+            if (sl.contains("baar") || sl.contains("bar")) return "bar";
         }
         return null;
     }
