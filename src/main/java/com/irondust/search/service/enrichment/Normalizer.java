@@ -24,6 +24,7 @@ public class Normalizer implements EnricherStep {
         Map.entry("capsule", "capsules"),
         Map.entry("caps", "capsules"),
         Map.entry("tabletid", "tabs"),
+        Map.entry("pehmekapslid", "capsules"),
         Map.entry("tablet", "tabs"),
         Map.entry("tablets", "tabs"),
         Map.entry("tabs", "tabs"),

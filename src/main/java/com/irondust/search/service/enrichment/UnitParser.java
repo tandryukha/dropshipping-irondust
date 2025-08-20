@@ -38,19 +38,19 @@ public class UnitParser implements EnricherStep {
 
     // Capsules/tablets servings pattern (title/text): e.g., "60 caps", "120 tablets"
     private static final Pattern CAPS_SERVINGS_PATTERN = Pattern.compile(
-        "(\\d{1,4})\\s*(caps|capsules|kaps|kapslid|tablets|tabs)",
+        "(\\d{1,4})\\s*(caps|capsules|softgels?|soft gels?|veg\\s*caps|kaps|kapslid|tablets|tabs)",
         Pattern.CASE_INSENSITIVE
     );
 
     // Units per serving: e.g., "2 capsules per serving", "2 kapslit portsjoni kohta"
     private static final Pattern UNITS_PER_SERVING_PATTERN = Pattern.compile(
-        "(\\d{1,3})\\s*(caps|capsule|capsules|kaps|kapsel|kapslid|tab|tabs|tablet|tabletid)\\s*(?:per|/)?\\s*(serving|dose|portsjon|annus)",
+        "(\\d{1,3})\\s*(caps|capsule|capsules|softgels?|soft gels?|veg\\s*caps|kaps|kapsel|kapslid|tab|tabs|tablet|tabletid)\\s*(?:per|/)?\\s*(serving|dose|portsjon|annus)",
         Pattern.CASE_INSENSITIVE
     );
 
     // Unit mass per cap/tab: e.g., "per capsule 500 mg", "per tab 0.5 g"
     private static final Pattern UNIT_MASS_PATTERN = Pattern.compile(
-        "(per\\s*(capsule|cap|kapsel|kaps|kapslid|tablet|tab|tabs)[^0-9]{0,10}|\\bpro\\b[^0-9]{0,10})?(\\d+(?:[.,]\\d+)?)\\s*(mg|g)",
+        "(per\\s*(capsule|cap|softgel|soft\\s*gel|veg\\s*caps|kapsel|kaps|kapslid|tablet|tab|tabs)[^0-9]{0,10}|\\bpro\\b[^0-9]{0,10})?(\\d+(?:[.,]\\d+)?)\\s*(mg|g)",
         Pattern.CASE_INSENSITIVE
     );
 

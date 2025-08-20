@@ -441,6 +441,18 @@ public class EnrichmentPipeline {
                 case "serving_size_g":
                     parsed.setServing_size_g((Double) value);
                     break;
+                case "unit_count":
+                    parsed.setUnit_count((Integer) value);
+                    break;
+                case "units_per_serving":
+                    parsed.setUnits_per_serving((Integer) value);
+                    break;
+                case "unit_mass_g":
+                    parsed.setUnit_mass_g((Double) value);
+                    break;
+                case "price_per_unit":
+                    parsed.setPrice_per_unit((Double) value);
+                    break;
                 case "price":
                     parsed.setPrice((Double) value);
                     break;
