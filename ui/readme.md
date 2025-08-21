@@ -1,4 +1,4 @@
-## Fitpoint — UI Prototype (ES Modules)
+## UI Prototype (ES Modules)
 
 **Purpose:** a no-framework, ES modules refactor of the single-file prototype to make features easy to extend while keeping the same UI:
 - **Enhanced Search Panel** (Products • Goals • Content)  

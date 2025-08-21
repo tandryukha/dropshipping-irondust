@@ -65,6 +65,18 @@ export function mountSearchPanel() {
   const searchInput = $('#search');
   const searchPanel = $('#searchPanel');
   const productsList = $('#productsList');
+  const allChips = $$('.chip');
+  // Expand/collapse inline trays (search panel only)
+  document.addEventListener('click', (e)=>{
+    if(!e.target.closest('#searchPanel')) return;
+    const btn = e.target.closest('[data-toggle]');
+    if(!btn) return;
+    const sel = btn.getAttribute('data-toggle');
+    const el = sel ? document.querySelector(sel) : null;
+    if(!el) return;
+    const hidden = el.hasAttribute('hidden');
+    if(hidden) el.removeAttribute('hidden'); else el.setAttribute('hidden','');
+  });
 
   // Focus show/hide
   searchInput?.addEventListener('focus', ()=>searchPanel?.classList.add('visible'));
@@ -72,13 +84,83 @@ export function mountSearchPanel() {
     const inside = e.target.closest('.search-wrap') || e.target.closest('#searchPanel');
     if(!inside) searchPanel?.classList.remove('visible');
   });
+  // Remove old menu behavior
 
-  // Toggle chips (static)
-  $$('.chip').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      const on = chip.getAttribute('aria-pressed')==='true';
-      chip.setAttribute('aria-pressed', String(!on));
+
+  // Toggle chips + run search
+  function getActiveFilters(){
+    const groups = new Map();
+    allChips.forEach(chip=>{
+      if(chip.getAttribute('aria-pressed')==='true'){
+        try{
+          const group = chip.getAttribute('data-filter-group')||chip.textContent.trim();
+          const f = JSON.parse(chip.getAttribute('data-filter')||'{}');
+          const prev = groups.get(group) || {};
+          // Merge with OR semantics for array fields, override for scalar/comparison
+          for(const [k,v] of Object.entries(f)){
+            if(Array.isArray(v)){
+              const arr = Array.isArray(prev[k]) ? prev[k] : [];
+              groups.set(group, { ...prev, [k]: Array.from(new Set(arr.concat(v))) });
+            }else{
+              groups.set(group, { ...prev, [k]: v });
+            }
+          }
+          if(Object.keys(f).length===0) groups.set(group, prev);
+        }catch(_e){ /* ignore */ }
+      }
     });
+    // Flatten groups into a single filter object; later groups can override same scalar fields
+    const out = {};
+    for(const obj of groups.values()){
+      for(const [k,v] of Object.entries(obj)){
+        if(Array.isArray(v)){
+          const arr = Array.isArray(out[k]) ? out[k] : [];
+          out[k] = Array.from(new Set(arr.concat(v)));
+        }else{
+          out[k] = v;
+        }
+      }
+    }
+    return out;
+  }
+
+  function updateChipSelection(chip){
+    const group = chip.getAttribute('data-filter-group');
+    const isOn = chip.getAttribute('aria-pressed')==='true';
+    if(group){
+      // Single-select per group: turn others off if enabling this one
+      if(!isOn){
+        allChips.forEach(c=>{ if(c!==chip && c.getAttribute('data-filter-group')===group){ c.setAttribute('aria-pressed','false'); } });
+      }
+    }
+    chip.setAttribute('aria-pressed', String(!isOn));
+  }
+
+  async function runFilteredSearch(){
+    if(!productsList) return;
+    const query = (searchInput?.value||'').trim();
+    const filters = getActiveFilters();
+    productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
+    try{
+      const data = await searchProducts(query, { size: 6, filters });
+      const items = Array.isArray(data?.items) ? data.items : [];
+      if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
+      productsList.innerHTML = items.map(renderProductHTML).join('');
+      attachAddHandlers(productsList);
+      attachOpenHandlers(productsList);
+    }catch(e){
+      productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
+    }
+  }
+
+  allChips.forEach(chip=>{
+    chip.addEventListener('click', ()=>{ updateChipSelection(chip); runFilteredSearch(); });
+  });
+  // Also attach for chips added in expanded trays (delegated)
+  document.addEventListener('click', (e)=>{
+    if(!e.target.closest('#searchPanel')) return;
+    const chip = e.target.closest('.more-chips .chip[role="switch"]');
+    if(chip){ updateChipSelection(chip); runFilteredSearch(); }
   });
 
   // Live search
@@ -86,10 +168,12 @@ export function mountSearchPanel() {
   async function runSearch(q){
     if(!productsList) return;
     const query = (q||'').trim();
-    if(query.length < 2) return;
+    // When filters are active, allow empty query
+    const filtersActive = Object.keys(getActiveFilters()).length>0;
+    if(query.length < 2 && !filtersActive) return;
     productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
     try{
-      const data = await searchProducts(query, { size: 6 });
+      const data = await searchProducts(query, { size: 6, filters: getActiveFilters() });
       const items = Array.isArray(data?.items) ? data.items : [];
       if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
       productsList.innerHTML = items.map(renderProductHTML).join('');
@@ -105,6 +189,11 @@ export function mountSearchPanel() {
 
   // Initial wiring for static Add buttons
   attachAddHandlers(document);
+
+  // If any chip is preselected, run search immediately
+  if(Array.from(allChips).some(c=>c.getAttribute('aria-pressed')==='true')){
+    runFilteredSearch();
+  }
 }
 
 
