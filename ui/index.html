@@ -62,23 +62,53 @@
     .badge{font-size:11px;padding:2px 6px;border-radius:999px;background:#ecfeff;color:#036972;border:1px solid #bbeef5}
     .price{font-weight:800}
     .add{border:0;border-radius:10px;padding:8px 10px;background:var(--fp-primary);color:#fff;font-weight:800;cursor:pointer}
-    .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:#f6f8fb;border:1px solid #e0e6ef;margin:6px 6px 0 0;font-size:13px;cursor:pointer;color:#1f2937}
+    /* Compact chips */
+    .chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:999px;background:#f6f8fb;border:1px solid #e0e6ef;margin:4px 4px 0 0;font-size:12px;cursor:pointer;color:#1f2937;height:28px;white-space:nowrap}
     .chip[aria-pressed="true"]{background:#dff6ff;border-color:#6bd3ee;color:#06485b;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
     /* Chip group colors */
-    .chip-goal{background:#eef7ff;border-color:#d6e7ff}
-    .chip-goal[aria-pressed="true"]{background:#e6f2ff;border-color:#9fc8ff;color:#0b4d71}
+    .chip-stock{background:#eef9ed;border-color:#d6f3d5}
+    .chip-stock[aria-pressed="true"]{background:#e2f7e1;border-color:#b9ebba;color:#065f06}
     .chip-form{background:#f8f5ff;border-color:#e7e3ff}
     .chip-form[aria-pressed="true"]{background:#f1ecff;border-color:#c7bfff;color:#4b3f72}
     .chip-diet{background:#f2fbf6;border-color:#d6f3e3}
     .chip-diet[aria-pressed="true"]{background:#e8f9f0;border-color:#b9ebcf;color:#065f46}
     .chip-price,.chip-pps{background:#fff9f0;border-color:#ffe4c7}
     .chip-price[aria-pressed="true"],.chip-pps[aria-pressed="true"]{background:#fff3e0;border-color:#ffc78a;color:#6b3f00}
+    .chip-overflow{background:#f3f4f6;border-color:#e5e7eb;font-weight:600}
+    
+    /* Preset cards */
+    .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+    .preset-card{background:#fff;border:1px solid #e0e6ef;border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:all .15s;position:relative}
+    .preset-card:hover{border-color:#6bd3ee;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    .preset-card.active{background:#e9fbff;border-color:#6bd3ee;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
+    .preset-card.suggested{border-color:#fbbf24;box-shadow:0 0 0 2px rgba(251,191,36,.25) inset}
+    .preset-card.suggested::after{content:"✨";position:absolute;top:4px;right:4px;font-size:12px}
+    .preset-icon{font-size:24px;line-height:1}
+    .preset-label{font-size:13px;font-weight:600;color:#374151}
+    
+    /* Chip tray with overflow control */
+    .chip-tray{display:flex;flex-wrap:nowrap;gap:6px;overflow:hidden;position:relative;align-items:center}
     .content-card{padding:10px 12px;border:1px solid #eef1f4;border-radius:14px;margin-bottom:10px;background:#fff}
     .pill{font-size:12px;padding:4px 8px;border-radius:999px;background:#f9fafb;border:1px solid #e5e7eb;margin-left:6px}
     .tag{font-size:11px;background:#f2f4f7;border:1px solid #e5e7eb;padding:2px 6px;border-radius:999px;margin-left:4px}
     .divider{height:1px;background:#eef1f4;margin:8px 0}
     /* Inline expandable chip trays */
     .more-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    
+    /* Filter buttons */
+    .btn-more-goals,.btn-all-filters{background:transparent;border:1px solid #e0e6ef;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;margin-top:8px;transition:all .15s}
+    .btn-more-goals:hover,.btn-all-filters:hover{background:#f9fafb;border-color:#d1d5db}
+    
+    /* Applied filters bar */
+    .applied-bar{display:flex;align-items:center;gap:6px;padding:8px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:12px;min-height:36px}
+    .applied-bar:empty{display:none}
+    .applied-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;background:#fff;border:1px solid #d1d5db;font-size:12px;color:#374151}
+    .applied-chip button{background:transparent;border:0;width:16px;height:16px;display:grid;place-items:center;cursor:pointer;border-radius:50%;color:#6b7280}
+    .applied-chip button:hover{background:#f3f4f6}
+    .applied-more{color:#6b7280;font-weight:600}
+    
+    /* Sort dropdown */
+    .sort-select{background:#fff;border:1px solid #e0e6ef;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:500;color:#374151;cursor:pointer}
 
     /* PDP layout */
     .pdp{display:grid;grid-template-columns:1.8fr 1.2fr;gap:16px;margin-top:28px}
@@ -128,6 +158,28 @@
     /* Command palette (simple) */
     .overlay{position:fixed;inset:0;background:rgba(15,18,25,.35);backdrop-filter:saturate(120%) blur(8px);display:none;z-index:40}
     .overlay.visible{display:block}
+    
+    /* Modals */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);z-index:50}
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.2);max-width:600px;width:90%;max-height:80vh;overflow:hidden;z-index:60}
+    .modal-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+    .modal-header h3{margin:0;font-size:18px}
+    .modal-close{background:transparent;border:0;font-size:20px;cursor:pointer;color:#6b7280}
+    .modal-body{padding:20px;overflow-y:auto;max-height:60vh}
+    .modal-footer{padding:16px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;gap:12px}
+    .goal-group{margin-bottom:24px}
+    .goal-group h4{margin:0 0 12px;font-size:14px;color:#6b7280}
+    .preset-grid-modal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .filter-section{margin-bottom:20px}
+    .filter-section h4{margin:0 0 8px;font-size:14px;color:#374151}
+    .chip-group{display:flex;flex-wrap:wrap;gap:6px}
+    .checkbox-label{display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer}
+    .checkbox-label input{width:16px;height:16px}
+    .price-slider{width:100%;margin:12px 0}
+    .price-range{text-align:center;font-size:13px;color:#6b7280}
+    .price-quick-chips{display:flex;gap:6px;margin-bottom:12px}
+    .btn-apply{background:var(--fp-primary);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer}
+    .btn-reset{background:#f3f4f6;color:#374151;border:0;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer}
     .palette{position:fixed;left:50%;top:14%;transform:translateX(-50%);width:min(820px,92vw);border-radius:18px;border:1px solid rgba(255,255,255,.35);background:rgba(250,252,255,.9);box-shadow:0 50px 120px rgba(0,0,0,.2);overflow:hidden;z-index:50;display:none}
     .palette.visible{display:block}
     .pal-head{padding:14px;border-bottom:1px solid #e9edf0;display:flex;align-items:center;gap:10px}
@@ -189,12 +241,24 @@
         <div class="cart-pill" aria-live="polite">Cart · <span id="cartCount">2</span></div>
       </div>
 
+      <!-- Applied Filters Bar -->
+      <div id="appliedBar" class="applied-bar" style="display:none"></div>
+      
       <!-- Enhanced Search Panel -->
       <div id="searchPanel" class="panel" role="dialog" aria-label="Enhanced search panel" aria-modal="false">
         <div class="panel-inner">
           <!-- Products column WITH Add -->
           <div class="col" id="productsCol">
-            <h4>Products</h4>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <h4 style="margin:0">Products</h4>
+              <select id="sortDropdown" class="sort-select">
+                <option value="relevance">Best match</option>
+                <option value="price_asc">Price ↑</option>
+                <option value="price_desc">Price ↓</option>
+                <option value="popular">Popular</option>
+                <option value="new">New</option>
+              </select>
+            </div>
 
             <!-- Each product has data-* so the popover can show flavors -->
             <div id="productsList">
@@ -248,34 +312,43 @@
             </div>
           </div>
 
-          <!-- Goals -->
+          <!-- Goals / Filters -->
           <div class="col">
             <h4>Goals</h4>
-            <button class="chip chip-goal" role="switch" aria-pressed="true" data-filter='{"goal_tags":["strength"]}' data-filter-group="goal">Strength<span class="pill">+ creatine</span></button>
-            <button class="chip chip-goal" role="switch" aria-pressed="false" data-filter='{"goal_tags":["wellness"]}' data-filter-group="goal">Wellness<span class="pill">+ daily essentials</span></button>
-            <button class="chip chip-goal" role="switch" aria-pressed="false" data-filter='{"goal_tags":["endurance"]}' data-filter-group="goal">Endurance<span class="pill">+ electrolytes</span></button>
-            <button class="chip chip-goal" role="switch" aria-pressed="false" data-filter='{"goal_tags":["preworkout"]}' data-filter-group="goal">Pre‑workout<span class="pill">+ caffeine pump</span></button>
-            <button class="chip" data-toggle="#moreGoals">More goals…</button>
-            <div id="moreGoals" class="more-chips" hidden>
-              <button class="chip chip-goal" role="switch" aria-pressed="false" data-filter='{"goal_tags":["recovery"]}' data-filter-group="goal">Recovery<span class="pill">+ protein</span></button>
-              <button class="chip chip-goal" role="switch" aria-pressed="false" data-filter='{"goal_tags":["weight_loss"]}' data-filter-group="goal">Weight loss<span class="pill">+ calorie guide</span></button>
+            <div class="preset-grid">
+              <button class="preset-card" data-filters='{"goal_tags":["strength"],"form":"powder"}' data-preset="strength">
+                <span class="preset-icon">💪</span>
+                <span class="preset-label">Strength</span>
+              </button>
+              <button class="preset-card" data-filters='{"goal_tags":["preworkout"],"diet_tags":["caffeine"]}' data-preset="preworkout">
+                <span class="preset-icon">⚡</span>
+                <span class="preset-label">Pre-workout</span>
+              </button>
+              <button class="preset-card" data-filters='{"goal_tags":["wellness"],"form":"capsules"}' data-preset="wellness">
+                <span class="preset-icon">🛡️</span>
+                <span class="preset-label">Wellness</span>
+              </button>
+              <button class="preset-card" data-filters='{"goal_tags":["endurance"],"diet_tags":["electrolytes"]}' data-preset="endurance">
+                <span class="preset-icon">🏃</span>
+                <span class="preset-label">Endurance</span>
+              </button>
             </div>
+            <button class="btn-more-goals" id="moreGoalsBtn">More goals →</button>
+            
             <div class="divider"></div>
-            <div class="muted" style="font-size:12px">Filters</div>
-            <button class="chip chip-diet" role="switch" aria-pressed="true" data-filter='{"in_stock":true}'>In stock</button>
-            <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}' data-filter-group="form">Powder</button>
-            <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}' data-filter-group="form">Capsules</button>
-            <button class="chip chip-diet" role="switch" aria-pressed="false" data-filter='{"diet_tags":["vegan"]}'>Vegan</button>
-            <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":0.5}}' data-filter-group="pps">≤ €0.50/serv</button>
-            <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":2000}}' data-filter-group="price">≤ €20</button>
-            <button class="chip" data-toggle="#moreFilters">More filters…</button>
-            <div id="moreFilters" class="more-chips" hidden>
-              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"tabs"}' data-filter-group="form">Tabs</button>
-              <button class="chip chip-diet" role="switch" aria-pressed="false" data-filter='{"diet_tags":["gluten_free"]}'>Gluten‑free</button>
-              <button class="chip chip-diet" role="switch" aria-pressed="false" data-filter='{"diet_tags":["sugar_free"]}'>Sugar‑free</button>
-              <button class="chip chip-diet" role="switch" aria-pressed="false" data-filter='{"diet_tags":["lactose_free"]}'>Lactose‑free</button>
-              <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":4000}}' data-filter-group="price">≤ €40</button>
+            
+            <h4>Quick Filters</h4>
+            <div class="chip-tray" id="quickFilters">
+              <button class="chip chip-stock" role="switch" aria-pressed="true" data-filter='{"in_stock":true}'>In stock</button>
+              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}' data-filter-group="form">Powder</button>
+              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}' data-filter-group="form">Capsules</button>
+              <button class="chip chip-diet" role="switch" aria-pressed="false" data-filter='{"diet_tags":["vegan"]}'>Vegan</button>
+              <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":2000}}' data-filter-group="price">≤€20</button>
+              <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":0.5}}' data-filter-group="pps">≤€0.50/serv</button>
+              <button class="chip chip-overflow" id="quickOverflow" style="display:none">+<span>0</span></button>
             </div>
+            
+            <button class="btn-all-filters" id="allFiltersBtn">All filters →</button>
           </div>
 
           <!-- Content -->
@@ -462,6 +535,136 @@
       <button id="qtyPlus" aria-label="Increase">+</button>
     </div>
     <button class="confirm" id="confirmAdd" disabled>Add to cart</button>
+  </div>
+  
+  <!-- More Goals Modal -->
+  <div class="modal-overlay" id="goalsOverlay" style="display:none"></div>
+  <div class="modal" id="goalsModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="goalsTitle">
+    <div class="modal-header">
+      <h3 id="goalsTitle">All Goals</h3>
+      <button class="modal-close" id="goalsClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="goal-group">
+        <h4>Build</h4>
+        <div class="preset-grid-modal">
+          <button class="preset-card" data-filters='{"goal_tags":["strength"],"form":"powder"}'>
+            <span class="preset-icon">💪</span>
+            <span class="preset-label">Strength</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["muscle"],"form":"powder"}'>
+            <span class="preset-icon">🏋️</span>
+            <span class="preset-label">Build muscle</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["recovery"],"diet_tags":["protein"]}'>
+            <span class="preset-icon">🔄</span>
+            <span class="preset-label">Recovery</span>
+          </button>
+        </div>
+      </div>
+      <div class="goal-group">
+        <h4>Performance</h4>
+        <div class="preset-grid-modal">
+          <button class="preset-card" data-filters='{"goal_tags":["preworkout"],"diet_tags":["caffeine"]}'>
+            <span class="preset-icon">⚡</span>
+            <span class="preset-label">Pre-workout</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["endurance"],"diet_tags":["electrolytes"]}'>
+            <span class="preset-icon">🏃</span>
+            <span class="preset-label">Endurance</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["energy"]}'>
+            <span class="preset-icon">🔥</span>
+            <span class="preset-label">Energy</span>
+          </button>
+        </div>
+      </div>
+      <div class="goal-group">
+        <h4>Wellness</h4>
+        <div class="preset-grid-modal">
+          <button class="preset-card" data-filters='{"goal_tags":["wellness"],"form":"capsules"}'>
+            <span class="preset-icon">🛡️</span>
+            <span class="preset-label">Wellness</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["weight_loss"]}'>
+            <span class="preset-icon">⚖️</span>
+            <span class="preset-label">Weight loss</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["daily"]}'>
+            <span class="preset-icon">☀️</span>
+            <span class="preset-label">Daily essentials</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- All Filters Modal -->
+  <div class="modal" id="filtersModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="filtersTitle">
+    <div class="modal-header">
+      <h3 id="filtersTitle">All Filters</h3>
+      <button class="modal-close" id="filtersClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="filter-section">
+        <h4>Availability</h4>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterInStock" checked>
+          <span>In stock only</span>
+        </label>
+      </div>
+      <div class="filter-section">
+        <h4>Form</h4>
+        <div class="chip-group">
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}'>Powder</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}'>Capsules</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"tabs"}'>Tabs</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"liquid"}'>Liquid</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"bar"}'>Bar</button>
+        </div>
+      </div>
+      <div class="filter-section">
+        <h4>Diet</h4>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterVegan">
+          <span>Vegan</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterGlutenFree">
+          <span>Gluten-free</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterSugarFree">
+          <span>Sugar-free</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterLactoseFree">
+          <span>Lactose-free</span>
+        </label>
+      </div>
+      <div class="filter-section">
+        <h4>Price</h4>
+        <div class="price-quick-chips">
+          <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":2000}}'>≤€20</button>
+          <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":4000}}'>≤€40</button>
+          <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":6000}}'>≤€60</button>
+        </div>
+        <input type="range" id="priceSlider" min="0" max="100" value="100" class="price-slider">
+        <div class="price-range">€0 - €<span id="priceValue">100+</span></div>
+      </div>
+      <div class="filter-section">
+        <h4>Serving cost</h4>
+        <div class="price-quick-chips">
+          <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":0.5}}'>≤€0.50/serv</button>
+          <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":1}}'>≤€1/serv</button>
+          <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":2}}'>≤€2/serv</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-reset" id="resetFilters">Reset</button>
+      <button class="btn-apply" id="applyFilters">Apply</button>
+    </div>
   </div>
 
   <!-- Ref button -->
