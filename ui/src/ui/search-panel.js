@@ -25,9 +25,10 @@ function attachOpenHandlers(root) {
     card.__openHandler = true;
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.js-add')) return;
+      e.stopPropagation();
       const id = card.getAttribute('data-id');
       if (id) {
-        $('#searchPanel')?.classList.remove('visible');
+        // Don't close the search panel when navigating to product
         navigate('/p/'+id);
       }
     });
@@ -77,6 +78,7 @@ function updateAppliedBar() {
   
   if (filters.length === 0 && !searchState.activePreset) {
     appliedBar.style.display = 'none';
+    appliedBar.innerHTML = '';
     return;
   }
   
@@ -91,8 +93,10 @@ function updateAppliedBar() {
       <span>${searchState.activePreset}</span>
       <button aria-label="Remove preset">×</button>
     `;
-    chip.querySelector('button').addEventListener('click', () => {
+    chip.querySelector('button').addEventListener('click', (e) => {
+      e.stopPropagation();
       clearPreset();
+      updateAppliedBar();
       runFilteredSearch();
     });
     appliedBar.appendChild(chip);
@@ -107,8 +111,10 @@ function updateAppliedBar() {
       <span>${label}</span>
       <button aria-label="Remove filter">×</button>
     `;
-    chip.querySelector('button').addEventListener('click', () => {
+    chip.querySelector('button').addEventListener('click', (e) => {
+      e.stopPropagation();
       removeFilter(chipElement);
+      updateAppliedBar();
       runFilteredSearch();
     });
     appliedBar.appendChild(chip);
@@ -242,6 +248,9 @@ export function mountSearchPanel() {
     }, 10);
   });
   document.addEventListener('click', (e)=>{
+    // Don't close if clicking inside modals
+    if (e.target.closest('.modal') || e.target.closest('.modal-overlay')) return;
+    
     const inside = e.target.closest('.search-wrap') || e.target.closest('#searchPanel');
     if(!inside) searchPanel?.classList.remove('visible');
   });
@@ -304,12 +313,14 @@ export function mountSearchPanel() {
     setupPresetCards(); // Re-setup for any new cards
   });
   
-  goalsClose?.addEventListener('click', () => {
+  goalsClose?.addEventListener('click', (e) => {
+    e.stopPropagation();
     goalsModal.style.display = 'none';
     goalsOverlay.style.display = 'none';
   });
   
-  goalsOverlay?.addEventListener('click', () => {
+  goalsOverlay?.addEventListener('click', (e) => {
+    e.stopPropagation();
     goalsModal.style.display = 'none';
     goalsOverlay.style.display = 'none';
   });
@@ -323,17 +334,91 @@ export function mountSearchPanel() {
   allFiltersBtn?.addEventListener('click', () => {
     filtersModal.style.display = '';
     goalsOverlay.style.display = '';
+    
+    // Sync checkboxes with current chip states
+    const inStockChip = $('.chip[data-filter*="in_stock"]');
+    const inStockCheckbox = $('#filterInStock');
+    if (inStockChip && inStockCheckbox) {
+      inStockCheckbox.checked = inStockChip.getAttribute('aria-pressed') === 'true';
+    }
+    
+    const veganChip = $('.chip[data-filter*="vegan"]:not([data-filter*="sugar_free"])');
+    const veganCheckbox = $('#filterVegan');
+    if (veganChip && veganCheckbox) {
+      veganCheckbox.checked = veganChip.getAttribute('aria-pressed') === 'true';
+    }
+    
+    const glutenFreeCheckbox = $('#filterGlutenFree');
+    const glutenFreeChip = $('.chip[data-filter*="gluten_free"]');
+    if (glutenFreeChip && glutenFreeCheckbox) {
+      glutenFreeCheckbox.checked = glutenFreeChip.getAttribute('aria-pressed') === 'true';
+    }
+    
+    const sugarFreeCheckbox = $('#filterSugarFree');
+    const sugarFreeChip = $('.chip[data-filter*="sugar_free"]');
+    if (sugarFreeChip && sugarFreeCheckbox) {
+      sugarFreeCheckbox.checked = sugarFreeChip.getAttribute('aria-pressed') === 'true';
+    }
+    
+    const lactoseFreeCheckbox = $('#filterLactoseFree');
+    const lactoseFreeChip = $('.chip[data-filter*="lactose_free"]');
+    if (lactoseFreeChip && lactoseFreeCheckbox) {
+      lactoseFreeCheckbox.checked = lactoseFreeChip.getAttribute('aria-pressed') === 'true';
+    }
   });
   
-  filtersClose?.addEventListener('click', () => {
+  filtersClose?.addEventListener('click', (e) => {
+    e.stopPropagation();
     filtersModal.style.display = 'none';
     goalsOverlay.style.display = 'none';
   });
   
-  applyFilters?.addEventListener('click', () => {
+  // Handle checkbox filters in modal
+  function updateCheckboxFilters() {
+    const inStockCheckbox = $('#filterInStock');
+    const veganCheckbox = $('#filterVegan');
+    const glutenFreeCheckbox = $('#filterGlutenFree');
+    const sugarFreeCheckbox = $('#filterSugarFree');
+    const lactoseFreeCheckbox = $('#filterLactoseFree');
+    
+    // In stock
+    const inStockChip = $('.chip[data-filter*="in_stock"]');
+    if (inStockChip && inStockCheckbox) {
+      if (inStockCheckbox.checked && inStockChip.getAttribute('aria-pressed') !== 'true') {
+        updateChipSelection(inStockChip);
+      } else if (!inStockCheckbox.checked && inStockChip.getAttribute('aria-pressed') === 'true') {
+        updateChipSelection(inStockChip);
+      }
+    }
+    
+    // Diet checkboxes
+    const dietCheckboxes = [
+      { checkbox: veganCheckbox, filter: 'vegan' },
+      { checkbox: glutenFreeCheckbox, filter: 'gluten_free' },
+      { checkbox: sugarFreeCheckbox, filter: 'sugar_free' },
+      { checkbox: lactoseFreeCheckbox, filter: 'lactose_free' }
+    ];
+    
+    dietCheckboxes.forEach(({ checkbox, filter }) => {
+      if (!checkbox) return;
+      const chip = $(`.chip[data-filter*="${filter}"]`);
+      if (chip) {
+        if (checkbox.checked && chip.getAttribute('aria-pressed') !== 'true') {
+          updateChipSelection(chip);
+        } else if (!checkbox.checked && chip.getAttribute('aria-pressed') === 'true') {
+          updateChipSelection(chip);
+        }
+      }
+    });
+  }
+  
+  applyFilters?.addEventListener('click', (e) => {
+    e.stopPropagation();
     // Apply filter changes from modal
+    updateCheckboxFilters();
     filtersModal.style.display = 'none';
     goalsOverlay.style.display = 'none';
+    updateAppliedBar();
     runFilteredSearch();
   });
   
@@ -468,14 +553,24 @@ export function mountSearchPanel() {
     }
   }
 
-  allChips.forEach(chip=>{
-    chip.addEventListener('click', ()=>{ updateChipSelection(chip); runFilteredSearch(); });
-  });
-  // Also attach for chips added in expanded trays (delegated)
-  document.addEventListener('click', (e)=>{
-    if(!e.target.closest('#searchPanel')) return;
-    const chip = e.target.closest('.more-chips .chip[role="switch"]');
-    if(chip){ updateChipSelection(chip); runFilteredSearch(); }
+  // Set up chip click handlers for all chips (including modal chips)
+  function setupChipHandlers() {
+    const allChipsEverywhere = $$('.chip[role="switch"]');
+    allChipsEverywhere.forEach(chip => {
+      if (chip.__hasChipHandler) return;
+      chip.__hasChipHandler = true;
+      chip.addEventListener('click', () => { 
+        updateChipSelection(chip); 
+        runFilteredSearch(); 
+      });
+    });
+  }
+  
+  setupChipHandlers();
+  
+  // Re-setup when modals open to catch any new chips
+  allFiltersBtn?.addEventListener('click', () => {
+    setTimeout(setupChipHandlers, 10);
   });
 
   // Contextual defaults based on query
@@ -582,6 +677,14 @@ export function mountSearchPanel() {
 
   // If any chip is preselected, run search immediately
   if(Array.from(allChips).some(c=>c.getAttribute('aria-pressed')==='true')){
+    // Initialize activeFilters for pre-selected chips
+    allChips.forEach(chip => {
+      if (chip.getAttribute('aria-pressed') === 'true') {
+        const label = chip.textContent.trim().replace(/\s+/g, ' ');
+        searchState.activeFilters.set(chip, label);
+      }
+    });
+    updateAppliedBar();
     runFilteredSearch();
   }
 }
