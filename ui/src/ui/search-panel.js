@@ -10,6 +10,25 @@ const searchState = {
   sortOrder: 'relevance'
 };
 
+// Helpers to compare filters across duplicate chips
+function canonicalize(value){
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object'){
+    const out = {};
+    Object.keys(value).sort().forEach(k=>{ out[k]=canonicalize(value[k]); });
+    return out;
+  }
+  return value;
+}
+
+function getChipFilterObject(el){
+  try{ return JSON.parse(el.getAttribute('data-filter')||'{}'); }catch(_e){ return {}; }
+}
+
+function areFiltersEqual(a,b){
+  try{ return JSON.stringify(canonicalize(a)) === JSON.stringify(canonicalize(b)); }catch(_e){ return false; }
+}
+
 function attachAddHandlers(root) {
   root.querySelectorAll('.js-add').forEach(btn=>{
     if (btn.id === 'pdpAdd') return;
@@ -113,7 +132,16 @@ function updateAppliedBar() {
     `;
     chip.querySelector('button').addEventListener('click', (e) => {
       e.stopPropagation();
-      removeFilter(chipElement);
+      // If the underlying chip got detached or re-rendered, find by filter object and remove
+      if (!document.body.contains(chipElement)) {
+        // Build a virtual element with the same filter for removal routine
+        const v = document.createElement('button');
+        v.setAttribute('role','switch');
+        v.setAttribute('data-filter', JSON.stringify(getChipFilterObject(chipElement)));
+        removeFilter(v);
+      } else {
+        removeFilter(chipElement);
+      }
       updateAppliedBar();
       runFilteredSearch();
     });
@@ -130,9 +158,21 @@ function updateAppliedBar() {
 }
 
 function removeFilter(chipElement) {
-  searchState.activeFilters.delete(chipElement);
-  if (chipElement) chipElement.setAttribute('aria-pressed', 'false');
+  // Turn off ALL chips that correspond to the same filter object as the removed one
+  if (chipElement) {
+    const targetFilter = getChipFilterObject(chipElement);
+    $$('.chip[role="switch"]').forEach(c=>{
+      const cf = getChipFilterObject(c);
+      if (areFiltersEqual(cf, targetFilter)){
+        c.setAttribute('aria-pressed','false');
+        searchState.activeFilters.delete(c);
+      }
+    });
+  }
   updateAppliedBar();
+  // Recalculate overflow and rerun search to keep results in sync
+  if (window.checkChipOverflow) window.checkChipOverflow();
+  runFilteredSearch();
 }
 
 function clearPreset() {
@@ -151,6 +191,31 @@ function setupChipOverflow() {
   
   const overflowChip = $('#quickOverflow');
   
+  function measureOverflowWidth(count) {
+    if (!overflowChip) return 0;
+    const prev = overflowChip.querySelector('span')?.textContent || '';
+    const prevDisplay = overflowChip.style.display;
+    const prevVisibility = overflowChip.style.visibility;
+    const prevPosition = overflowChip.style.position;
+    const prevLeft = overflowChip.style.left;
+
+    // Prepare for measurement
+    overflowChip.style.display = '';
+    overflowChip.style.visibility = 'hidden';
+    overflowChip.style.position = 'absolute';
+    overflowChip.style.left = '-9999px';
+    overflowChip.querySelector('span').textContent = String(count);
+    const width = overflowChip.offsetWidth;
+
+    // Restore
+    overflowChip.querySelector('span').textContent = prev;
+    overflowChip.style.display = prevDisplay;
+    overflowChip.style.visibility = prevVisibility;
+    overflowChip.style.position = prevPosition;
+    overflowChip.style.left = prevLeft;
+    return width;
+  }
+
   function checkOverflow() {
     const chips = Array.from(chipTray.querySelectorAll('.chip:not(.chip-overflow)'));
     if (!overflowChip || chips.length === 0) return;
@@ -169,7 +234,8 @@ function setupChipOverflow() {
     let currentWidth = 0;
     let firstHiddenIndex = -1;
     const chipGap = 6;
-    const overflowWidth = 50; // Space needed for +N chip
+    // First pass: optimistic measurement using 2 digits as placeholder
+    let overflowWidth = measureOverflowWidth(99) || 50;
     
     // Find how many chips fit
     for (let i = 0; i < chips.length; i++) {
@@ -188,16 +254,40 @@ function setupChipOverflow() {
     
     // Hide chips that don't fit and show overflow
     if (firstHiddenIndex !== -1) {
-      const hiddenCount = chips.length - firstHiddenIndex;
+      let hiddenCount = chips.length - firstHiddenIndex;
+      // Second pass: measure actual overflow width with correct digits
+      overflowWidth = measureOverflowWidth(hiddenCount) || overflowWidth;
+
+      // Re-run fitting with accurate overflow width
+      currentWidth = 0;
+      firstHiddenIndex = -1;
+      for (let i = 0; i < chips.length; i++) {
+        const chip = chips[i];
+        const chipWidth = chip.offsetWidth;
+        const totalWidth = currentWidth + chipWidth + (i > 0 ? chipGap : 0);
+        if (totalWidth + overflowWidth + chipGap > trayWidth) { firstHiddenIndex = i; break; }
+        currentWidth = totalWidth;
+      }
+      hiddenCount = firstHiddenIndex === -1 ? 0 : (chips.length - firstHiddenIndex);
       
       // Hide overflowing chips
-      for (let i = firstHiddenIndex; i < chips.length; i++) {
-        chips[i].style.display = 'none';
+      if (firstHiddenIndex !== -1) {
+        for (let i = firstHiddenIndex; i < chips.length; i++) {
+          chips[i].style.display = 'none';
+        }
       }
       
       // Show overflow chip with count
-      overflowChip.style.display = '';
-      overflowChip.querySelector('span').textContent = hiddenCount;
+      if (hiddenCount > 0) {
+        overflowChip.style.display = '';
+        overflowChip.querySelector('span').textContent = hiddenCount;
+      } else {
+        overflowChip.style.display = 'none';
+      }
+    } else {
+      // Everything fits; ensure overflow hidden and count cleared
+      overflowChip.style.display = 'none';
+      overflowChip.querySelector('span').textContent = '0';
     }
   }
   
@@ -263,32 +353,36 @@ export function mountSearchPanel() {
       
       card.addEventListener('click', () => {
         const filters = JSON.parse(card.getAttribute('data-filters') || '{}');
-        const presetName = card.getAttribute('data-preset');
-        
-        // Clear previous preset
-        clearPreset();
-        
+        const isActive = card.classList.contains('active');
+        // Toggle off if already active
+        if (isActive) {
+          clearPreset();
+          const goalsModal = $('#goalsModal');
+          const goalsOverlay = $('#goalsOverlay');
+          if (goalsModal && goalsModal.style.display !== 'none') {
+            goalsModal.style.display = 'none';
+            goalsOverlay.style.display = 'none';
+          }
+          runFilteredSearch();
+          return;
+        }
         // Apply new preset
+        clearPreset();
         card.classList.add('active');
         searchState.activePreset = card.querySelector('.preset-label').textContent;
-        
         // Apply filters from preset
         for (const [key, value] of Object.entries(filters)) {
-          // Find matching chips and activate them
           allChips.forEach(chip => {
             const chipFilter = JSON.parse(chip.getAttribute('data-filter') || '{}');
-            if (JSON.stringify(chipFilter) === JSON.stringify({[key]: value})) {
+            if (JSON.stringify(chipFilter) === JSON.stringify({ [key]: value })) {
               chip.setAttribute('aria-pressed', 'true');
               const label = chip.textContent.trim().replace(/\s+/g, ' ');
               searchState.activeFilters.set(chip, label);
             }
           });
         }
-        
         updateAppliedBar();
         runFilteredSearch();
-        
-        // Close modal if open
         const goalsModal = $('#goalsModal');
         const goalsOverlay = $('#goalsOverlay');
         if (goalsModal && goalsModal.style.display !== 'none') {
@@ -419,6 +513,7 @@ export function mountSearchPanel() {
     filtersModal.style.display = 'none';
     goalsOverlay.style.display = 'none';
     updateAppliedBar();
+    if (window.checkChipOverflow) window.checkChipOverflow();
     runFilteredSearch();
   });
   
@@ -431,7 +526,7 @@ export function mountSearchPanel() {
     $('#filterInStock').checked = true;
     updateAppliedBar();
   });
-  
+
   // Toggle chips + run search
   function getActiveFilters(){
     const groups = new Map();
@@ -502,6 +597,7 @@ export function mountSearchPanel() {
     }
     
     updateAppliedBar();
+    if (window.checkChipOverflow) window.checkChipOverflow();
   }
 
   async function runFilteredSearch(){
@@ -616,7 +712,7 @@ export function mountSearchPanel() {
       }
     }
   }
-  
+
   // Live search
   const debounce = (fn, d=350)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; };
   async function runSearch(q){
