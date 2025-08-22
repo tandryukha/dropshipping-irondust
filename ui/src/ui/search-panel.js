@@ -116,7 +116,7 @@ function updateAppliedBar() {
       e.stopPropagation();
       clearPreset();
       updateAppliedBar();
-      runFilteredSearch();
+      if (window.__runFilteredSearch) window.__runFilteredSearch();
     });
     appliedBar.appendChild(chip);
   }
@@ -143,7 +143,7 @@ function updateAppliedBar() {
         removeFilter(chipElement);
       }
       updateAppliedBar();
-      runFilteredSearch();
+      if (window.__runFilteredSearch) window.__runFilteredSearch();
     });
     appliedBar.appendChild(chip);
   });
@@ -172,7 +172,7 @@ function removeFilter(chipElement) {
   updateAppliedBar();
   // Recalculate overflow and rerun search to keep results in sync
   if (window.checkChipOverflow) window.checkChipOverflow();
-  runFilteredSearch();
+  if (window.__runFilteredSearch) window.__runFilteredSearch();
 }
 
 function clearPreset() {
@@ -648,6 +648,8 @@ export function mountSearchPanel() {
       productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
     }
   }
+  // Expose for components outside this closure (e.g., applied filters bar)
+  window.__runFilteredSearch = runFilteredSearch;
 
   // Set up chip click handlers for all chips (including modal chips)
   function setupChipHandlers() {
