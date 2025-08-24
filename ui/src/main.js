@@ -33,7 +33,14 @@ function mountHeader() {
 
 // Routes
 route('/', ()=>{ /* home/search state — nothing to fetch immediately */ });
-route('/p/:id', (id)=>{ openProduct(id); });
+route('/p/:id', (id)=>{ 
+  // Ensure search panel is hidden when opening PDP via routing
+  const sp = $('#searchPanel');
+  sp?.classList.remove('visible');
+  const si = $('#search');
+  si?.blur();
+  openProduct(id); 
+});
 
 // Boot
 mountHeader();

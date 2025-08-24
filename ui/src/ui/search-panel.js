@@ -47,7 +47,11 @@ function attachOpenHandlers(root) {
       e.stopPropagation();
       const id = card.getAttribute('data-id');
       if (id) {
-        // Don't close the search panel when navigating to product
+        // Hide the search panel when navigating to product
+        const sp = $('#searchPanel');
+        sp?.classList.remove('visible');
+        const si = $('#search');
+        si?.blur();
         navigate('/p/'+id);
       }
     });
