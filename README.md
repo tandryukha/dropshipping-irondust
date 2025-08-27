@@ -325,9 +325,38 @@ docker-compose logs api | grep -i "warning\|conflict"
 
 ## 📚 Documentation
 
-- [Indexing Architecture](indexing-architecture.md) - Detailed architecture specification
-- [Backend Development Checklist](backend-development-checklist.md) - Development guidelines
-- [How to Localize Index](how-to-localize-index.md) - Localization guide
+- `docs/` site powered by MkDocs Material.
+- Key pages:
+  - `docs/index.md` (Overview)
+  - `docs/how-to-run.md` (Getting Started)
+  - `docs/architecture.md` (Architecture)
+  - `docs/api.md` (API)
+  - `docs/localization.md` (Localization)
+  - `docs/dev-checklist.md` (Development)
+
+### Run Docs Locally
+
+```bash
+# Create and activate a virtualenv (optional but recommended)
+python3 -m venv .venv && source .venv/bin/activate
+
+# Install docs dependencies
+pip install -r docs/requirements.txt
+
+# Serve the documentation
+mkdocs serve
+# Open http://127.0.0.1:8000
+```
+
+### Deploy Docs to GitHub Pages
+
+1. Ensure the repository has GitHub Pages enabled:
+   - Settings → Pages → Build and deployment → Source: GitHub Actions
+2. Push to `main` with changes under `docs/` or `mkdocs.yml`.
+3. The workflow `.github/workflows/gh-pages.yml` builds and deploys automatically.
+4. Your site will be available at:
+   - Organization/user site: `https://<org-or-user>.github.io/<repo>/`
+   - Custom domain if configured under Settings → Pages
 
 ## 🤝 Contributing
 
