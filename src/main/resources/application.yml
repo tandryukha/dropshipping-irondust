@@ -4,11 +4,11 @@ server:
 app:
   adminKey: dev_admin_key
   baseUrl: https://www.irondust.eu
-  perPage: 100
+  perPage: 1000
   indexName: products_lex
-  ingestParallelism: 10
-  meiliConcurrentUpdates: 8
-  uploadChunkSize: 2000
+  ingestParallelism: 30
+  meiliConcurrentUpdates: 25
+  uploadChunkSize: 10000
 
 meili:
   host: ${MEILI_HOST:http://127.0.0.1:7700}
