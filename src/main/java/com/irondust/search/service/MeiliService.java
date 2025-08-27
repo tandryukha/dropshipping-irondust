@@ -1,6 +1,5 @@
 package com.irondust.search.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.irondust.search.config.AppProperties;
 import com.irondust.search.model.ProductDoc;
@@ -24,6 +23,8 @@ public class MeiliService {
     private static final Logger log = LoggerFactory.getLogger(MeiliService.class);
 
     private final WebClient meiliClient;
+    // ObjectMapper is currently unused but retained for potential JSON transformations
+    @SuppressWarnings("unused")
     private final ObjectMapper objectMapper;
     private final AppProperties appProperties;
 
@@ -77,7 +78,8 @@ public class MeiliService {
     public Mono<Map<String, Object>> searchRaw(String q, String filter, List<String> sort, int page, int size, List<String> facets) {
         String index = appProperties.getIndexName();
         Map<String, Object> payload = new HashMap<>();
-        if (q != null && !q.isBlank()) payload.put("q", q);
+        // Meilisearch requires 'q' in the payload; use empty string for filter-only searches
+        payload.put("q", q == null ? "" : q);
         if (filter != null && !filter.isBlank()) payload.put("filter", filter);
         if (sort != null && !sort.isEmpty()) payload.put("sort", sort);
         payload.put("page", page);
@@ -90,8 +92,19 @@ public class MeiliService {
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .onErrorResume(e -> {
-                    log.error("Meili search error", e);
-                    return Mono.just(Map.of("hits", List.of(), "estimatedTotalHits", 0));
+                    // Fallback: retry without sort (e.g., when field isn't sortable)
+                    log.warn("Meili search error (will retry without sort): {}", e.toString());
+                    Map<String, Object> retryPayload = new HashMap<>(payload);
+                    retryPayload.remove("sort");
+                    return meiliClient.post().uri("/indexes/{uid}/search", index)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .bodyValue(retryPayload)
+                            .retrieve()
+                            .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                            .onErrorResume(e2 -> {
+                                log.error("Meili search error on retry", e2);
+                                return Mono.just(Map.of("hits", List.of(), "estimatedTotalHits", 0));
+                            });
                 });
     }
 

@@ -13,13 +13,8 @@ public class FilterStringBuilder {
             Object value = entry.getValue();
 
             if (value instanceof List<?> listVal) {
-                List<String> orClauses = new ArrayList<>();
-                for (Object v : listVal) {
-                    orClauses.add(equalsExpr(field, v));
-                }
-                if (!orClauses.isEmpty()) {
-                    andClauses.add("(" + String.join(" OR ", orClauses) + ")");
-                }
+                String inList = toInList(listVal);
+                if (inList != null) andClauses.add(field + " IN " + inList);
             } else if (value instanceof Map<?, ?> mapVal) {
                 Object op = mapVal.get("op");
                 Object val = mapVal.get("value");
@@ -37,7 +32,8 @@ public class FilterStringBuilder {
         if (v instanceof Boolean || v instanceof Number) {
             return field + " = " + v;
         }
-        return field + " = '" + escape(String.valueOf(v)) + "'";
+        // Meilisearch filter syntax expects string values in double quotes
+        return field + " = \"" + escape(String.valueOf(v)) + "\"";
     }
 
     private static String comparisonExpr(String field, String op, Object v) {
@@ -48,11 +44,28 @@ public class FilterStringBuilder {
         if (v instanceof Boolean || v instanceof Number) {
             return field + " " + operator + " " + v;
         }
-        return field + " " + operator + " '" + escape(String.valueOf(v)) + "'";
+        // Meilisearch filter syntax expects string values in double quotes
+        return field + " " + operator + " \"" + escape(String.valueOf(v)) + "\"";
     }
 
     private static String escape(String s) {
-        return s.replace("'", "\\'");
+        // Escape backslashes first, then double quotes
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String toInList(List<?> list) {
+        if (list == null || list.isEmpty()) return null;
+        List<String> parts = new ArrayList<>();
+        for (Object v : list) {
+            if (v == null) continue;
+            if (v instanceof Boolean || v instanceof Number) {
+                parts.add(String.valueOf(v));
+            } else {
+                parts.add("\"" + escape(String.valueOf(v)) + "\"");
+            }
+        }
+        if (parts.isEmpty()) return null;
+        return "[" + String.join(", ", parts) + "]";
     }
 }
 
