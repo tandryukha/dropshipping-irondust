@@ -618,38 +618,23 @@ export function mountSearchPanel() {
     const filters = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
     productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
     try{
-      // Temporarily disable sort parameter until backend supports it
+      const sort = (() => {
+        switch (searchState.sortOrder) {
+          case 'price_asc': return ['price_cents:asc'];
+          case 'price_desc': return ['price_cents:desc'];
+          case 'popular': return ['rating:desc', 'review_count:desc'];
+          case 'relevance':
+          case 'new':
+          default: return undefined; // let backend default (incl. goal-based) apply
+        }
+      })();
       const searchParams = { 
         size: 6, 
-        filters
+        filters,
+        ...(sort ? { sort } : {})
       };
-      
-      // TODO: Add sort when backend supports it
-      // if (searchState.sortOrder !== 'relevance') {
-      //   searchParams.sort = searchState.sortOrder;
-      // }
-      
       const data = await searchProducts(query, searchParams);
       let items = Array.isArray(data?.items) ? data.items : [];
-      
-      // Client-side sorting as a temporary solution
-      if (searchState.sortOrder !== 'relevance' && items.length > 0) {
-        items = [...items].sort((a, b) => {
-          switch(searchState.sortOrder) {
-            case 'price_asc':
-              return (a.price_cents || 0) - (b.price_cents || 0);
-            case 'price_desc':
-              return (b.price_cents || 0) - (a.price_cents || 0);
-            case 'popular':
-              return (b.rating || 0) - (a.rating || 0);
-            case 'new':
-              // Assuming newer items have higher IDs
-              return (b.id || '').localeCompare(a.id || '');
-            default:
-              return 0;
-          }
-        });
-      }
       
       if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
       productsList.innerHTML = items.map(renderProductHTML).join('');
@@ -743,31 +728,24 @@ export function mountSearchPanel() {
     if(query.length < 2 && !filtersActive) return;
     productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
     try{
+      const sort = (() => {
+        switch (searchState.sortOrder) {
+          case 'price_asc': return ['price_cents:asc'];
+          case 'price_desc': return ['price_cents:desc'];
+          case 'popular': return ['rating:desc', 'review_count:desc'];
+          case 'relevance':
+          case 'new':
+          default: return undefined;
+        }
+      })();
       const searchParams = { 
         size: 6, 
-        filters: { ...getActiveFilters(), ...(searchState.__presetFilters||{}) }
+        filters: { ...getActiveFilters(), ...(searchState.__presetFilters||{}) },
+        ...(sort ? { sort } : {})
       };
       
       const data = await searchProducts(query, searchParams);
       let items = Array.isArray(data?.items) ? data.items : [];
-      
-      // Client-side sorting as a temporary solution
-      if (searchState.sortOrder !== 'relevance' && items.length > 0) {
-        items = [...items].sort((a, b) => {
-          switch(searchState.sortOrder) {
-            case 'price_asc':
-              return (a.price_cents || 0) - (b.price_cents || 0);
-            case 'price_desc':
-              return (b.price_cents || 0) - (a.price_cents || 0);
-            case 'popular':
-              return (b.rating || 0) - (a.rating || 0);
-            case 'new':
-              return (b.id || '').localeCompare(a.id || '');
-            default:
-              return 0;
-          }
-        });
-      }
       
       if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
       productsList.innerHTML = items.map(renderProductHTML).join('');
