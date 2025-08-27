@@ -61,7 +61,7 @@ function attachOpenHandlers(root) {
 function renderProductHTML(item){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/p/120/120';
   const name = item?.name || 'Unnamed';
-  const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2) : '';
+  const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2).replace('.', ',') : '';
   const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
   const inStock = item?.in_stock;
   const subtitleBits = [];
@@ -71,23 +71,29 @@ function renderProductHTML(item){
   const isCountBased = form === 'capsules' || form === 'tabs';
   if (isCountBased) {
     if (typeof item?.unit_count === 'number') subtitleBits.push(`${item.unit_count} pcs`);
-    if (typeof item?.price_per_unit === 'number') subtitleBits.push(`${symbol}${item.price_per_unit.toFixed(2)}/unit`);
+    if (typeof item?.price_per_unit === 'number') subtitleBits.push(`${symbol}${item.price_per_unit.toFixed(2).replace('.', ',')}/unit`);
   } else {
     if (typeof item?.serving_size_g === 'number') subtitleBits.push(`${item.serving_size_g} g/serv`);
-    if (typeof item?.price_per_serving === 'number') subtitleBits.push(`€${item.price_per_serving.toFixed(2)}/serv`);
+    if (typeof item?.price_per_serving === 'number') subtitleBits.push(`€${item.price_per_serving.toFixed(2).replace('.', ',')}/serv`);
   }
-  if (typeof item?.rating === 'number' && typeof item?.review_count === 'number') subtitleBits.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
+  if (typeof item?.rating === 'number' && typeof item?.review_count === 'number') {
+    if (item.review_count >= 3) subtitleBits.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
+    else subtitleBits.push('New');
+  }
+  const hasVariants = (Array.isArray(item?.dynamic_attrs?.flavors) && item.dynamic_attrs.flavors.length) || (typeof item?.flavor === 'string' && item.flavor.trim());
+  const btnLabel = hasVariants ? 'Choose flavor' : 'Add';
   const subtitle = subtitleBits.join(' • ');
+  const sale = item?.is_on_sale === true && typeof item?.discount_pct === 'number' ? `<span class="badge" style="background:#fff3f3;border-color:#ffc9c9;color:#b91c1c">-${Math.round(item.discount_pct)}%</span>` : '';
   return `
     <div class="product" role="listitem" data-id="${item?.id||''}">
       <img src="${img}" alt="${name}" width="64" height="64" style="border-radius:10px">
       <div>
-        <div style="font-weight:800">${name}</div>
+        <div class="title" style="font-weight:800">${name} ${sale}</div>
         <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class="badge">In stock</span>':''}</div>
       </div>
       <div style="display:grid;gap:6px;justify-items:end">
         <div class="price">${symbol}${price}</div>
-        <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>Add</button>
+        <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>${btnLabel}</button>
       </div>
     </div>`;
 }
@@ -323,13 +329,20 @@ export function mountSearchPanel() {
   const productsList = $('#productsList');
   const allChips = $$('.chip[role="switch"]');
   const sortDropdown = $('#sortDropdown');
+  const sortDropdownHeader = $('#sortDropdownHeader');
   
   // Setup chip overflow
   setupChipOverflow();
   
-  // Handle sort dropdown
+  // Handle sort dropdowns (panel and header) in sync
   sortDropdown?.addEventListener('change', (e) => {
     searchState.sortOrder = e.target.value;
+    if (sortDropdownHeader) sortDropdownHeader.value = searchState.sortOrder;
+    runFilteredSearch();
+  });
+  sortDropdownHeader?.addEventListener('change', (e) => {
+    searchState.sortOrder = e.target.value;
+    if (sortDropdown) sortDropdown.value = searchState.sortOrder;
     runFilteredSearch();
   });
 
@@ -406,6 +419,16 @@ export function mountSearchPanel() {
   }
   
   setupPresetCards();
+  // Shop by goal chips under search
+  const goalChips = $$('#goalChips .chip[data-preset]');
+  goalChips.forEach(ch => {
+    if (ch.__presetChipBound) return; ch.__presetChipBound = true;
+    ch.addEventListener('click', () => {
+      const key = ch.getAttribute('data-preset');
+      const card = $(`.preset-card[data-preset="${key}"]`);
+      if (card) card.click();
+    });
+  });
   
   // Handle modal buttons
   const moreGoalsBtn = $('#moreGoalsBtn');

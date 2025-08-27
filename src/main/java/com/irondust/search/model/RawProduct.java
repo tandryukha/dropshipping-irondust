@@ -53,6 +53,10 @@ public class RawProduct {
 
     /** Price in cents */
     private Integer price_cents;
+    /** Regular price in cents (if on sale) */
+    private Integer regular_price_cents;
+    /** Sale price in cents (if on sale) */
+    private Integer sale_price_cents;
     
     /** Currency code (e.g., "EUR") */
     private String currency;
@@ -126,6 +130,15 @@ public class RawProduct {
                 raw.setPrice_cents(Integer.parseInt(prices.path("price").asText("0")));
             } catch (NumberFormatException e) { raw.setPrice_cents(null); }
             raw.setCurrency(prices.path("currency_code").asText(null));
+            // Optional regular/sale prices for discount computation
+            try {
+                String rp = prices.path("regular_price").asText(null);
+                if (rp != null && !rp.isBlank()) raw.setRegular_price_cents(Integer.parseInt(rp));
+            } catch (NumberFormatException ignored) { raw.setRegular_price_cents(null); }
+            try {
+                String sp = prices.path("sale_price").asText(null);
+                if (sp != null && !sp.isBlank()) raw.setSale_price_cents(Integer.parseInt(sp));
+            } catch (NumberFormatException ignored) { raw.setSale_price_cents(null); }
         }
 
         raw.setIn_stock(p.path("is_in_stock").asBoolean(false));
@@ -216,6 +229,10 @@ public class RawProduct {
     public void setDescription(String description) { this.description = description; }
     public Integer getPrice_cents() { return price_cents; }
     public void setPrice_cents(Integer price_cents) { this.price_cents = price_cents; }
+    public Integer getRegular_price_cents() { return regular_price_cents; }
+    public void setRegular_price_cents(Integer regular_price_cents) { this.regular_price_cents = regular_price_cents; }
+    public Integer getSale_price_cents() { return sale_price_cents; }
+    public void setSale_price_cents(Integer sale_price_cents) { this.sale_price_cents = sale_price_cents; }
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
     public Boolean getIn_stock() { return in_stock; }

@@ -53,6 +53,8 @@ public class ParsedProduct {
     private String permalink;
     private String description;
     private Integer price_cents;
+    private Integer regular_price_cents;
+    private Integer sale_price_cents;
     private String currency;
     private Boolean in_stock;
     private Integer low_stock_remaining;
@@ -138,6 +140,10 @@ public class ParsedProduct {
      * Useful for comparing value across different product sizes.
      */
     private Double price_per_100g;
+    /** Discount percent when on sale (0-100). Derived from regular/sale prices. */
+    private Double discount_pct;
+    /** Whether product is currently on sale. Derived field. */
+    private Boolean is_on_sale;
 
     // Count-based packaging fields (capsules/tabs)
     /** Total number of units (capsules/tabs) in the package. */
@@ -216,6 +222,10 @@ public class ParsedProduct {
     public void setDescription(String description) { this.description = description; }
     public Integer getPrice_cents() { return price_cents; }
     public void setPrice_cents(Integer price_cents) { this.price_cents = price_cents; }
+    public Integer getRegular_price_cents() { return regular_price_cents; }
+    public void setRegular_price_cents(Integer regular_price_cents) { this.regular_price_cents = regular_price_cents; }
+    public Integer getSale_price_cents() { return sale_price_cents; }
+    public void setSale_price_cents(Integer sale_price_cents) { this.sale_price_cents = sale_price_cents; }
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
     public Boolean getIn_stock() { return in_stock; }
@@ -268,6 +278,10 @@ public class ParsedProduct {
     public void setPrice_per_serving_max(Double price_per_serving_max) { this.price_per_serving_max = price_per_serving_max; }
     public Double getPrice_per_100g() { return price_per_100g; }
     public void setPrice_per_100g(Double price_per_100g) { this.price_per_100g = price_per_100g; }
+    public Double getDiscount_pct() { return discount_pct; }
+    public void setDiscount_pct(Double discount_pct) { this.discount_pct = discount_pct; }
+    public Boolean getIs_on_sale() { return is_on_sale; }
+    public void setIs_on_sale(Boolean is_on_sale) { this.is_on_sale = is_on_sale; }
     public Integer getUnit_count() { return unit_count; }
     public void setUnit_count(Integer unit_count) { this.unit_count = unit_count; }
     public Integer getUnits_per_serving() { return units_per_serving; }
@@ -325,6 +339,8 @@ public class ParsedProduct {
         parsed.setPermalink(raw.getPermalink());
         parsed.setDescription(raw.getDescription());
         parsed.setPrice_cents(raw.getPrice_cents());
+        parsed.setRegular_price_cents(raw.getRegular_price_cents());
+        parsed.setSale_price_cents(raw.getSale_price_cents());
         parsed.setCurrency(raw.getCurrency());
         parsed.setIn_stock(raw.getIn_stock());
         parsed.setLow_stock_remaining(raw.getLow_stock_remaining());

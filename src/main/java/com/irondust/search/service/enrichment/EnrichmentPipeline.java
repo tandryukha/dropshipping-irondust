@@ -514,6 +514,12 @@ public class EnrichmentPipeline {
                 case "price_per_100g":
                     parsed.setPrice_per_100g((Double) value);
                     break;
+                case "discount_pct":
+                    parsed.setDiscount_pct((Double) value);
+                    break;
+                case "is_on_sale":
+                    parsed.setIs_on_sale((Boolean) value);
+                    break;
                 case "goal_tags":
                     parsed.setGoal_tags((List<String>) value);
                     break;

@@ -13,7 +13,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import com.irondust.search.dto.IngestDtos;
 
 @Service
@@ -22,14 +21,13 @@ public class IngestService {
 
     private final WooStoreService wooStoreService;
     private final MeiliService meiliService;
-    private final AppProperties appProperties;
+    // AppProperties reserved for future ingest tuning is not stored to avoid unused field warnings
     private final EnrichmentPipeline enrichmentPipeline;
 
     public IngestService(WooStoreService wooStoreService, MeiliService meiliService, 
                         AppProperties appProperties, EnrichmentPipeline enrichmentPipeline) {
         this.wooStoreService = wooStoreService;
         this.meiliService = meiliService;
-        this.appProperties = appProperties;
         this.enrichmentPipeline = enrichmentPipeline;
     }
 
@@ -64,19 +62,19 @@ public class IngestService {
                     List<String> filterable = new ArrayList<>();
                     filterable.addAll(List.of(
                             "in_stock", "categories_slugs", "categories_ids", "brand_slug", "price_cents",
-                            "form", "diet_tags", "goal_tags", "parent_id",
+                            "form", "diet_tags", "goal_tags", "parent_id", "is_on_sale",
                             // count-based packaging
                             "unit_count", "units_per_serving"
                     ));
                     filterable.addAll(dynamicFacetFields);
-                    List<String> sortable = List.of(
-                            "price_cents", "price", "price_per_serving", "price_per_serving_min", "price_per_serving_max",
-                            "price_per_100g", "price_per_unit", "unit_count",
+                    List<String> sortable = new ArrayList<>(List.of(
+                            "price_cents", "regular_price_cents", "sale_price_cents", "price", "price_per_serving", "price_per_serving_min", "price_per_serving_max",
+                            "price_per_100g", "price_per_unit", "unit_count", "discount_pct",
                             "rating", "review_count", "in_stock",
                             // goal score sorts
                             "goal_preworkout_score", "goal_strength_score", "goal_endurance_score",
                             "goal_lean_muscle_score", "goal_recovery_score", "goal_weight_loss_score", "goal_wellness_score"
-                    );
+                    ));
                     List<String> searchable = List.of("name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", "synonyms_en", "synonyms_ru", "synonyms_et");
 
                     // ensure index and settings first, then upload in chunks
@@ -149,6 +147,8 @@ public class IngestService {
         d.setName(enriched.getName());
         d.setPermalink(enriched.getPermalink());
         d.setPrice_cents(enriched.getPrice_cents());
+        d.setRegular_price_cents(enriched.getRegular_price_cents());
+        d.setSale_price_cents(enriched.getSale_price_cents());
         d.setCurrency(enriched.getCurrency());
         d.setIn_stock(enriched.getIn_stock());
         d.setLow_stock_remaining(enriched.getLow_stock_remaining());
@@ -180,6 +180,10 @@ public class IngestService {
         d.setPrice_per_serving_min(enriched.getPrice_per_serving_min());
         d.setPrice_per_serving_max(enriched.getPrice_per_serving_max());
         d.setPrice_per_100g(enriched.getPrice_per_100g());
+        d.setDiscount_pct(enriched.getDiscount_pct());
+        d.setIs_on_sale(enriched.getIs_on_sale());
+        d.setDiscount_pct(enriched.getDiscount_pct());
+        d.setIs_on_sale(enriched.getIs_on_sale());
         d.setGoal_tags(enriched.getGoal_tags());
         d.setDiet_tags(enriched.getDiet_tags());
         d.setIngredients_key(enriched.getIngredients_key());

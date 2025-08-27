@@ -19,12 +19,38 @@ public class PriceCalculator implements EnricherStep {
         Map<String, Double> confidence = new HashMap<>();
         Map<String, String> sources = new HashMap<>();
 
+        // Pass through sale/regular cents if present (for indexing/debugging)
+        if (raw.getRegular_price_cents() != null) {
+            updates.put("regular_price_cents", raw.getRegular_price_cents());
+            confidence.put("regular_price_cents", 1.0);
+            sources.put("regular_price_cents", "raw");
+        }
+        if (raw.getSale_price_cents() != null) {
+            updates.put("sale_price_cents", raw.getSale_price_cents());
+            confidence.put("sale_price_cents", 1.0);
+            sources.put("sale_price_cents", "raw");
+        }
+
         // Calculate price in euros
         if (raw.getPrice_cents() != null) {
             double price = raw.getPrice_cents() / 100.0;
             updates.put("price", price);
             confidence.put("price", 1.0);
             sources.put("price", "derived");
+        }
+
+        // Discount percent if regular and sale present
+        if (raw.getRegular_price_cents() != null && raw.getSale_price_cents() != null
+                && raw.getRegular_price_cents() > 0 && raw.getSale_price_cents() < raw.getRegular_price_cents()) {
+            double rp = raw.getRegular_price_cents() / 100.0;
+            double sp = raw.getSale_price_cents() / 100.0;
+            double pct = Math.round(((rp - sp) / rp) * 1000.0) / 10.0; // one decimal
+            updates.put("discount_pct", pct);
+            updates.put("is_on_sale", true);
+            confidence.put("discount_pct", 1.0);
+            confidence.put("is_on_sale", 1.0);
+            sources.put("discount_pct", "derived");
+            sources.put("is_on_sale", "derived");
         }
 
         // Calculate price per serving for exact servings

@@ -5,6 +5,7 @@ import { route, start } from './core/router.js';
 import { mountFlavorPopover } from './ui/flavor-popover.js';
 import { mountSearchPanel } from './ui/search-panel.js';
 import { mountPdp, openProduct } from './ui/pdp.js';
+import { mountHome, showHome, hideHome } from './ui/home.js';
 
 // Wire header bits that remain static
 function mountHeader() {
@@ -32,13 +33,22 @@ function mountHeader() {
 }
 
 // Routes
-route('/', ()=>{ /* home/search state — nothing to fetch immediately */ });
+route('/', ()=>{ 
+  // Show home, hide PDP
+  showHome();
+  const pdp = document.querySelector('.pdp');
+  pdp?.classList.add('hidden');
+});
 route('/p/:id', (id)=>{ 
   // Ensure search panel is hidden when opening PDP via routing
   const sp = $('#searchPanel');
   sp?.classList.remove('visible');
   const si = $('#search');
   si?.blur();
+  // Hide home, show PDP
+  hideHome();
+  const pdp = document.querySelector('.pdp');
+  pdp?.classList.remove('hidden');
   openProduct(id); 
 });
 
@@ -47,6 +57,7 @@ mountHeader();
 mountFlavorPopover();
 mountSearchPanel();
 mountPdp();
+mountHome();
 start(); // start router
 
 

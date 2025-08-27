@@ -51,6 +51,8 @@
 
     .actions{display:flex;gap:8px;align-items:center}
     .cart-pill{background:#fff;border:1px solid #e3e8ef;border-radius:8px;padding:6px 8px;box-shadow:var(--shadow);min-width:70px;text-align:center}
+    /* Global sort next to search */
+    .header-sort{display:flex;align-items:center;gap:6px}
 
     /* Enhanced panel */
     .panel{position:absolute;left:0;right:0;top:68px;z-index:20;background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:var(--shadow);display:none}
@@ -61,7 +63,11 @@
     .product:hover{box-shadow:0 8px 16px rgba(0,0,0,.06)}
     .badge{font-size:11px;padding:2px 6px;border-radius:999px;background:#ecfeff;color:#036972;border:1px solid #bbeef5}
     .price{font-weight:800}
-    .add{border:0;border-radius:10px;padding:8px 10px;background:var(--fp-primary);color:#fff;font-weight:800;cursor:pointer}
+    /* Unified, slightly smaller add buttons */
+    .add{border:0;border-radius:999px;padding:8px 10px;background:linear-gradient(180deg,#1cb6d9,#1099b8);color:#fff;font-weight:800;cursor:pointer;min-width:66px;box-shadow:0 8px 16px rgba(16,153,184,.25)}
+    .add:hover{filter:brightness(1.02)}
+    /* Clamp product titles to avoid jiggle */
+    .product .title{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
     /* Compact chips */
     .chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:999px;background:#f6f8fb;border:1px solid #e0e6ef;margin:4px 4px 0 0;font-size:12px;cursor:pointer;color:#1f2937;height:28px;white-space:nowrap}
     .chip[aria-pressed="true"]{background:#dff6ff;border-color:#6bd3ee;color:#06485b;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
@@ -133,7 +139,8 @@
     .pdp-cta{display:flex;gap:10px;align-items:center;margin:10px 0}
     .qty-inline{display:flex;align-items:center;gap:8px;border:1px solid #d8dee6;background:#f8fafc;border-radius:10px;padding:4px 8px}
     .qty-inline button{width:28px;height:28px;border:1px solid #d8dee6;background:#fff;border-radius:8px;font-weight:800;cursor:pointer}
-    .pdp-add{background:var(--fp-primary);color:#fff;border:0;border-radius:12px;padding:10px 14px;font-weight:800;box-shadow:var(--shadow)}
+    /* Match PDP add button size to list buttons */
+    .pdp-add{background:var(--fp-primary);color:#fff;border:0;border-radius:12px;padding:8px 12px;font-weight:800;box-shadow:var(--shadow)}
 
     .bundle{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:12px;border:1px dashed #cfeef6;background:#f7feff;border-radius:14px;padding:12px}
     .bundle .btn{background:var(--fp-accent);border:0;border-radius:10px;padding:8px 10px;font-weight:800}
@@ -189,6 +196,24 @@
     .row{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid #eef1f4}
     .key{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:#ebfaff;color:#065e67;font-weight:800}
     .btn-ghost{border:1px solid #dbe3e8;background:#f8fafc;border-radius:10px;padding:8px 10px;font-weight:700}
+    .hidden{display:none!important}
+
+    /* Home (grid) */
+    .home{display:none;margin-top:24px}
+    .home.visible{display:block}
+    .home-hero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .home-hero .trust{display:flex;gap:10px;color:#6b7280;font-size:12px}
+    .home-controls{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+    .home-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .home-card{background:#fff;border:1px solid #e9edf0;border-radius:16px;box-shadow:var(--shadow);padding:10px;display:grid;grid-template-columns:80px 1fr auto;gap:10px;cursor:pointer}
+    .home-card:hover{box-shadow:0 10px 22px rgba(0,0,0,.08)}
+    .home-card .meta{display:flex;flex-direction:column;gap:4px}
+    .home-card .title{font-weight:800;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .home-card .sub{font-size:12px;color:#6b7280}
+    .home-card .cta{display:grid;gap:6px;justify-items:end}
+    .badge-sale{display:inline-block;background:#fff3f3;border:1px solid #ffc9c9;color:#b91c1c;border-radius:999px;padding:2px 6px;font-size:11px;font-weight:800}
+    .home-load{display:grid;place-items:center;margin:14px 0}
+    @media (max-width:900px){ .home-grid{grid-template-columns:repeat(2,1fr)} .home-card .cta .add{width:100%} }
 
     /* Flavor picker popover (appears when clicking Add) */
     .pop{position:fixed;z-index:60;min-width:260px;background:#fff;border:1px solid #e3e8ef;border-radius:14px;box-shadow:var(--shadow);padding:12px;display:none}
@@ -236,9 +261,28 @@
         <span class="kbd" aria-hidden="true">⌘K</span>
       </div>
 
+      <!-- Global sort promoted -->
+      <div class="header-sort">
+        <select id="sortDropdownHeader" class="sort-select" aria-label="Sort">
+          <option value="relevance">Featured</option>
+          <option value="price_asc">Price ↑</option>
+          <option value="price_desc">Price ↓</option>
+          <option value="popular">Top Rated</option>
+          <option value="new">New</option>
+        </select>
+      </div>
+
       <div class="actions">
         <span class="kbd" aria-hidden="true">EN</span>
         <div class="cart-pill" aria-live="polite">Cart · <span id="cartCount">2</span></div>
+      </div>
+
+      <!-- Shop by goal chips under search -->
+      <div id="goalChips" style="grid-column:1 / -1; display:flex; gap:6px; align-items:center; margin-top:2px">
+        <button class="chip" data-preset="strength"><span>💪</span> Strength</button>
+        <button class="chip" data-preset="preworkout"><span>⚡</span> Pre-workout</button>
+        <button class="chip" data-preset="wellness"><span>🛡️</span> Wellness</button>
+        <button class="chip" data-preset="endurance"><span>🏃</span> Endurance</button>
       </div>
 
       <!-- Enhanced Search Panel -->
@@ -264,19 +308,19 @@
               <div class="product" role="listitem">
                 <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="64" height="64" style="border-radius:10px">
                 <div>
-                  <div style="font-weight:800">Whey Protein Isolate — Vanilla</div>
+                  <div class="title" style="font-weight:800">Whey Protein Isolate — Vanilla</div>
                   <div class="muted" style="font-size:12px">1kg • 26g protein <span class="badge">In stock</span> <span class="badge">2-day delivery</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
                   <div class="price">€42.90</div>
-                  <button class="add js-add" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>Add</button>
+                  <button class="add js-add" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>Choose flavor</button>
                 </div>
               </div>
 
               <div class="product">
                 <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="64" height="64" style="border-radius:10px">
                 <div>
-                  <div style="font-weight:800">Creatine Monohydrate — 300g</div>
+                  <div class="title" style="font-weight:800">Creatine Monohydrate — 300g</div>
                   <div class="muted" style="font-size:12px">Top rated <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
@@ -288,19 +332,19 @@
               <div class="product">
                 <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="64" height="64" style="border-radius:10px">
                 <div>
-                  <div style="font-weight:800">BCAA 2:1:1 — Tropical</div>
+                  <div class="title" style="font-weight:800">BCAA 2:1:1 — Tropical</div>
                   <div class="muted" style="font-size:12px">Low sugar <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
                   <div class="price">€15.90</div>
-                  <button class="add js-add" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>Add</button>
+                  <button class="add js-add" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>Choose flavor</button>
                 </div>
               </div>
 
               <div class="product">
                 <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="64" height="64" style="border-radius:10px">
                 <div>
-                  <div style="font-weight:800">Omega-3 Softgels (120)</div>
+                  <div class="title" style="font-weight:800">Omega-3 Softgels (120)</div>
                   <div class="muted" style="font-size:12px">Heart <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
@@ -374,6 +418,35 @@
         </div>
       </div>
     </header>
+
+    <!-- Home (grid-first) -->
+    <section id="home" class="home" aria-label="Home product grid">
+      <div class="home-hero">
+        <div style="font-weight:800;font-size:18px">Popular right now</div>
+        <div class="trust">
+          <span>GMP-certified</span>
+          <span>30-day returns</span>
+          <span>Ships fast</span>
+        </div>
+      </div>
+      <div class="home-controls">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="chip" data-home-preset="bestsellers">Bestsellers</span>
+          <span class="chip" data-home-preset="trending">Trending</span>
+          <span class="chip" data-home-preset="new">New</span>
+          <span class="chip" data-home-preset="wellness">Wellness</span>
+        </div>
+        <select id="homeSort" class="sort-select">
+          <option value="rank">Featured</option>
+          <option value="popular">Top Rated</option>
+          <option value="price_asc">Price ↑</option>
+          <option value="price_desc">Price ↓</option>
+          <option value="new">New</option>
+        </select>
+      </div>
+      <div id="homeGrid" class="home-grid" role="list"></div>
+      <div class="home-load"><button id="homeMore" class="btn-ghost">Load more</button></div>
+    </section>
 
     <!-- PDP Copilot -->
     <section class="pdp" aria-label="Product detail with copilot">
@@ -507,6 +580,7 @@
   </div>
 
   <!-- Command palette -->
+  <div aria-live="polite" aria-atomic="true" id="liveRegion" class="visually-hidden"></div>
   <div class="overlay" id="overlay" aria-hidden="true"></div>
   <section class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Command palette">
     <div class="pal-head">

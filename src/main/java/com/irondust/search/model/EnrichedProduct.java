@@ -134,6 +134,8 @@ public class EnrichedProduct extends ParsedProduct {
         enriched.setPermalink(parsed.getPermalink());
         enriched.setDescription(parsed.getDescription());
         enriched.setPrice_cents(parsed.getPrice_cents());
+        enriched.setRegular_price_cents(parsed.getRegular_price_cents());
+        enriched.setSale_price_cents(parsed.getSale_price_cents());
         enriched.setCurrency(parsed.getCurrency());
         enriched.setIn_stock(parsed.getIn_stock());
         enriched.setLow_stock_remaining(parsed.getLow_stock_remaining());
