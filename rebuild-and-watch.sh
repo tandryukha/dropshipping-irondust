@@ -12,6 +12,12 @@ echo -e "${BLUE}🔄 Rebuilding and restarting backend services...${NC}"
 # Safer bash settings
 set -euo pipefail
 
+# Keep Mac awake for the duration of this script if caffeinate is available
+if command -v caffeinate >/dev/null 2>&1; then
+echo -e "${YELLOW}☕ Keeping Mac awake with caffeinate while this script runs...${NC}"
+caffeinate -dimsu -w $$ >/dev/null 2>&1 &
+fi
+
 # Start MkDocs dev server in background and open in browser
 start_docs_server() {
 	DOCS_URL="http://127.0.0.1:8000"

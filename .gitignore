@@ -92,6 +92,8 @@ application-prod.yml
 # Docker
 .dockerignore
 
+.venv/
+
 # Environment variables
 .env
 .env.local
@@ -167,3 +169,6 @@ node_modules/
 # Temporary folders
 tmp/
 temp/
+
+# MkDocs build output
+site/

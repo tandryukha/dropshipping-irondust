@@ -17,7 +17,13 @@ public class UnitParser implements EnricherStep {
     );
     // Fallback: capture e.g., "(5 g)" close to the word portsjon/serving in the same sentence
     private static final Pattern SERVING_SIZE_FALLBACK = Pattern.compile(
-        "portsjon[^.!?\n]*?\\(\\s*(\\d+(?:[.,]\\d+)?)\\s*(g|ml)\\s*\\)",
+        "portsjon[^.!?\\n]*?\\(\\s*(?:~|≈|u\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(g|ml)\\s*\\)",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    // Broad parentheses grams pattern; will be used only if we can relate it to serving context
+    private static final Pattern PAREN_G_PATTERN = Pattern.compile(
+        "\\(\\s*(?:~|≈|u\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(g|ml)\\s*\\)",
         Pattern.CASE_INSENSITIVE
     );
     
@@ -145,6 +151,28 @@ public class UnitParser implements EnricherStep {
             updates.put("unit_mass_g", umg);
             confidence.put("unit_mass_g", 0.8);
             sources.put("unit_mass_g", "regex");
+        }
+
+        // Sanity-correct net_weight_g when it equals serving_size or is clearly too small
+        Double existingWeight = (Double) updates.getOrDefault("net_weight_g", soFar.getNet_weight_g());
+        if (existingWeight != null) {
+            Double ss = servingSize;
+            Integer sv = (Integer) updates.getOrDefault("servings", soFar.getServings());
+            Integer svMax = (Integer) updates.getOrDefault("servings_max", soFar.getServings_max());
+            Integer svMin = (Integer) updates.getOrDefault("servings_min", soFar.getServings_min());
+            Integer usedServings = sv != null ? sv : (svMax != null ? svMax : svMin);
+
+            if (ss != null && usedServings != null && usedServings > 0) {
+                double candidate = ss * usedServings;
+                // If recorded weight looks like a per-serving weight, or far below expected total, correct it
+                if (existingWeight <= ss * 1.5 || existingWeight < candidate * 0.6) {
+                    updates.put("net_weight_g", candidate);
+                    confidence.put("net_weight_g", 0.80);
+                    sources.put("net_weight_g", "corrected");
+                    warnings.add(Warn.unitAmbiguity(raw.getId(), "net_weight_g",
+                            "Corrected net weight from " + existingWeight + "g to " + candidate + "g based on serving size × servings"));
+                }
+            }
         }
 
         // Derive net_weight_g from servings x serving_size_g if still missing
@@ -287,32 +315,64 @@ public class UnitParser implements EnricherStep {
         String text = raw.getSearch_text();
         if (text == null) return null;
 
+        // Collect all candidates and pick the most plausible (prefer g/ml; ignore tiny mg values)
         Matcher matcher = SERVING_SIZE_PATTERN.matcher(text);
-        if (matcher.find()) {
+        Double best = null;
+        while (matcher.find()) {
             try {
                 double value = Double.parseDouble(matcher.group(1).replace(",", "."));
                 String unit = matcher.group(2).toLowerCase();
 
-                // Convert to grams (assume 1:1 for ml for now; mg -> g)
+                double grams;
                 if (unit.equals("mg")) {
-                    return value / 1000.0;
+                    grams = value / 1000.0;
+                    // Ignore ingredient-only mg mentions like "150 mg per serving"; keep only if >= 1 g
+                    if (grams < 1.0) continue;
+                } else {
+                    // g or ml (assume ml==g)
+                    grams = value;
                 }
-                return value;
+                // Heuristic bounds for serving size (avoid absurd values)
+                if (grams <= 0 || grams > 500) continue;
+
+                // Prefer the largest plausible value among candidates (e.g., pick 6 g over 1 g)
+                if (best == null || grams > best) best = grams;
             } catch (NumberFormatException e) {
-                warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g", 
-                    "Failed to parse serving size from text: " + matcher.group()));
+                warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g",
+                        "Failed to parse serving size from text: " + matcher.group()));
             }
         }
-        // Fallback pattern
+        if (best != null) return best;
+
+        // Fallback pattern (explicit (X g) near portsjon)
         Matcher fb = SERVING_SIZE_FALLBACK.matcher(text);
         if (fb.find()) {
             try {
                 double value = Double.parseDouble(fb.group(1).replace(",", "."));
-                return value;
+                if (value > 0 && value <= 500) return value;
             } catch (NumberFormatException e) {
-                warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g", 
-                    "Failed to parse fallback serving size: " + fb.group()));
+                warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g",
+                        "Failed to parse fallback serving size: " + fb.group()));
             }
+        }
+
+        // Final heuristic: pick grams in parentheses if occurring within ~60 chars of 'portsjon'
+        int idxPortsjon = text.toLowerCase().indexOf("portsjon");
+        if (idxPortsjon >= 0) {
+            Matcher pm = PAREN_G_PATTERN.matcher(text);
+            Double nearBest = null;
+            while (pm.find()) {
+                int start = pm.start();
+                if (Math.abs(start - idxPortsjon) <= 120) { // within 120 chars window around 'portsjon'
+                    try {
+                        double value = Double.parseDouble(pm.group(1).replace(",", "."));
+                        if (value > 0 && value <= 500) {
+                            if (nearBest == null || value > nearBest) nearBest = value;
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+            if (nearBest != null) return nearBest;
         }
         return null;
     }

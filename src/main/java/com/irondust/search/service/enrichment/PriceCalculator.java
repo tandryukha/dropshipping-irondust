@@ -53,17 +53,23 @@ public class PriceCalculator implements EnricherStep {
             sources.put("is_on_sale", "derived");
         }
 
+        // Use a reliable local price for all downstream calculations
+        Double localPrice = soFar.getPrice();
+        if (localPrice == null && raw.getPrice_cents() != null) {
+            localPrice = raw.getPrice_cents() / 100.0;
+        }
+
         // Calculate price per serving for exact servings
-        if (soFar.getPrice() != null && soFar.getServings() != null && soFar.getServings() > 0) {
-            double pricePerServing = soFar.getPrice() / soFar.getServings();
+        if (localPrice != null && soFar.getServings() != null && soFar.getServings() > 0) {
+            double pricePerServing = localPrice / soFar.getServings();
             updates.put("price_per_serving", Math.round(pricePerServing * 100.0) / 100.0);
             confidence.put("price_per_serving", 0.95);
             sources.put("price_per_serving", "derived");
         }
         // Calculate price per serving range when servings_min/max present
-        if (soFar.getPrice() != null && soFar.getServings_min() != null && soFar.getServings_max() != null
+        if (localPrice != null && soFar.getServings_min() != null && soFar.getServings_max() != null
                 && soFar.getServings_min() > 0 && soFar.getServings_max() > 0) {
-            double p = soFar.getPrice();
+            double p = localPrice;
             double min = Math.round((p / soFar.getServings_max()) * 100.0) / 100.0; // lower price per serving
             double max = Math.round((p / soFar.getServings_min()) * 100.0) / 100.0; // higher price per serving
             updates.put("price_per_serving_min", min);
@@ -75,20 +81,37 @@ public class PriceCalculator implements EnricherStep {
         }
 
         // Calculate price per 100g for weight-based forms only (powder/drink/gel/bar)
-        if (soFar.getPrice() != null && soFar.getNet_weight_g() != null && soFar.getNet_weight_g() > 0) {
+        if (localPrice != null) {
             String form = soFar.getForm();
             boolean weightBased = "powder".equals(form) || "drink".equals(form) || "gel".equals(form) || "bar".equals(form) || form == null;
             if (weightBased) {
-                double pricePer100g = (soFar.getPrice() * 100) / soFar.getNet_weight_g();
-                updates.put("price_per_100g", Math.round(pricePer100g * 100.0) / 100.0);
-                confidence.put("price_per_100g", 0.95);
-                sources.put("price_per_100g", "derived");
+                Double weight = soFar.getNet_weight_g();
+                Double ss = soFar.getServing_size_g();
+                Integer s = soFar.getServings();
+                Integer sMin = soFar.getServings_min();
+                Integer sMax = soFar.getServings_max();
+                Integer usedServings = s != null ? s : (sMax != null ? sMax : sMin);
+
+                // Prefer derived weight if declared weight looks like a single serving or too small vs. expected
+                if (ss != null && usedServings != null && usedServings > 0) {
+                    double candidate = ss * usedServings;
+                    if (weight == null || weight <= ss * 1.5 || weight < candidate * 0.6) {
+                        weight = candidate;
+                    }
+                }
+
+                if (weight != null && weight > 0) {
+                    double pricePer100g = (localPrice * 100) / weight;
+                    updates.put("price_per_100g", Math.round(pricePer100g * 100.0) / 100.0);
+                    confidence.put("price_per_100g", 0.95);
+                    sources.put("price_per_100g", "derived");
+                }
             }
         }
 
         // Calculate price per unit for count-based forms (capsules/tabs)
-        if (soFar.getPrice() != null && soFar.getUnit_count() != null && soFar.getUnit_count() > 0) {
-            double ppu = soFar.getPrice() / soFar.getUnit_count();
+        if (localPrice != null && soFar.getUnit_count() != null && soFar.getUnit_count() > 0) {
+            double ppu = localPrice / soFar.getUnit_count();
             updates.put("price_per_unit", Math.round(ppu * 100.0) / 100.0);
             confidence.put("price_per_unit", 0.95);
             sources.put("price_per_unit", "derived");

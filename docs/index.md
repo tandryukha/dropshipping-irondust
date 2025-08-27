@@ -12,33 +12,33 @@ graph TB
 
     subgraph "Enrichment Pipeline"
         subgraph "Stage 1: Raw Data"
-            RP["RawProduct\nRaw WooCommerce data"]
+            RP["RawProduct<br/>Raw WooCommerce data"]
         end
 
         subgraph "Stage 2: Deterministic Parsing"
-            PP["ParsedProduct\nRule-based enrichment"]
+            PP["ParsedProduct<br/>Rule-based enrichment"]
         end
 
         subgraph "Stage 3: AI Enrichment"
-            EP["EnrichedProduct\nAI-generated content"]
+            EP["EnrichedProduct<br/>AI-generated content"]
         end
     end
 
     subgraph "Enrichment Steps"
-        N["Normalizer\nLocale/slug mappings"]
-        UP["UnitParser\nExtract units"]
-        SC["ServingCalculator\nCompute servings"]
-        PC["PriceCalculator\nDerived prices"]
-        TP["TaxonomyParser\nGoal/diet tags"]
-        VG["VariationGrouper\nProduct grouping"]
+        N["Normalizer<br/>Locale/slug mappings"]
+        UP["UnitParser<br/>Extract units"]
+        SC["ServingCalculator<br/>Compute servings"]
+        PC["PriceCalculator<br/>Derived prices"]
+        TP["TaxonomyParser<br/>Goal/diet tags"]
+        VG["VariationGrouper<br/>Product grouping"]
     end
 
     subgraph "Search Engine"
-        MS["Meilisearch\nSearch index"]
+        MS["Meilisearch<br/>Search index"]
     end
 
     subgraph "Frontend"
-        UI["React UI\nProduct search"]
+        UI["React UI<br/>Product search"]
     end
 
     WC --> RP

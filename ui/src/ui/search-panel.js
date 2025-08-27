@@ -1,6 +1,7 @@
 import { $, $$ } from '../core/dom.js';
 import { searchProducts } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
+import { derivePricePer100g } from '../core/metrics.js';
 import { navigate } from '../core/router.js';
 
 // State management
@@ -75,6 +76,9 @@ function renderProductHTML(item){
   } else {
     if (typeof item?.serving_size_g === 'number') subtitleBits.push(`${item.serving_size_g} g/serv`);
     if (typeof item?.price_per_serving === 'number') subtitleBits.push(`€${item.price_per_serving.toFixed(2).replace('.', ',')}/serv`);
+    // Append €/100g when reliably derivable
+    const p100 = derivePricePer100g(item);
+    if (typeof p100 === 'number' && p100 > 0) subtitleBits.push(`€${p100.toFixed(2).replace('.', ',')}/100g`);
   }
   if (typeof item?.rating === 'number' && typeof item?.review_count === 'number') {
     if (item.review_count >= 3) subtitleBits.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
@@ -83,10 +87,22 @@ function renderProductHTML(item){
   const hasVariants = (Array.isArray(item?.dynamic_attrs?.flavors) && item.dynamic_attrs.flavors.length) || (typeof item?.flavor === 'string' && item.flavor.trim());
   const btnLabel = hasVariants ? 'Choose flavor' : 'Add';
   const subtitle = subtitleBits.join(' • ');
-  const sale = item?.is_on_sale === true && typeof item?.discount_pct === 'number' ? `<span class="badge" style="background:#fff3f3;border-color:#ffc9c9;color:#b91c1c">-${Math.round(item.discount_pct)}%</span>` : '';
+  const salePct = (item?.is_on_sale === true && typeof item?.discount_pct === 'number') ? Math.round(item.discount_pct) : null;
+  const sale = (typeof salePct === 'number' && salePct > 0) ? `<span class=\"badge\" style=\"background:#fff3f3;border-color:#ffc9c9;color:#b91c1c\">-${salePct}%</span>` : '';
+  const vegan = Array.isArray(item?.diet_tags) && item.diet_tags.includes('vegan');
+  const sugarFree = Array.isArray(item?.diet_tags) && item.diet_tags.includes('sugar_free');
+  const bestseller = item?.bestseller === true || (typeof item?.review_count === 'number' && item.review_count > 200);
   return `
     <div class="product" role="listitem" data-id="${item?.id||''}">
-      <img src="${img}" alt="${name}" width="64" height="64" style="border-radius:10px">
+      <div class="media">
+        <img src="${img}" alt="${name}" width="64" height="64" style="border-radius:10px">
+        <div class="badges">
+          ${vegan?'<span class="pill-badge vegan">Vegan</span>':''}
+          ${sugarFree?'<span class="pill-badge sugar">Sugar-free</span>':''}
+          ${typeof salePct==='number' && salePct>0?'<span class="pill-badge sale">-'+salePct+'%</span>':''}
+          ${bestseller?'<span class="pill-badge best">Bestseller</span>':''}
+        </div>
+      </div>
       <div>
         <div class="title" style="font-weight:800">${name} ${sale}</div>
         <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class="badge">In stock</span>':''}</div>
