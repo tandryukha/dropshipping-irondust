@@ -190,6 +190,15 @@ public class ParsedProduct {
      */
     private Map<String, String> provenance;
 
+    // Per-goal relevance scores (0.0-1.0)
+    private Double goal_preworkout_score;
+    private Double goal_strength_score;
+    private Double goal_endurance_score;
+    private Double goal_lean_muscle_score;
+    private Double goal_recovery_score;
+    private Double goal_weight_loss_score;
+    private Double goal_wellness_score;
+
     // Getters and setters for core fields
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -281,6 +290,20 @@ public class ParsedProduct {
     public void setWarnings(List<String> warnings) { this.warnings = warnings; }
     public Map<String, String> getProvenance() { return provenance; }
     public void setProvenance(Map<String, String> provenance) { this.provenance = provenance; }
+    public Double getGoal_preworkout_score() { return goal_preworkout_score; }
+    public void setGoal_preworkout_score(Double goal_preworkout_score) { this.goal_preworkout_score = goal_preworkout_score; }
+    public Double getGoal_strength_score() { return goal_strength_score; }
+    public void setGoal_strength_score(Double goal_strength_score) { this.goal_strength_score = goal_strength_score; }
+    public Double getGoal_endurance_score() { return goal_endurance_score; }
+    public void setGoal_endurance_score(Double goal_endurance_score) { this.goal_endurance_score = goal_endurance_score; }
+    public Double getGoal_lean_muscle_score() { return goal_lean_muscle_score; }
+    public void setGoal_lean_muscle_score(Double goal_lean_muscle_score) { this.goal_lean_muscle_score = goal_lean_muscle_score; }
+    public Double getGoal_recovery_score() { return goal_recovery_score; }
+    public void setGoal_recovery_score(Double goal_recovery_score) { this.goal_recovery_score = goal_recovery_score; }
+    public Double getGoal_weight_loss_score() { return goal_weight_loss_score; }
+    public void setGoal_weight_loss_score(Double goal_weight_loss_score) { this.goal_weight_loss_score = goal_weight_loss_score; }
+    public Double getGoal_wellness_score() { return goal_wellness_score; }
+    public void setGoal_wellness_score(Double goal_wellness_score) { this.goal_wellness_score = goal_wellness_score; }
 
     /**
      * Creates a ParsedProduct instance from a RawProduct.

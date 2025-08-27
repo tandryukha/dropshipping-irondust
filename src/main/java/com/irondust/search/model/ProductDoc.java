@@ -56,6 +56,14 @@ public class ProductDoc {
     private List<String> goal_tags;
     private List<String> diet_tags;
     private List<String> ingredients_key;
+    // Per-goal relevance scores (0.0-1.0)
+    private Double goal_preworkout_score;
+    private Double goal_strength_score;
+    private Double goal_endurance_score;
+    private Double goal_lean_muscle_score;
+    private Double goal_recovery_score;
+    private Double goal_weight_loss_score;
+    private Double goal_wellness_score;
     // AI synonyms flattened per language for search
     private List<String> synonyms_en;
     private List<String> synonyms_ru;
@@ -146,6 +154,20 @@ public class ProductDoc {
     public void setDiet_tags(List<String> diet_tags) { this.diet_tags = diet_tags; }
     public List<String> getIngredients_key() { return ingredients_key; }
     public void setIngredients_key(List<String> ingredients_key) { this.ingredients_key = ingredients_key; }
+    public Double getGoal_preworkout_score() { return goal_preworkout_score; }
+    public void setGoal_preworkout_score(Double goal_preworkout_score) { this.goal_preworkout_score = goal_preworkout_score; }
+    public Double getGoal_strength_score() { return goal_strength_score; }
+    public void setGoal_strength_score(Double goal_strength_score) { this.goal_strength_score = goal_strength_score; }
+    public Double getGoal_endurance_score() { return goal_endurance_score; }
+    public void setGoal_endurance_score(Double goal_endurance_score) { this.goal_endurance_score = goal_endurance_score; }
+    public Double getGoal_lean_muscle_score() { return goal_lean_muscle_score; }
+    public void setGoal_lean_muscle_score(Double goal_lean_muscle_score) { this.goal_lean_muscle_score = goal_lean_muscle_score; }
+    public Double getGoal_recovery_score() { return goal_recovery_score; }
+    public void setGoal_recovery_score(Double goal_recovery_score) { this.goal_recovery_score = goal_recovery_score; }
+    public Double getGoal_weight_loss_score() { return goal_weight_loss_score; }
+    public void setGoal_weight_loss_score(Double goal_weight_loss_score) { this.goal_weight_loss_score = goal_weight_loss_score; }
+    public Double getGoal_wellness_score() { return goal_wellness_score; }
+    public void setGoal_wellness_score(Double goal_wellness_score) { this.goal_wellness_score = goal_wellness_score; }
     public List<String> getSynonyms_en() { return synonyms_en; }
     public void setSynonyms_en(List<String> synonyms_en) { this.synonyms_en = synonyms_en; }
     public List<String> getSynonyms_ru() { return synonyms_ru; }

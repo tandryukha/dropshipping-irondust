@@ -131,6 +131,8 @@ public class EnrichmentPipeline {
                 if (!ai.isEmpty()) {
                     // Fill missing core fields only
                     java.util.Set<String> fieldsFilledByAi = applyAiFill(enriched, ai);
+                    // Apply AI goal_scores when confidence beats thresholds and improves baseline
+                    applyAiGoalScores(enriched, ai);
                     // Re-compute derived price metrics if AI filled servings or serving range/size
                     if (fieldsFilledByAi.contains("servings") ||
                         (fieldsFilledByAi.contains("servings_min") && fieldsFilledByAi.contains("servings_max")) ||
@@ -361,6 +363,50 @@ public class EnrichmentPipeline {
         if (syn instanceof Map<?, ?> m) enriched.setSynonyms_multi((Map<String, List<String>>) (Map<?, ?>) m);
     }
 
+    @SuppressWarnings("unchecked")
+    private void applyAiGoalScores(EnrichedProduct enriched, Map<String, Object> ai) {
+        Object gs = ai.get("goal_scores");
+        if (!(gs instanceof Map<?, ?> gmap)) return;
+        double threshold;
+        try {
+            threshold = Double.parseDouble(System.getenv().getOrDefault("AI_GOAL_CONF_THRESHOLD", "0.7"));
+        } catch (Exception e) { threshold = 0.7; }
+
+        java.util.Map<String, java.util.function.BiConsumer<EnrichedProduct, Double>> setters = new java.util.HashMap<>();
+        setters.put("preworkout", (p, v) -> p.setGoal_preworkout_score(v));
+        setters.put("strength", (p, v) -> p.setGoal_strength_score(v));
+        setters.put("endurance", (p, v) -> p.setGoal_endurance_score(v));
+        setters.put("lean_muscle", (p, v) -> p.setGoal_lean_muscle_score(v));
+        setters.put("recovery", (p, v) -> p.setGoal_recovery_score(v));
+        setters.put("weight_loss", (p, v) -> p.setGoal_weight_loss_score(v));
+        setters.put("wellness", (p, v) -> p.setGoal_wellness_score(v));
+
+        java.util.Map<String, java.util.function.Function<EnrichedProduct, Double>> getters = new java.util.HashMap<>();
+        getters.put("preworkout", EnrichedProduct::getGoal_preworkout_score);
+        getters.put("strength", EnrichedProduct::getGoal_strength_score);
+        getters.put("endurance", EnrichedProduct::getGoal_endurance_score);
+        getters.put("lean_muscle", EnrichedProduct::getGoal_lean_muscle_score);
+        getters.put("recovery", EnrichedProduct::getGoal_recovery_score);
+        getters.put("weight_loss", EnrichedProduct::getGoal_weight_loss_score);
+        getters.put("wellness", EnrichedProduct::getGoal_wellness_score);
+
+        for (var entry : getters.entrySet()) {
+            String goal = entry.getKey();
+            Object node = ((Map<String, Object>) (Map<?, ?>) gmap).get(goal);
+            if (!(node instanceof Map<?, ?> m)) continue;
+            Object sc = m.get("score");
+            Object cf = m.get("confidence");
+            double score = (sc instanceof Number) ? ((Number) sc).doubleValue() : -1.0;
+            double conf = (cf instanceof Number) ? ((Number) cf).doubleValue() : 0.0;
+            if (score < 0.0 || score > 1.0 || conf < threshold) continue;
+            Double current = entry.getValue().apply(enriched);
+            double cur = current != null ? current : 0.0;
+            if (score > cur) {
+                setters.get(goal).accept(enriched, score);
+            }
+        }
+    }
+
     /**
      * Recomputes derived fields on the enriched product after AI fills critical numerics.
      */
@@ -476,6 +522,27 @@ public class EnrichmentPipeline {
                     break;
                 case "ingredients_key":
                     parsed.setIngredients_key((List<String>) value);
+                    break;
+                case "goal_preworkout_score":
+                    parsed.setGoal_preworkout_score((Double) value);
+                    break;
+                case "goal_strength_score":
+                    parsed.setGoal_strength_score((Double) value);
+                    break;
+                case "goal_endurance_score":
+                    parsed.setGoal_endurance_score((Double) value);
+                    break;
+                case "goal_lean_muscle_score":
+                    parsed.setGoal_lean_muscle_score((Double) value);
+                    break;
+                case "goal_recovery_score":
+                    parsed.setGoal_recovery_score((Double) value);
+                    break;
+                case "goal_weight_loss_score":
+                    parsed.setGoal_weight_loss_score((Double) value);
+                    break;
+                case "goal_wellness_score":
+                    parsed.setGoal_wellness_score((Double) value);
                     break;
                 case "parent_id":
                     parsed.setParent_id((String) value);

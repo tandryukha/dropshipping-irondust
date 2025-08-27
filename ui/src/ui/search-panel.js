@@ -181,6 +181,7 @@ function removeFilter(chipElement) {
 
 function clearPreset() {
   searchState.activePreset = null;
+  searchState.__presetFilters = null;
   $$('.preset-card').forEach(card => card.classList.remove('active'));
   // Clear all filters associated with preset
   searchState.activeFilters.clear();
@@ -374,8 +375,13 @@ export function mountSearchPanel() {
         clearPreset();
         card.classList.add('active');
         searchState.activePreset = card.querySelector('.preset-label').textContent;
-        // Apply filters from preset
-        for (const [key, value] of Object.entries(filters)) {
+        // Apply filters from preset (goal_tags only) and ensure in_stock=true
+        const merged = { ...filters };
+        merged.in_stock = true;
+        // Turn off all chips first
+        allChips.forEach(c=>{ c.setAttribute('aria-pressed','false'); searchState.activeFilters.delete(c); });
+        // Try to turn on matching chips for goal tag and in_stock
+        Object.entries(merged).forEach(([key, value]) => {
           allChips.forEach(chip => {
             const chipFilter = JSON.parse(chip.getAttribute('data-filter') || '{}');
             if (JSON.stringify(chipFilter) === JSON.stringify({ [key]: value })) {
@@ -384,7 +390,9 @@ export function mountSearchPanel() {
               searchState.activeFilters.set(chip, label);
             }
           });
-        }
+        });
+        // If some preset filters had no chips (e.g., goal_tags without explicit chip), keep them for request time
+        searchState.__presetFilters = merged;
         updateAppliedBar();
         runFilteredSearch();
         const goalsModal = $('#goalsModal');
@@ -607,7 +615,7 @@ export function mountSearchPanel() {
   async function runFilteredSearch(){
     if(!productsList) return;
     const query = (searchInput?.value||'').trim();
-    const filters = getActiveFilters();
+    const filters = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
     productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
     try{
       // Temporarily disable sort parameter until backend supports it
@@ -737,7 +745,7 @@ export function mountSearchPanel() {
     try{
       const searchParams = { 
         size: 6, 
-        filters: getActiveFilters()
+        filters: { ...getActiveFilters(), ...(searchState.__presetFilters||{}) }
       };
       
       const data = await searchProducts(query, searchParams);

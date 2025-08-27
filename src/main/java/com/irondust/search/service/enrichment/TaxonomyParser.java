@@ -12,8 +12,14 @@ public class TaxonomyParser implements EnricherStep {
     // Goal tags mapping from categories/keywords
     private static final Map<String, List<String>> GOAL_MAPPINGS = Map.of(
         "preworkout", Arrays.asList("preworkout", "enne treeningut", "до тренировки"),
-        "strength", Arrays.asList("strength", "jõud", "сила", "muscle", "lihas"),
-        "endurance", Arrays.asList("endurance", "vastupidavus", "выносливость", "stamina"),
+        "strength", Arrays.asList(
+            "strength", "jõud", "joud", "сила", "muscle", "lihas",
+            "creatine", "kreatiin", "креатин"
+        ),
+        "endurance", Arrays.asList(
+            "endurance", "vastupidavus", "выносливость", "stamina",
+            "creatine", "kreatiin", "креатин"
+        ),
         "lean_muscle", Arrays.asList("lean", "lean muscle", "lean lihas", "похудение"),
         "recovery", Arrays.asList("recovery", "taastumine", "восстановление", "post-workout"),
         "weight_loss", Arrays.asList("weight loss", "kaalulangus", "похудение", "fat burn"),
@@ -47,6 +53,42 @@ public class TaxonomyParser implements EnricherStep {
             updates.put("goal_tags", goalTags);
             confidence.put("goal_tags", 0.8);
             sources.put("goal_tags", "taxonomy");
+            // Baseline scores for matched goals
+            for (String g : goalTags) {
+                String key = switch (g) {
+                    case "preworkout" -> "goal_preworkout_score";
+                    case "strength" -> "goal_strength_score";
+                    case "endurance" -> "goal_endurance_score";
+                    case "lean_muscle" -> "goal_lean_muscle_score";
+                    case "recovery" -> "goal_recovery_score";
+                    case "weight_loss" -> "goal_weight_loss_score";
+                    case "wellness" -> "goal_wellness_score";
+                    default -> null;
+                };
+                if (key != null) {
+                    updates.put(key, 0.7d);
+                    confidence.put(key, 0.7);
+                    sources.put(key, "taxonomy");
+                }
+            }
+        }
+
+        // Ensure default scores (0.0) for all known goals when not matched
+        Map<String, String> allGoalKeys = Map.of(
+            "preworkout", "goal_preworkout_score",
+            "strength", "goal_strength_score",
+            "endurance", "goal_endurance_score",
+            "lean_muscle", "goal_lean_muscle_score",
+            "recovery", "goal_recovery_score",
+            "weight_loss", "goal_weight_loss_score",
+            "wellness", "goal_wellness_score"
+        );
+        for (String key : allGoalKeys.values()) {
+            if (!updates.containsKey(key)) {
+                updates.put(key, 0.0d);
+                confidence.put(key, 0.0);
+                sources.put(key, "default");
+            }
         }
 
         // Parse diet tags
@@ -85,6 +127,33 @@ public class TaxonomyParser implements EnricherStep {
                 if (searchText.contains(keyword)) {
                     goals.add(entry.getKey());
                     break;
+                }
+            }
+        }
+
+        // Check dynamic attributes for goal-related intent (e.g., attr_pa_milleks)
+        if (raw.getDynamic_attrs() != null) {
+            List<String> intent = raw.getDynamic_attrs().get("attr_pa_milleks");
+            if (intent != null && !intent.isEmpty()) {
+                String joined = String.join(" ", intent).toLowerCase();
+                // Estonian cues: "jõud"/"joudu" → strength, "vastupidavus"/"vastupidavust" → endurance
+                if (joined.contains("jõud") || joined.contains("joudu") || joined.contains("joud") || joined.contains("strength")) {
+                    goals.add("strength");
+                }
+                if (joined.contains("vastupidavus") || joined.contains("vastupidavust") || joined.contains("endurance")) {
+                    goals.add("endurance");
+                }
+                if (joined.contains("enne") && joined.contains("treeningut")) {
+                    goals.add("preworkout");
+                }
+                if (joined.contains("taastumine") || joined.contains("recovery")) {
+                    goals.add("recovery");
+                }
+                if (joined.contains("kaal") || joined.contains("weight")) {
+                    goals.add("weight_loss");
+                }
+                if (joined.contains("tervis") || joined.contains("wellness")) {
+                    goals.add("wellness");
                 }
             }
         }

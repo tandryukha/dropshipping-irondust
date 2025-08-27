@@ -170,6 +170,14 @@ public class EnrichedProduct extends ParsedProduct {
         enriched.setVariant_group_id(parsed.getVariant_group_id());
         enriched.setWarnings(parsed.getWarnings());
         enriched.setProvenance(parsed.getProvenance());
+        // Copy goal scores
+        enriched.setGoal_preworkout_score(parsed.getGoal_preworkout_score());
+        enriched.setGoal_strength_score(parsed.getGoal_strength_score());
+        enriched.setGoal_endurance_score(parsed.getGoal_endurance_score());
+        enriched.setGoal_lean_muscle_score(parsed.getGoal_lean_muscle_score());
+        enriched.setGoal_recovery_score(parsed.getGoal_recovery_score());
+        enriched.setGoal_weight_loss_score(parsed.getGoal_weight_loss_score());
+        enriched.setGoal_wellness_score(parsed.getGoal_wellness_score());
         return enriched;
     }
 }

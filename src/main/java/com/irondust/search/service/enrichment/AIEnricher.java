@@ -89,16 +89,19 @@ public class AIEnricher {
     }
 
     private String buildPrompt(String inputJson) {
-        return "Given product JSON below, validate parsed fields and fill nulls; then generate UX fields. " +
-               "Return ONLY this JSON object with keys fill, generate, safety_flags, conflicts.\n" +
+        return "Given product JSON below, validate parsed fields and fill nulls; then generate UX fields and goal relevance scores. " +
+               "Return ONLY this JSON object with keys fill, generate, safety_flags, conflicts, goal_scores.\n" +
                "Schema: { fill: {form, flavor, servings, servings_min, servings_max, serving_size_g, ingredients_key, goal_tags, diet_tags}, " +
                "generate: {benefit_snippet, faq: [{q,a}], synonyms_multi: {en:[], ru:[], et:[]}}, safety_flags: [{flag,confidence,evidence}], " +
-               "conflicts: [{field, det_value, ai_value, evidence}] }.\n" +
+               "conflicts: [{field, det_value, ai_value, evidence}], " +
+               "goal_scores: { preworkout: {score, confidence}, strength: {score, confidence}, endurance: {score, confidence}, lean_muscle: {score, confidence}, recovery: {score, confidence}, weight_loss: {score, confidence}, wellness: {score, confidence} } }.\n" +
                "Rules: Prefer explicit numeric evidence. You MAY use title, slug or SKU cues like '60caps', '60vcaps', '90 tablets' as evidence for servings. " +
                "For dosage/serving size, if not explicitly stated, infer a reasonable typical value based on product type (e.g., creatine monohydrate powder often 3–5 g). " +
                "If the label communicates a range, prefer {servings_min, servings_max}. If both range and exact exist, prefer exact attribute value. " +
                "Only include a conflict when a deterministic value exists (det_value != null) AND you have a different value; if det_value is null, put your value under 'fill' only. " +
-               "Use short evidence quotes. Max 160 chars for benefit_snippet.\n" +
+               "Use short evidence quotes. Max 160 chars for benefit_snippet. " +
+               "For goal_scores, set score in [0.0,1.0] reflecting how well the product serves each goal; set confidence in [0.0,1.0]. " +
+               "Bias: creatine → strength/endurance; pre-workout boosters → preworkout; multivitamins → wellness; fat-burners → weight_loss; protein → lean_muscle/recovery.\n" +
                "INPUT:" + inputJson;
     }
 

@@ -72,7 +72,10 @@ public class IngestService {
                     List<String> sortable = List.of(
                             "price_cents", "price", "price_per_serving", "price_per_serving_min", "price_per_serving_max",
                             "price_per_100g", "price_per_unit", "unit_count",
-                            "rating", "review_count", "in_stock"
+                            "rating", "review_count", "in_stock",
+                            // goal score sorts
+                            "goal_preworkout_score", "goal_strength_score", "goal_endurance_score",
+                            "goal_lean_muscle_score", "goal_recovery_score", "goal_weight_loss_score", "goal_wellness_score"
                     );
                     List<String> searchable = List.of("name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", "synonyms_en", "synonyms_ru", "synonyms_et");
 
@@ -180,6 +183,14 @@ public class IngestService {
         d.setGoal_tags(enriched.getGoal_tags());
         d.setDiet_tags(enriched.getDiet_tags());
         d.setIngredients_key(enriched.getIngredients_key());
+        // goal scores
+        d.setGoal_preworkout_score(enriched.getGoal_preworkout_score());
+        d.setGoal_strength_score(enriched.getGoal_strength_score());
+        d.setGoal_endurance_score(enriched.getGoal_endurance_score());
+        d.setGoal_lean_muscle_score(enriched.getGoal_lean_muscle_score());
+        d.setGoal_recovery_score(enriched.getGoal_recovery_score());
+        d.setGoal_weight_loss_score(enriched.getGoal_weight_loss_score());
+        d.setGoal_wellness_score(enriched.getGoal_wellness_score());
 
         // Flatten AI synonyms if present (optional, Phase 1+)
         if (enriched.getSynonyms_multi() != null) {

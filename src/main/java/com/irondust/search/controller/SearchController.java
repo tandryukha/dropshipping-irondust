@@ -22,9 +22,38 @@ public class SearchController {
 
     @PostMapping("/search")
     public Mono<SearchDtos.SearchResponseBody<ProductDoc>> search(@Valid @RequestBody SearchDtos.SearchRequestBody body) {
-        String filter = FilterStringBuilder.build(body.getFilters());
+        Map<String, Object> filters = body.getFilters();
+        if (filters == null) {
+            filters = new LinkedHashMap<>();
+        }
+        // Ensure in_stock default true unless explicitly set to false
+        if (!filters.containsKey("in_stock")) {
+            filters.put("in_stock", true);
+        }
+        String filter = FilterStringBuilder.build(filters);
         List<String> facets = List.of("brand_slug", "categories_slugs", "form", "diet_tags", "goal_tags");
-        return meiliService.searchRaw(body.getQ(), filter, body.getSort(), body.getPage(), body.getSize(), facets)
+        // If a single goal is selected, prefer sorting by its score desc
+        List<String> sort = body.getSort();
+        if (sort == null || sort.isEmpty()) {
+            Object goalObj = filters.get("goal_tags");
+            if (goalObj instanceof List<?> gl && gl.size() == 1) {
+                String g = String.valueOf(gl.get(0));
+                String scoreField = switch (g) {
+                    case "preworkout" -> "goal_preworkout_score";
+                    case "strength" -> "goal_strength_score";
+                    case "endurance" -> "goal_endurance_score";
+                    case "lean_muscle" -> "goal_lean_muscle_score";
+                    case "recovery" -> "goal_recovery_score";
+                    case "weight_loss" -> "goal_weight_loss_score";
+                    case "wellness" -> "goal_wellness_score";
+                    default -> null;
+                };
+                if (scoreField != null) {
+                    sort = List.of(scoreField + ":desc");
+                }
+            }
+        }
+        return meiliService.searchRaw(body.getQ(), filter, sort, body.getPage(), body.getSize(), facets)
                 .map(raw -> {
                     SearchDtos.SearchResponseBody<ProductDoc> resp = new SearchDtos.SearchResponseBody<>();
                     List<ProductDoc> items = new ArrayList<>();
