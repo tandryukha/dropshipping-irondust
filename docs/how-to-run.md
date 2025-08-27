@@ -168,3 +168,22 @@ mvn spring-boot:run
 ```
 
 This will start the API on http://localhost:4000 with Meilisearch on http://localhost:7700.
+
+## Tuning ingestion performance
+
+The full ingest endpoint supports bounded parallelism:
+
+- `app.ingestParallelism`: number of concurrent product transformations (default 4)
+- `app.meiliConcurrentUpdates`: concurrent Meilisearch upload requests (default 3)
+- `app.uploadChunkSize`: number of docs per upload chunk (default 500)
+
+You can override these via environment variables or a custom Spring profile. Example using environment variables:
+
+```bash
+APP_INGESTPARALLELISM=6 \
+APP_MEILICONCURRENTUPDATES=4 \
+APP_UPLOADCHUNKSIZE=750 \
+mvn spring-boot:run
+```
+
+Or edit `src/main/resources/application.yml` and restart the API.

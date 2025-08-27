@@ -8,6 +8,10 @@ public class AppProperties {
     private String baseUrl;
     private int perPage;
     private String indexName;
+    // Ingest tuning
+    private int ingestParallelism;
+    private int meiliConcurrentUpdates;
+    private int uploadChunkSize;
 
     public String getAdminKey() {
         return adminKey;
@@ -39,6 +43,30 @@ public class AppProperties {
 
     public void setIndexName(String indexName) {
         this.indexName = indexName;
+    }
+
+    public int getIngestParallelism() {
+        return ingestParallelism;
+    }
+
+    public void setIngestParallelism(int ingestParallelism) {
+        this.ingestParallelism = ingestParallelism;
+    }
+
+    public int getMeiliConcurrentUpdates() {
+        return meiliConcurrentUpdates;
+    }
+
+    public void setMeiliConcurrentUpdates(int meiliConcurrentUpdates) {
+        this.meiliConcurrentUpdates = meiliConcurrentUpdates;
+    }
+
+    public int getUploadChunkSize() {
+        return uploadChunkSize;
+    }
+
+    public void setUploadChunkSize(int uploadChunkSize) {
+        this.uploadChunkSize = uploadChunkSize;
     }
 }
 

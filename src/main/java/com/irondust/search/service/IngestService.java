@@ -9,6 +9,7 @@ import com.irondust.search.service.enrichment.EnrichmentPipeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import reactor.core.scheduler.Schedulers;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -21,29 +22,31 @@ public class IngestService {
 
     private final WooStoreService wooStoreService;
     private final MeiliService meiliService;
-    // AppProperties reserved for future ingest tuning is not stored to avoid unused field warnings
-    private final EnrichmentPipeline enrichmentPipeline;
+    private final AppProperties appProperties;
 
     public IngestService(WooStoreService wooStoreService, MeiliService meiliService, 
                         AppProperties appProperties, EnrichmentPipeline enrichmentPipeline) {
         this.wooStoreService = wooStoreService;
         this.meiliService = meiliService;
-        this.enrichmentPipeline = enrichmentPipeline;
+        this.appProperties = appProperties;
     }
 
     public Mono<IngestDtos.IngestReport> ingestFull() {
+        java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
+        int parallelism = Math.max(1, appProperties.getIngestParallelism());
+
         return wooStoreService.paginateProducts()
-                .index()
-                .map(tuple -> {
-                    int current = (int) (tuple.getT1() + 1);
-                    JsonNode json = tuple.getT2();
-                    DocWithReport r = transformWithEnrichmentWithReport(json);
-                    int warnCount = r.report.getWarnings() != null ? r.report.getWarnings().size() : 0;
-                    int confCount = r.report.getConflicts() != null ? r.report.getConflicts().size() : 0;
-                    log.info("Full ingest progress: {} items processed so far; id={} warnings={} conflicts={}",
-                            current, r.report.getId(), warnCount, confCount);
-                    return r;
-                })
+                .flatMap(json -> Mono.fromCallable(() -> {
+                            DocWithReport r = transformWithEnrichmentWithReport(json);
+                            int current = counter.incrementAndGet();
+                            int warnCount = r.report.getWarnings() != null ? r.report.getWarnings().size() : 0;
+                            int confCount = r.report.getConflicts() != null ? r.report.getConflicts().size() : 0;
+                            log.info("Full ingest progress: {} items processed so far; id={} warnings={} conflicts={}",
+                                    current, r.report.getId(), warnCount, confCount);
+                            return r;
+                        })
+                        .subscribeOn(Schedulers.boundedElastic()),
+                        parallelism)
                 .collectList()
                 .flatMap(results -> {
                     List<ProductDoc> allDocs = new ArrayList<>();
@@ -78,9 +81,12 @@ public class IngestService {
                     List<String> searchable = List.of("name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", "synonyms_en", "synonyms_ru", "synonyms_et");
 
                     // ensure index and settings first, then upload in chunks
+                    int chunkSize = appProperties.getUploadChunkSize() > 0 ? appProperties.getUploadChunkSize() : 500;
+                    int meiliConcurrency = Math.max(1, appProperties.getMeiliConcurrentUpdates());
+
                     return meiliService.ensureIndexWithSettings(filterable, sortable, searchable)
-                            .thenMany(Flux.fromIterable(chunk(allDocs, 500)))
-                            .concatMap(meiliService::addOrReplaceDocuments)
+                            .thenMany(Flux.fromIterable(chunk(allDocs, chunkSize)))
+                            .flatMap(meiliService::addOrReplaceDocuments, meiliConcurrency)
                             .then(Mono.fromSupplier(() -> buildReport(allDocs.size(), reports)));
                 });
     }
@@ -130,12 +136,10 @@ public class IngestService {
     private DocWithReport transformWithEnrichmentWithReport(JsonNode p) {
         // Create raw product from JSON
         RawProduct raw = RawProduct.fromJsonNode(p);
-        
-        // Ensure warnings state is clean per product
-        enrichmentPipeline.clearWarnings();
 
-        // Apply enrichment pipeline
-        EnrichedProduct enriched = enrichmentPipeline.enrich(raw);
+        // Use a fresh pipeline instance per product to ensure thread-safety under parallelism
+        EnrichmentPipeline pipeline = new EnrichmentPipeline();
+        EnrichedProduct enriched = pipeline.enrich(raw);
         
         // Convert enriched product to ProductDoc for Meilisearch
         ProductDoc d = new ProductDoc();

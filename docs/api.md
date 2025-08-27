@@ -7,6 +7,16 @@ Base URL: http://localhost:4000
 - POST /ingest/full — Ingest all products
 - POST /ingest/products — Ingest specific products by ID
 
+### Ingestion performance and parallelism
+
+The full ingestion endpoint performs enrichment and indexing with bounded parallelism.
+
+- Transformation parallelism: controlled by `app.ingestParallelism`
+- Meilisearch upload concurrency: controlled by `app.meiliConcurrentUpdates`
+- Upload chunk size: controlled by `app.uploadChunkSize`
+
+Defaults are defined in `src/main/resources/application.yml`. Tune these based on CPU, network, and Meilisearch capacity.
+
 Example:
 
 ```bash

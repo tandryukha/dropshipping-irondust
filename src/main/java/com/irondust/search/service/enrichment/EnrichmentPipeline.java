@@ -499,6 +499,12 @@ public class EnrichmentPipeline {
                 case "price_per_unit":
                     parsed.setPrice_per_unit((Double) value);
                     break;
+                case "regular_price_cents":
+                    parsed.setRegular_price_cents((Integer) value);
+                    break;
+                case "sale_price_cents":
+                    parsed.setSale_price_cents((Integer) value);
+                    break;
                 case "price":
                     parsed.setPrice((Double) value);
                     break;

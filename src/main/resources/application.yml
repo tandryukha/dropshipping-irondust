@@ -6,6 +6,9 @@ app:
   baseUrl: https://www.irondust.eu
   perPage: 100
   indexName: products_lex
+  ingestParallelism: 10
+  meiliConcurrentUpdates: 8
+  uploadChunkSize: 2000
 
 meili:
   host: ${MEILI_HOST:http://127.0.0.1:7700}
