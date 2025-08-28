@@ -147,6 +147,13 @@ public class Normalizer implements EnricherStep {
         if (powderEvidence && !capsEvidence) {
             return "powder";
         }
+        // Final fallback: substring checks without word-boundary sensitivity
+        if (text.contains("softgel") || text.contains("softgels") || text.contains("caps") || text.contains("kaps")) {
+            return "capsules";
+        }
+        if (text.contains("tablet") || text.contains("tabs") || text.contains("tabletid")) {
+            return "tabs";
+        }
         return null;
     }
 

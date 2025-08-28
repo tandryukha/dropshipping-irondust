@@ -17,6 +17,23 @@ public class ConflictDetector implements EnricherStep {
 
     @Override
     public EnrichmentDelta apply(RawProduct raw, ParsedProduct soFar) {
+        Map<String, Object> updates = new HashMap<>();
+        // Final fallback: infer form when missing using simple evidence to avoid noisy missing-critical
+        if (soFar.getForm() == null || soFar.getForm().isBlank()) {
+            boolean tabsHint = false;
+            boolean capsHint = false;
+            if (raw.getName() != null || raw.getSearch_text() != null) {
+                String text = ((raw.getName() != null ? raw.getName() : "") + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
+                tabsHint = text.contains("tablet") || text.contains("tabletid") || text.contains(" tabs") || text.contains("tab ");
+                capsHint = text.contains("caps") || text.contains("capsule") || text.contains("kaps") || text.contains("kapslid") || text.contains("softgel") || text.contains("softgels");
+            }
+            if (soFar.getUnit_count() != null && soFar.getUnit_count() > 0) {
+                // Count-based packaging implies capsules/tabs
+                updates.put("form", tabsHint ? "tabs" : "capsules");
+            } else if (tabsHint || capsHint) {
+                updates.put("form", tabsHint ? "tabs" : "capsules");
+            }
+        }
         // Example: attribute says capsules but title mentions powder
         if (soFar.getForm() != null && raw.getName() != null) {
             String name = raw.getName().toLowerCase();
@@ -33,7 +50,8 @@ public class ConflictDetector implements EnricherStep {
 
         // Missing criticals: allow either exact servings or a range to satisfy
         // For count-based forms (capsules/tabs), do not require servings unless units_per_serving is present
-        boolean isCountBased = "capsules".equals(soFar.getForm()) || "tabs".equals(soFar.getForm());
+        String effectiveForm = soFar.getForm() != null ? soFar.getForm() : (String) updates.get("form");
+        boolean isCountBased = "capsules".equals(effectiveForm) || "tabs".equals(effectiveForm);
         boolean hasServingRange = (soFar.getServings_min() != null && soFar.getServings_max() != null);
         if (!isCountBased) {
             if (soFar.getServings() == null && !hasServingRange) {
@@ -47,14 +65,19 @@ public class ConflictDetector implements EnricherStep {
         }
         // net_weight_g is critical for weight-/volume-based forms (e.g., powder, drink, gel, bar)
         // but not for unit-count forms (capsules, tabs)
-        String form = soFar.getForm();
+        String form = effectiveForm;
         isCountBased = "capsules".equals(form) || "tabs".equals(form);
         if (soFar.getNet_weight_g() == null && !isCountBased) {
             warnings.add(Warn.missingCritical(raw.getId(), "net_weight_g"));
         }
-        if (form == null) warnings.add(Warn.missingCritical(raw.getId(), "form"));
+        if (form == null) {
+            // If we proposed a form update in this step, do not warn
+            if (!updates.containsKey("form")) {
+                warnings.add(Warn.missingCritical(raw.getId(), "form"));
+            }
+        }
 
-        return new EnrichmentDelta();
+        return updates.isEmpty() ? new EnrichmentDelta() : new EnrichmentDelta(updates, null, null, null);
     }
 
     @Override

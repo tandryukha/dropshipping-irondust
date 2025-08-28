@@ -153,6 +153,19 @@ public class UnitParser implements EnricherStep {
             sources.put("unit_mass_g", "regex");
         }
 
+        // Infer form from unit-related evidence if still missing
+        if (!updates.containsKey("form") && (soFar.getForm() == null || soFar.getForm().isBlank())) {
+            Integer ucHint = (Integer) updates.getOrDefault("unit_count", soFar.getUnit_count());
+            boolean hasUnitEvidence = ucHint != null || ups != null || umg != null;
+            if (hasUnitEvidence) {
+                String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
+                boolean looksTabs = text.contains("tablet") || text.contains("tabletid") || text.contains("tab ") || text.contains(" tabs");
+                updates.put("form", looksTabs ? "tabs" : "capsules");
+                confidence.put("form", 0.55);
+                sources.put("form", "unit_evidence");
+            }
+        }
+
         // Sanity-correct net_weight_g when it equals serving_size or is clearly too small
         Double existingWeight = (Double) updates.getOrDefault("net_weight_g", soFar.getNet_weight_g());
         if (existingWeight != null) {
@@ -166,11 +179,15 @@ public class UnitParser implements EnricherStep {
                 double candidate = ss * usedServings;
                 // If recorded weight looks like a per-serving weight, or far below expected total, correct it
                 if (existingWeight <= ss * 1.5 || existingWeight < candidate * 0.6) {
+                    double ratio = candidate > 0 ? candidate / Math.max(existingWeight, 1e-6) : 0.0;
                     updates.put("net_weight_g", candidate);
                     confidence.put("net_weight_g", 0.80);
                     sources.put("net_weight_g", "corrected");
-                    warnings.add(Warn.unitAmbiguity(raw.getId(), "net_weight_g",
-                            "Corrected net weight from " + existingWeight + "g to " + candidate + "g based on serving size × servings"));
+                    // Only emit ambiguity warning for large corrections (avoid noisy small adjustments)
+                    if (ratio >= 3.0 || existingWeight < ss * 0.5) {
+                        warnings.add(Warn.unitAmbiguity(raw.getId(), "net_weight_g",
+                                "Corrected net weight from " + existingWeight + "g to " + candidate + "g based on serving size × servings"));
+                    }
                 }
             }
         }
@@ -185,6 +202,20 @@ public class UnitParser implements EnricherStep {
                     updates.put("net_weight_g", derived);
                     confidence.put("net_weight_g", 0.75);
                     sources.put("net_weight_g", "derived");
+                }
+            }
+        }
+
+        // Derive net_weight_g from unit_count x unit_mass_g if still missing
+        if (!updates.containsKey("net_weight_g")) {
+            Integer effectiveUnitCount = (Integer) updates.getOrDefault("unit_count", soFar.getUnit_count());
+            Double effectiveUnitMassG = (Double) updates.getOrDefault("unit_mass_g", soFar.getUnit_mass_g());
+            if (effectiveUnitCount != null && effectiveUnitCount > 0 && effectiveUnitMassG != null && effectiveUnitMassG > 0) {
+                double derived = effectiveUnitCount * effectiveUnitMassG;
+                if (derived > 0 && derived <= 100000) {
+                    updates.put("net_weight_g", derived);
+                    confidence.put("net_weight_g", 0.7);
+                    sources.put("net_weight_g", "derived_units");
                 }
             }
         }

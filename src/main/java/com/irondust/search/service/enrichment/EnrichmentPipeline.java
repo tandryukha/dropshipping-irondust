@@ -183,6 +183,33 @@ public class EnrichmentPipeline {
                             return false;
                         });
                     }
+
+                    // Post-AI derivations: derive net_weight_g when possible
+                    if (enriched.getNet_weight_g() == null || enriched.getNet_weight_g() <= 0) {
+                        Double ss = enriched.getServing_size_g();
+                        Integer sv = enriched.getServings();
+                        if (ss != null && ss > 0 && sv != null && sv > 0) {
+                            double derived = ss * sv;
+                            if (derived > 0 && derived <= 100000) {
+                                enriched.setNet_weight_g(derived);
+                            }
+                        }
+                        if (enriched.getNet_weight_g() == null || enriched.getNet_weight_g() <= 0) {
+                            Integer uc = enriched.getUnit_count();
+                            Double um = enriched.getUnit_mass_g();
+                            if (uc != null && uc > 0 && um != null && um > 0) {
+                                double derived = uc * um;
+                                if (derived > 0 && derived <= 100000) {
+                                    enriched.setNet_weight_g(derived);
+                                }
+                            }
+                        }
+                    }
+                    // Drop stale missing-critical warnings if net_weight_g is now satisfied
+                    if (enriched.getNet_weight_g() != null && enriched.getNet_weight_g() > 0) {
+                        allWarnings.removeIf(w -> w != null && "MISSING_CRITICAL".equals(w.getCode())
+                            && raw.getId().equals(w.getProductId()) && "net_weight_g".equals(w.getField()));
+                    }
                     // Metadata
                     if (ai.get("ai_input_hash") instanceof String h) enriched.setAi_input_hash(h);
                     if (ai.get("ai_enrichment_ts") instanceof Number ts) enriched.setAi_enrichment_ts(((Number) ts).longValue());
