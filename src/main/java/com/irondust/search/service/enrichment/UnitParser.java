@@ -189,6 +189,31 @@ public class UnitParser implements EnricherStep {
             }
         }
 
+        // Sanity-correct servings when regex-derived value conflicts with size/weight
+        // Goal: prevent tiny/huge servings that explode price-per-serving.
+        try {
+            Integer currentServings = (Integer) updates.getOrDefault("servings", soFar.getServings());
+            Double ss = (Double) updates.getOrDefault("serving_size_g", soFar.getServing_size_g());
+            Double nw = (Double) updates.getOrDefault("net_weight_g", soFar.getNet_weight_g());
+            // Only attempt when we have both size and weight, and an existing servings value
+            if (currentServings != null && currentServings > 0 && ss != null && ss > 0 && nw != null && nw > 0) {
+                double expected = nw / ss;
+                if (expected > 0 && expected < 2000) {
+                    int rounded = (int) Math.round(expected);
+                    // Consider it a conflict if relative error > 40% or servings looks unrealistic
+                    double relErr = Math.abs(rounded - currentServings) / Math.max(1.0, (double) currentServings);
+                    boolean unrealistic = currentServings < 8 || currentServings > 180;
+                    if (relErr > 0.4 || unrealistic) {
+                        updates.put("servings", rounded);
+                        confidence.put("servings", Math.max(confidence.getOrDefault("servings", 0.8), 0.85));
+                        sources.put("servings", (sources.containsKey("servings") ? sources.get("servings") + "|" : "") + "corrected");
+                        warnings.add(Warn.unitAmbiguity(raw.getId(), "servings",
+                                "Corrected servings from " + currentServings + " to " + rounded + " based on net_weight_g/serving_size_g"));
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
         return new EnrichmentDelta(updates, confidence, sources, null);
     }
 

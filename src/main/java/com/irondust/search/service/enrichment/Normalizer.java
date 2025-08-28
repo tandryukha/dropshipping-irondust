@@ -10,7 +10,9 @@ public class Normalizer implements EnricherStep {
 
     // Heuristic detection patterns
     private static final java.util.regex.Pattern GRAMS_PATTERN = java.util.regex.Pattern.compile("\\b\\d{2,4}\\s?(g|gramm)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
-    private static final java.util.regex.Pattern CAPS_TOKENS = java.util.regex.Pattern.compile("\\b(caps|capsule|vcaps|kaps|kapslid|tabletid|tablet|tabs)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern CAPS_TOKENS = java.util.regex.Pattern.compile("\\b(caps|capsule|vcaps|kaps|kapslid|tabletid|tablet|tabs|soft\\s*gels?)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
+    // Also match compact forms like "90caps", "90tabs", "100softgels"
+    private static final java.util.regex.Pattern CAPS_COMPACT_TOKENS = java.util.regex.Pattern.compile("\\b\\d{1,4}\\s*(caps|capsules|softgels?|soft\\s*gels?|kaps|kapslid|tablets?|tabs|tabletid)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final java.util.regex.Pattern TABS_TOKENS = java.util.regex.Pattern.compile("\\b(tabs?|tabletid|tablet)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final java.util.regex.Pattern PULBER_TOKEN = java.util.regex.Pattern.compile("pulber", java.util.regex.Pattern.CASE_INSENSITIVE);
 
@@ -25,6 +27,10 @@ public class Normalizer implements EnricherStep {
         Map.entry("caps", "capsules"),
         Map.entry("tabletid", "tabs"),
         Map.entry("pehmekapslid", "capsules"),
+        Map.entry("softgel", "capsules"),
+        Map.entry("softgels", "capsules"),
+        Map.entry("soft-gel", "capsules"),
+        Map.entry("soft-gels", "capsules"),
         Map.entry("tablet", "tabs"),
         Map.entry("tablets", "tabs"),
         Map.entry("tabs", "tabs"),
@@ -103,7 +109,7 @@ public class Normalizer implements EnricherStep {
         if (raw.getSearch_text() != null) sb.append(raw.getSearch_text());
         String text = sb.toString().toLowerCase();
 
-        boolean mentionsCaps = CAPS_TOKENS.matcher(text).find();
+        boolean mentionsCaps = CAPS_TOKENS.matcher(text).find() || CAPS_COMPACT_TOKENS.matcher(text).find();
         boolean mentionsTabs = TABS_TOKENS.matcher(text).find();
         boolean mentionsPulberWord = PULBER_TOKEN.matcher(text).find();
         boolean hasGramsInText = GRAMS_PATTERN.matcher(text).find();
@@ -117,6 +123,15 @@ public class Normalizer implements EnricherStep {
                     categorySuggestsPowder = true;
                     break;
                 }
+            }
+        }
+
+        // Attribute hint: presence of unit-count attribute implies capsules/tablets packaging
+        if (raw.getDynamic_attrs() != null) {
+            java.util.List<String> cnt = raw.getDynamic_attrs().get("attr_pa_tablettide-arv");
+            if (cnt != null && !cnt.isEmpty()) {
+                // Any positive integer here strongly suggests capsules/tabs
+                mentionsCaps = true;
             }
         }
 
