@@ -200,6 +200,24 @@ public class SearchController {
         if (d.getFaq_i18n() != null && d.getFaq_i18n().containsKey(lang)) {
             d.setFaq(d.getFaq_i18n().get(lang));
         }
+
+        // Apply language-specific description
+        if (d.getDescription_i18n() != null && d.getDescription_i18n().containsKey(lang)) {
+            // Reuse 'search_text' for PDP primary description if present
+            // but store translated description in search_text if search_text_i18n matches
+            String desc = d.getDescription_i18n().get(lang);
+            if (desc != null && !desc.isEmpty()) {
+                d.setSearch_text(desc);
+            }
+        }
+
+        // Apply language-specific search text override if present
+        if (d.getSearch_text_i18n() != null && d.getSearch_text_i18n().containsKey(lang)) {
+            String st = d.getSearch_text_i18n().get(lang);
+            if (st != null && !st.isEmpty()) {
+                d.setSearch_text(st);
+            }
+        }
     }
 }
 

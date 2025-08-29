@@ -68,6 +68,18 @@ public class ProductController {
         if (faqI18n != null && faqI18n.containsKey(lang)) {
             doc.put("faq", faqI18n.get(lang));
         }
+
+        // Apply language-specific description if present
+        Map<String, String> descriptionI18n = (Map<String, String>) doc.get("description_i18n");
+        if (descriptionI18n != null && descriptionI18n.containsKey(lang)) {
+            doc.put("description", descriptionI18n.get(lang));
+        }
+
+        // Apply language-specific search text if present
+        Map<String, String> searchTextI18n = (Map<String, String>) doc.get("search_text_i18n");
+        if (searchTextI18n != null && searchTextI18n.containsKey(lang)) {
+            doc.put("search_text", searchTextI18n.get(lang));
+        }
     }
 }
 

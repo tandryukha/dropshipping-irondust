@@ -309,28 +309,36 @@ public class TranslationService {
      * Defaults to Estonian if detection fails.
      */
     private String detectLanguage(ProductTranslation data) {
-        // Build text for detection
+        // Build text for detection (prefer description, then name; benefit snippet last)
         StringBuilder textBuilder = new StringBuilder();
-        if (data.name != null) textBuilder.append(data.name).append(" ");
         if (data.description != null) textBuilder.append(data.description).append(" ");
+        if (data.name != null) textBuilder.append(data.name).append(" ");
         if (data.benefitSnippet != null) textBuilder.append(data.benefitSnippet).append(" ");
-        
-        String text = textBuilder.toString().toLowerCase();
-        
-        // Check for English patterns
-        if (text.contains(" the ") || text.contains(" for ") || text.contains(" and ") || 
-            text.contains(" with ") || text.contains(" from ") || text.contains("protein") ||
-            text.contains("supplement") || text.contains("daily")) {
-            return LANG_EN;
-        }
-        
-        // Check for Russian patterns
-        if (text.contains("это") || text.contains("для") || text.contains("или") ||
-            text.contains("белок") || text.contains("протеин")) {
+
+        String textRaw = textBuilder.toString();
+        String text = textRaw.toLowerCase();
+
+        // 1) Cyrillic quick check → Russian
+        if (textRaw.matches(".*\\p{InCyrillic}.*")) {
             return LANG_RU;
         }
-        
-        // Default to Estonian
+
+        // 2) Estonian markers: diacritics and common headings/words seen in product descriptions
+        if (text.contains("toote nimetus") || text.contains("vorm:") || text.contains("koostis") ||
+            text.contains("koostisosad") || text.contains("hoiatus") || text.contains("soovitatav") ||
+            text.contains("päevane annus") || text.contains("tootja:") ||
+            text.indexOf('ä') >= 0 || text.indexOf('õ') >= 0 || text.indexOf('ö') >= 0 || text.indexOf('ü') >= 0) {
+            return LANG_EST;
+        }
+
+        // 3) English markers
+        if (text.contains(" the ") || text.contains(" for ") || text.contains(" and ") ||
+            text.contains(" with ") || text.contains(" from ") || text.contains("protein") ||
+            text.contains("supplement") || text.contains("daily") || text.contains("servings")) {
+            return LANG_EN;
+        }
+
+        // Fallback: Estonian (primary source)
         return LANG_EST;
     }
     

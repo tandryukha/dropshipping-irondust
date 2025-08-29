@@ -3,6 +3,7 @@ import { bus } from '../core/bus.js';
 import { store } from '../core/store.js';
 import { getProduct } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
+import { t } from '../core/language.js';
 
 const els = {};
 
@@ -10,13 +11,19 @@ const els = {};
 function extractDosageFromText(searchText) {
   if (!searchText) return null;
   
-  // Look for patterns like "1 portsjon", "Soovitatav päevane annus:", etc.
+  // Multi-language dosage patterns
   const dosagePatterns = [
-    /Soovitatav päevane annus:\s*([^.]+)/i,
-    /Päevane tarbimine:\s*([^.]+)/i,
-    /(\d+\s*portsjon[^.]*)/i,
-    /(\d+\s*mõõtelusikas[^.]*)/i,
-    /(\d+[-–]\d+\s*(?:scoops?|servings?|portions?)[^.]*)/i
+    /Soovitatav\s+p[aä]evane\s+annus:\s*([^\.!\n]+)/i,
+    /P[aä]evane\s+tarbimine:\s*([^\.!\n]+)/i,
+    /(\d+\s*portsjon[^\.!\n]*)/i,
+    /(\d+\s*m[õo]õtelusikas[^\.!\n]*)/i,
+    /Рекомендуемая\s+суточная\s+доза:\s*([^\.!\n]+)/i,
+    /Способ\s+применения:\s*([^\.!\n]+)/i,
+    /(\d+\s*капсул[^\.!\n]*)/i,
+    /(\d+\s*мерн(?:ая|ых)?\s*ложк[^\.!\n]*)/i,
+    /Recommended\s+daily\s+dose:\s*([^\.!\n]+)/i,
+    /Suggested\s+use:\s*([^\.!\n]+)/i,
+    /(\d+\s*(?:capsules?|tabs?|scoops?|servings?)[^\.!\n]*)/i
   ];
   
   for (const pattern of dosagePatterns) {
@@ -32,15 +39,17 @@ function extractDosageFromText(searchText) {
 function extractTimingFromText(searchText) {
   if (!searchText) return null;
   
-  // Look for patterns related to timing
+  // Look for patterns related to timing (multi-language)
   const timingPatterns = [
     /(\d+[-–]\d+\s*minutit\s*enne\s*treeningut)/i,
-    /(enne\s*treeningut[^.]*)/i,
-    /(pärast\s*treeningut[^.]*)/i,
-    /(post[-\s]?workout[^.]*)/i,
-    /(pre[-\s]?workout[^.]*)/i,
-    /(before\s*training[^.]*)/i,
-    /(after\s*training[^.]*)/i
+    /(enne\s*treeningut[^\.!\n]*)/i,
+    /(p[aä]rast\s*treeningut[^\.!\n]*)/i,
+    /(за\s*\d+[-–]?\d*\s*мин[^\.!\n]*\s*до\s*тренировки)/i,
+    /(после\s*тренировк[^\.!\n]*)/i,
+    /(post[-\s]?workout[^\.!\n]*)/i,
+    /(pre[-\s]?workout[^\.!\n]*)/i,
+    /(before\s*training[^\.!\n]*)/i,
+    /(after\s*training[^\.!\n]*)/i
   ];
   
   for (const pattern of timingPatterns) {
@@ -54,19 +63,23 @@ function extractTimingFromText(searchText) {
 
 // Helper function to generate composition table from product data
 function generateCompositionTable(prod) {
-  if (!prod) return '<p class="muted" style="font-size:14px;">No composition data available</p>';
+  if (!prod) return '<p class="muted" style="font-size:14px;">'+t('pdp.fallback.no_composition','Composition information not available. Please check product packaging for details.')+'</p>';
   
   // Extract composition from search_text if available
   const searchText = prod.search_text || '';
   
   // Look for composition section in the text
-  const compositionMatch = searchText.match(/Koostisosad[^:]*:([^.]+)/i);
+  const compositionMatch = (
+    searchText.match(/Koostisosad[^:]*:([^\n\r]+)/i) ||
+    searchText.match(/Ингредиенты[^:]*:([^\n\r]+)/i) ||
+    searchText.match(/Ingredients[^:]*:([^\n\r]+)/i)
+  );
   if (compositionMatch) {
     const ingredients = compositionMatch[1].trim();
     const ingredientsList = ingredients.split(/[,;]/).map(ing => ing.trim()).filter(ing => ing);
     
     let html = '<div style="margin-bottom:16px;">';
-    html += '<h4 style="margin:0 0 8px;font-size:14px;">Ingredients</h4>';
+    html += '<h4 style="margin:0 0 8px;font-size:14px;">'+t('pdp.ingredients','Ingredients')+'</h4>';
     html += '<ul style="margin:0;padding-left:20px;">';
     ingredientsList.forEach(ing => {
       html += `<li style="margin:4px 0;">${ing}</li>`;
@@ -77,17 +90,17 @@ function generateCompositionTable(prod) {
     // Add any nutritional info if available
     if (prod.serving_size_g || prod.net_weight_g) {
       html += '<div style="margin-top:16px;">';
-      html += '<h4 style="margin:0 0 8px;font-size:14px;">Product Information</h4>';
+      html += '<h4 style="margin:0 0 8px;font-size:14px;">'+t('pdp.product_info','Product Information')+'</h4>';
       html += '<table style="width:100%;border-collapse:collapse;">';
       html += '<tbody>';
       if (prod.net_weight_g) {
-        html += `<tr><td style="padding:8px;border:1px solid #e5e7eb;">Net weight</td><td style="padding:8px;border:1px solid #e5e7eb;">${prod.net_weight_g} g</td></tr>`;
+        html += `<tr><td style="padding:8px;border:1px solid #e5e7eb;">${t('pdp.net_weight','Net weight')}</td><td style="padding:8px;border:1px solid #e5e7eb;">${prod.net_weight_g} g</td></tr>`;
       }
       if (prod.serving_size_g) {
-        html += `<tr><td style="padding:8px;border:1px solid #e5e7eb;">Serving size</td><td style="padding:8px;border:1px solid #e5e7eb;">${prod.serving_size_g} g</td></tr>`;
+        html += `<tr><td style="padding:8px;border:1px solid #e5e7eb;">${t('pdp.serving_size','Serving size')}</td><td style="padding:8px;border:1px solid #e5e7eb;">${prod.serving_size_g} g</td></tr>`;
       }
       if (prod.servings) {
-        html += `<tr><td style="padding:8px;border:1px solid #e5e7eb;">Servings</td><td style="padding:8px;border:1px solid #e5e7eb;">${prod.servings}</td></tr>`;
+        html += `<tr><td style="padding:8px;border:1px solid #e5e7eb;">${t('pdp.servings','Servings')}</td><td style="padding:8px;border:1px solid #e5e7eb;">${prod.servings}</td></tr>`;
       }
       html += '</tbody></table>';
       html += '</div>';
@@ -97,7 +110,7 @@ function generateCompositionTable(prod) {
   }
   
   // Fallback to basic product info
-  return '<p class="muted" style="font-size:14px;">Composition information not available. Please check product packaging for details.</p>';
+  return '<p class="muted" style="font-size:14px;">'+t('pdp.fallback.no_composition','Composition information not available. Please check product packaging for details.')+'</p>';
 }
 
 function renderStars(val){
@@ -257,9 +270,15 @@ export function mountPdp() {
         els.pdpImage.src = prod.images[0];
         els.pdpImage.alt = prod?.name || 'Product image';
       }
-      // Description: Use full search_text if available, which contains all product information
+      // Description: Use translated search_text; render as HTML if it looks like HTML
       const desc = typeof prod?.search_text === 'string' ? prod.search_text : '';
-      if (els.pdpDescText) els.pdpDescText.textContent = desc;
+      if (els.pdpDescText) {
+        if (/^\s*</.test(desc)) {
+          els.pdpDescText.innerHTML = desc;
+        } else {
+          els.pdpDescText.textContent = desc;
+        }
+      }
 
       // Flavors: prefer explicit flavor, else parse from dynamic attributes
       const flavors = (()=>{
@@ -278,26 +297,26 @@ export function mountPdp() {
         const facts = [];
         const form = typeof prod?.form === 'string' ? prod.form : '';
         const isCountBased = form === 'capsules' || form === 'tabs';
-        if (form) facts.push(`Form: ${form}`);
+        if (form) facts.push(`${t('pdp.form','Form')}: ${form}`);
         if (!isCountBased) {
-          if (typeof prod?.net_weight_g === 'number') facts.push(`Net: ${prod.net_weight_g} g`);
-          if (typeof prod?.serving_size_g === 'number') facts.push(`Serving size: ${prod.serving_size_g} g`);
+          if (typeof prod?.net_weight_g === 'number') facts.push(`${t('pdp.net','Net')}: ${prod.net_weight_g} g`);
+          if (typeof prod?.serving_size_g === 'number') facts.push(`${t('pdp.serving_size','Serving size')}: ${prod.serving_size_g} g`);
           if (typeof prod?.servings === 'number') {
-            facts.push(`Servings: ${prod.servings}`);
+            facts.push(`${t('pdp.servings','Servings')}: ${prod.servings}`);
           } else if (typeof prod?.servings_min === 'number' && typeof prod?.servings_max === 'number') {
-            facts.push(`Servings: ${prod.servings_min}–${prod.servings_max}`);
+            facts.push(`${t('pdp.servings','Servings')}: ${prod.servings_min}–${prod.servings_max}`);
           }
-          if (typeof prod?.price_per_serving === 'number') facts.push(`Per serving: ${formatEuro(prod.price_per_serving, prod?.currency||'EUR')}`);
-          if (typeof prod?.price_per_100g === 'number') facts.push(`Per 100g: ${formatEuro(prod.price_per_100g, prod?.currency||'EUR')}`);
+          if (typeof prod?.price_per_serving === 'number') facts.push(`${t('pdp.per_serving','Per serving')}: ${formatEuro(prod.price_per_serving, prod?.currency||'EUR')}`);
+          if (typeof prod?.price_per_100g === 'number') facts.push(`${t('pdp.per_100g','Per 100g')}: ${formatEuro(prod.price_per_100g, prod?.currency||'EUR')}`);
         } else {
-          if (typeof prod?.unit_count === 'number') facts.push(`Units: ${prod.unit_count}`);
-          if (typeof prod?.units_per_serving === 'number') facts.push(`Dose: ${prod.units_per_serving} ${form === 'tabs' ? 'tabs' : 'caps'}`);
+          if (typeof prod?.unit_count === 'number') facts.push(`${t('pdp.units','Units')}: ${prod.unit_count}`);
+          if (typeof prod?.units_per_serving === 'number') facts.push(`${t('pdp.dose','Dose')}: ${prod.units_per_serving} ${form === 'tabs' ? 'tabs' : 'caps'}`);
           if (typeof prod?.unit_mass_g === 'number') facts.push(`Per ${form === 'tabs' ? 'tab' : 'cap'}: ${Math.round(prod.unit_mass_g*1000)} mg`);
-          if (typeof prod?.price_per_unit === 'number') facts.push(`Per unit: ${formatEuro(prod.price_per_unit, prod?.currency||'EUR')}`);
+          if (typeof prod?.price_per_unit === 'number') facts.push(`${t('pdp.per_unit','Per unit')}: ${formatEuro(prod.price_per_unit, prod?.currency||'EUR')}`);
                   // If units_per_serving present, compute servings; else prefer not to show derived servings to avoid confusion
         if (typeof prod?.units_per_serving === 'number' && prod.units_per_serving > 0 && typeof prod?.unit_count === 'number') {
           const srv = Math.floor(prod.unit_count / prod.units_per_serving);
-          if (srv > 0) facts.push(`Servings: ${srv}`);
+          if (srv > 0) facts.push(`${t('pdp.servings','Servings')}: ${srv}`);
         }
       }
       // Remove goal tags from PDP facts per requirement
@@ -308,12 +327,12 @@ export function mountPdp() {
 
     // Update Dosage and Timing boxes dynamically
     if (els.dosageBox) {
-      const dosageContent = extractDosageFromText(prod?.search_text) || '1–2 scoops daily with water or milk';
-      els.dosageBox.innerHTML = '<div style="font-size:12px;color:var(--fp-muted)">Dosage</div>' + dosageContent;
+      const dosageContent = extractDosageFromText(prod?.search_text) || t('pdp.fallback.dosage','2 capsules per day with food');
+      els.dosageBox.innerHTML = '<div style="font-size:12px;color:var(--fp-muted)">'+t('pdp.dosage','Dosage')+'</div>' + dosageContent;
     }
     if (els.timingBox) {
-      const timingContent = extractTimingFromText(prod?.search_text) || 'Within 30 mins post-workout';
-      els.timingBox.innerHTML = '<div style="font-size:12px;color:var(--fp-muted)">Timing</div>' + timingContent;
+      const timingContent = extractTimingFromText(prod?.search_text) || t('pdp.fallback.timing','With meals or within 30 min post-workout');
+      els.timingBox.innerHTML = '<div style="font-size:12px;color:var(--fp-muted)">'+t('pdp.timing','Timing')+'</div>' + timingContent;
     }
 
     // Populate Composition tab with actual data

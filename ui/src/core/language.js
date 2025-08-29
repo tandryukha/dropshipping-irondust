@@ -124,6 +124,94 @@ export function t(key, fallback = '') {
       'ru': 'Выносливость',
       'est': 'Vastupidavus'
     }
+    ,
+    // PDP labels
+    'pdp.dosage': {
+      'en': 'Dosage',
+      'ru': 'Дозировка',
+      'est': 'Annustamine'
+    },
+    'pdp.timing': {
+      'en': 'Timing',
+      'ru': 'Время приёма',
+      'est': 'Aeg'
+    },
+    'pdp.ingredients': {
+      'en': 'Ingredients',
+      'ru': 'Ингредиенты',
+      'est': 'Koostisosad'
+    },
+    'pdp.product_info': {
+      'en': 'Product Information',
+      'ru': 'Информация о продукте',
+      'est': 'Toote teave'
+    },
+    'pdp.net_weight': {
+      'en': 'Net weight',
+      'ru': 'Чистый вес',
+      'est': 'Netokogus'
+    },
+    'pdp.serving_size': {
+      'en': 'Serving size',
+      'ru': 'Порция',
+      'est': 'Portsjoni suurus'
+    },
+    'pdp.servings': {
+      'en': 'Servings',
+      'ru': 'Порций',
+      'est': 'Portsjonit'
+    },
+    'pdp.form': {
+      'en': 'Form',
+      'ru': 'Форма',
+      'est': 'Vorm'
+    },
+    'pdp.net': {
+      'en': 'Net',
+      'ru': 'Нетто',
+      'est': 'Netto'
+    },
+    'pdp.units': {
+      'en': 'Units',
+      'ru': 'Штук',
+      'est': 'Tükki'
+    },
+    'pdp.dose': {
+      'en': 'Dose',
+      'ru': 'Доза',
+      'est': 'Annus'
+    },
+    'pdp.per_unit': {
+      'en': 'Per unit',
+      'ru': 'За единицу',
+      'est': 'Ühe ühiku kohta'
+    },
+    'pdp.per_100g': {
+      'en': 'Per 100g',
+      'ru': 'За 100 г',
+      'est': '100 g kohta'
+    },
+    'pdp.per_serving': {
+      'en': 'Per serving',
+      'ru': 'За порцию',
+      'est': 'Portsioni kohta'
+    },
+    // PDP fallbacks
+    'pdp.fallback.dosage': {
+      'en': '2 capsules per day with food',
+      'ru': '2 капсулы в день с пищей',
+      'est': '2 kapslit päevas koos toiduga'
+    },
+    'pdp.fallback.timing': {
+      'en': 'With meals or within 30 min post-workout',
+      'ru': 'С приёмом пищи или в течение 30 мин после тренировки',
+      'est': 'Koos toiduga või 30 min jooksul pärast trenni'
+    },
+    'pdp.fallback.no_composition': {
+      'en': 'Composition information not available. Please check product packaging for details.',
+      'ru': 'Информация о составе недоступна. Пожалуйста, смотрите упаковку.',
+      'est': 'Koostise teave pole saadaval. Palun vaadake pakendilt.'
+    }
   };
   
   const currentLang = language.getLanguage();
