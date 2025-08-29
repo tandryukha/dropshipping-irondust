@@ -206,22 +206,26 @@ export function mountPdp() {
     });
   }
 
-  // Bind QA chip functionality
+  // Bind QA chip functionality (toggle on repeated click)
   document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('qa-chip')) {
-      const target = e.target.dataset.target;
-      if (target) {
-        // Hide all answers
-        document.querySelectorAll('.qa-ans').forEach(ans => ans.style.display = 'none');
-        document.querySelectorAll('.qa-chip').forEach(chip => chip.classList.remove('active'));
-        
-        // Show selected answer
-        const ansEl = document.querySelector(target);
-        if (ansEl) {
-          ansEl.style.display = 'block';
-          e.target.classList.add('active');
-        }
-      }
+    const chip = e.target.closest('.qa-chip');
+    if (!chip) return;
+    const target = chip.dataset.target;
+    if (!target) return;
+    const ansEl = document.querySelector(target);
+    const isActive = chip.classList.contains('active');
+    if (isActive) {
+      // Toggle off if already active
+      chip.classList.remove('active');
+      if (ansEl) ansEl.style.display = 'none';
+      return;
+    }
+    // Activate clicked chip and show its answer
+    document.querySelectorAll('.qa-ans').forEach(ans => ans.style.display = 'none');
+    document.querySelectorAll('.qa-chip').forEach(c => c.classList.remove('active'));
+    if (ansEl) {
+      ansEl.style.display = 'block';
+      chip.classList.add('active');
     }
   });
 
