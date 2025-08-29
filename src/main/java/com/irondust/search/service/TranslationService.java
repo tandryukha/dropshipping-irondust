@@ -166,7 +166,7 @@ public class TranslationService {
         ObjectNode responseFormat = request.putObject("response_format");
         responseFormat.put("type", "json_object");
         
-        return webClient.post()
+        Mono<ProductTranslation> primary = webClient.post()
                 .uri("/chat/completions")
                 .bodyValue(request.toString())
                 .retrieve()
@@ -180,7 +180,35 @@ public class TranslationService {
                     translationCache.put(cacheKey, new TranslationCache(translationMap));
                 })
                 .doOnError(e -> log.error("OpenAI translation error: {}", e.getMessage()))
-                .onErrorReturn(source); // Return original on error
+                .onErrorReturn(source);
+
+        // Validate language; if looks wrong, perform one retry bypassing cache with stronger prompt
+        return primary.flatMap(tr -> {
+            if (looksMistranslated(sourceLang, targetLang, source, tr)) {
+                log.warn("Translation validation failed for {}→{}; retrying once with stronger prompt", sourceLang, targetLang);
+                String strongPrompt = buildSystemPrompt(sourceLang, targetLang) + "\nImportant: The output MUST be entirely in " + getLanguageName(targetLang) + 
+                        ". Do not leave any source-language text. If the source is already in the target language, you may keep it.";
+                ObjectNode req2 = objectMapper.createObjectNode();
+                req2.put("model", model);
+                req2.put("temperature", 0.1);
+                req2.put("max_tokens", 2000);
+                ArrayNode msgs2 = req2.putArray("messages");
+                ObjectNode sys2 = msgs2.addObject(); sys2.put("role", "system"); sys2.put("content", strongPrompt);
+                ObjectNode usr2 = msgs2.addObject(); usr2.put("role", "user"); usr2.put("content", userContent);
+                ObjectNode rf2 = req2.putObject("response_format"); rf2.put("type", "json_object");
+                return webClient.post()
+                        .uri("/chat/completions")
+                        .bodyValue(req2.toString())
+                        .retrieve()
+                        .bodyToMono(JsonNode.class)
+                        .timeout(Duration.ofSeconds(30))
+                        .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
+                        .map(response -> parseTranslationResponse(response, source))
+                        .doOnError(e -> log.error("OpenAI translation (retry) error: {}", e.getMessage()))
+                        .onErrorReturn(tr);
+            }
+            return Mono.just(tr);
+        });
     }
     
     private String buildSystemPrompt(String sourceLang, String targetLang) {
@@ -200,6 +228,7 @@ public class TranslationService {
             6. Keep measurement units (g, kg, ml, etc.) unchanged
             7. For product forms (powder, capsules, etc.), use standard translations
             8. Maintain consistent terminology across all fields
+            9. IMPORTANT: The final output must be entirely in the target language (%s). Do NOT leave text in the source language.
             
             Return a JSON object with these exact fields:
             {
@@ -217,7 +246,41 @@ public class TranslationService {
             }
             
             If a field is null or empty in the source, keep it null in the translation.
-            """, sourceLanguageName, targetLanguageName);
+            """, sourceLanguageName, targetLanguageName, targetLanguageName);
+    }
+
+    private boolean looksMistranslated(String sourceLang, String targetLang, ProductTranslation source, ProductTranslation out) {
+        String desc = out.description != null ? out.description : "";
+        String name = out.name != null ? out.name : "";
+        String combined = (name + " \n" + desc).toLowerCase();
+        // If target is English but text contains Cyrillic or Estonian diacritics/keywords, likely wrong
+        if (LANG_EN.equals(targetLang)) {
+            if (containsCyrillic(combined)) return true;
+            if (containsEstonianMarkers(combined)) return true;
+        }
+        if (LANG_RU.equals(targetLang)) {
+            if (!containsCyrillic(combined)) return true;
+        }
+        if (LANG_EST.equals(targetLang)) {
+            if (!containsEstonianMarkers(combined)) return true;
+        }
+        // Also if output equals input for key fields and source/target differ
+        if (!Objects.equals(sourceLang, targetLang)) {
+            String srcDesc = source.description != null ? source.description : "";
+            if (!srcDesc.isBlank() && srcDesc.equals(out.description)) return true;
+        }
+        return false;
+    }
+
+    private boolean containsCyrillic(String text) {
+        return text != null && text.matches(".*\\p{InCyrillic}.*");
+    }
+
+    private boolean containsEstonianMarkers(String text) {
+        if (text == null) return false;
+        return text.indexOf('ä') >= 0 || text.indexOf('õ') >= 0 || text.indexOf('ö') >= 0 || text.indexOf('ü') >= 0
+                || text.contains("toote nimetus") || text.contains("koostis") || text.contains("hoiatus")
+                || text.contains("soovitatav") || text.contains("päevane annus") || text.contains("tootja:");
     }
     
     private String buildTranslationContent(ProductTranslation source) {

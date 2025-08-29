@@ -1,4 +1,4 @@
-import { $, $$ } from '../core/dom.js';
+import { $, $$, sanitizeHtml } from '../core/dom.js';
 import { bus } from '../core/bus.js';
 import { store } from '../core/store.js';
 import { getProduct } from '../api/api.js';
@@ -270,13 +270,13 @@ export function mountPdp() {
         els.pdpImage.src = prod.images[0];
         els.pdpImage.alt = prod?.name || 'Product image';
       }
-      // Description: Use translated search_text; render as HTML if it looks like HTML
-      const desc = typeof prod?.search_text === 'string' ? prod.search_text : '';
+      // Description: prefer language-specific description (may contain HTML), fallback to search_text
+      const rawDesc = typeof prod?.description === 'string' && prod.description.trim() ? prod.description : (typeof prod?.search_text === 'string' ? prod.search_text : '');
       if (els.pdpDescText) {
-        if (/^\s*</.test(desc)) {
-          els.pdpDescText.innerHTML = desc;
+        if (/^\s*</.test(rawDesc)) {
+          els.pdpDescText.innerHTML = sanitizeHtml(rawDesc);
         } else {
-          els.pdpDescText.textContent = desc;
+          els.pdpDescText.textContent = rawDesc;
         }
       }
 
