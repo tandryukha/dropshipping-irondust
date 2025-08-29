@@ -38,6 +38,11 @@ route('/', ()=>{
   showHome();
   const pdp = document.querySelector('.pdp');
   pdp?.classList.add('hidden');
+  // Ensure header extras visible on home
+  const headerSort = document.querySelector('.header-sort');
+  const goalChips = document.querySelector('#goalChips');
+  if (headerSort) headerSort.style.display = '';
+  if (goalChips) goalChips.style.display = '';
 });
 route('/p/:id', (id)=>{ 
   // Ensure search panel is hidden when opening PDP via routing
@@ -49,6 +54,11 @@ route('/p/:id', (id)=>{
   hideHome();
   const pdp = document.querySelector('.pdp');
   pdp?.classList.remove('hidden');
+  // Hide header extras on PDP
+  const headerSort = document.querySelector('.header-sort');
+  const goalChips = document.querySelector('#goalChips');
+  if (headerSort) headerSort.style.display = 'none';
+  if (goalChips) goalChips.style.display = 'none';
   openProduct(id); 
 });
 

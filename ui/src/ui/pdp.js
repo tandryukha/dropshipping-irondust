@@ -300,7 +300,8 @@ export function mountPdp() {
           if (srv > 0) facts.push(`Servings: ${srv}`);
         }
       }
-      if (Array.isArray(prod?.goal_tags)) prod.goal_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
+      // Remove goal tags from PDP facts per requirement
+      // if (Array.isArray(prod?.goal_tags)) prod.goal_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
       if (Array.isArray(prod?.diet_tags)) prod.diet_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
       els.pdpFacts.innerHTML = facts.map(x=>`<span class="fact">${x}</span>`).join('');
     }
