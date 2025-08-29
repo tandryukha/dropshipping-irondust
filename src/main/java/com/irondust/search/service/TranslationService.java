@@ -104,16 +104,10 @@ public class TranslationService {
             finalSourceLanguage = sourceLanguage;
         }
         
-        // Build list of target languages (all except source)
-        List<String> targetLanguages = SUPPORTED_LANGUAGES.stream()
-                .filter(lang -> !lang.equals(finalSourceLanguage))
-                .toList();
-        
-        // Translate to each target language
+        // Translate to ALL supported languages (including source) to ensure consistency
         Map<String, ProductTranslation> result = new HashMap<>();
-        result.put(finalSourceLanguage, sourceData); // Include original
-        
-        return Mono.just(targetLanguages)
+
+        return Mono.just(SUPPORTED_LANGUAGES)
                 .flatMapIterable(list -> list)
                 .flatMap(targetLang -> 
                     translateToLanguage(finalSourceLanguage, targetLang, sourceData)
@@ -125,7 +119,7 @@ public class TranslationService {
                     return result;
                 })
                 .doOnError(e -> log.error("Translation failed: {}", e.getMessage()))
-                .onErrorReturn(result); // Return at least original on error
+                .onErrorReturn(result); // Return partial on error
     }
     
     /**
