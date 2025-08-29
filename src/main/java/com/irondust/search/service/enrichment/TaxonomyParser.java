@@ -104,7 +104,7 @@ public class TaxonomyParser implements EnricherStep {
 
     private List<String> parseGoalTags(RawProduct raw) {
         Set<String> goals = new HashSet<>();
-        String searchText = raw.getSearch_text().toLowerCase();
+        String searchText = (raw.getSearch_text() != null ? raw.getSearch_text() : "").toLowerCase();
 
         // Check categories
         if (raw.getCategories_names() != null) {
@@ -163,7 +163,7 @@ public class TaxonomyParser implements EnricherStep {
 
     private List<String> parseDietTags(RawProduct raw) {
         Set<String> diets = new HashSet<>();
-        String searchText = raw.getSearch_text();
+        String searchText = raw.getSearch_text() != null ? raw.getSearch_text() : "";
 
         // Check attributes first
         if (raw.getDynamic_attrs() != null) {

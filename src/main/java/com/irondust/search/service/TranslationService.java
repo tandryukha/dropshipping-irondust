@@ -382,14 +382,16 @@ public class TranslationService {
             // If no clear markers but text changed sufficiently, accept
             if (changeRatio >= 0.25) return false;
         } else if (LANG_RU.equals(targetLang)) {
-            // Prefer Cyrillic, but accept if text changed a lot and Estonian markers disappeared
+            // Prefer Cyrillic, but accept if the text changed and no Estonian markers remain
             if (containsCyrillic(outCombined)) return false;
-            if (changeRatio >= 0.35 && !containsEstonianMarkers(outCombined)) return false;
+            if (changeRatio >= 0.25 && !containsEstonianMarkers(outCombined)) return false;
             return true;
         } else if (LANG_EST.equals(targetLang)) {
-            // Estonian should have markers; if not, but minimal change, consider mistranslation
+            // Estonian should not contain Cyrillic or strong English-only markers
+            if (containsCyrillic(outCombined)) return true;
             if (containsEstonianMarkers(outCombined)) return false;
-            if (changeRatio >= 0.35) return false;
+            // If output doesn't look English and changed enough, accept as Estonian even without diacritics
+            if (!looksEnglish(outCombined) && changeRatio >= 0.25) return false;
             return true;
         }
 
@@ -400,6 +402,23 @@ public class TranslationService {
                 if (stringChangeRatio(srcName, outName) < 0.25) return true;
             }
         }
+        return false;
+    }
+
+    /**
+     * Heuristic to detect if text is likely English.
+     */
+    private boolean looksEnglish(String text) {
+        if (text == null) return false;
+        String t = text;
+        // Common English stopwords/bigrams
+        if (t.contains(" the ") || t.contains(" and ") || t.contains(" with ") || t.contains(" from ") || t.contains(" for ")
+                || t.contains(" ingredients") || t.contains(" servings") || t.contains(" daily")) {
+            return true;
+        }
+        // No diacritics and predominately ASCII letters can be a hint
+        String letters = t.replaceAll("[^A-Za-z]", "");
+        if (letters.length() >= 20 && letters.matches("[A-Za-z]{20,}")) return true;
         return false;
     }
 
@@ -439,7 +458,16 @@ public class TranslationService {
     }
 
     private boolean containsCyrillic(String text) {
-        return text != null && text.matches(".*\\p{InCyrillic}.*");
+        if (text == null) return false;
+        // Scan characters to detect Cyrillic block characters (more robust across regex engines)
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            Character.UnicodeBlock b = Character.UnicodeBlock.of(c);
+            if (b == Character.UnicodeBlock.CYRILLIC || b == Character.UnicodeBlock.CYRILLIC_SUPPLEMENTARY || b == Character.UnicodeBlock.CYRILLIC_EXTENDED_A || b == Character.UnicodeBlock.CYRILLIC_EXTENDED_B) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean containsEstonianMarkers(String text) {

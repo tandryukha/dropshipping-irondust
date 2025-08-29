@@ -13,6 +13,9 @@ Development guidelines
 - if API changed/extended: postman collection updated
 - /docs is up-to-date
 - don't change UI if not asked
+- if asked to fix an issue: prefer to write unit test based on real data (fetch woo and/or API if needed), run it to reproduce the issue, then apply the fix and rerun the tests
+- After unit tests confirm the fix: run @rebuild-and-watch.sh in the background and run a curl to reingest some typical items to see if the issue is fixed E2E (issues with ingest). 
+- make sure you don't wait forever for the terminal output, set timeouts
 
 
 Out of scope (for now):
