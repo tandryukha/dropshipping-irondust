@@ -33,6 +33,7 @@ public class AIEnricher {
     private final HttpClient http = HttpClient.newHttpClient();
     private final String apiKey;
     private final String model;
+    private static final long ENRICHMENT_CACHE_TTL_MS = 365L * 24 * 60 * 60 * 1000; // 1 year
 
     // Persistent cache (single-node) for enrichment responses
     private static final Object CACHE_LOCK = new Object();
@@ -85,7 +86,19 @@ public class AIEnricher {
     }
 
     private static Map<String, Object> getCached(String key) {
-        synchronized (CACHE_LOCK) { return PERSISTENT_CACHE.get(key); }
+        synchronized (CACHE_LOCK) {
+            Map<String, Object> v = PERSISTENT_CACHE.get(key);
+            if (v == null) return null;
+            Object tsObj = v.get("ai_enrichment_ts");
+            long tsSec = 0L;
+            if (tsObj instanceof Number n) tsSec = n.longValue();
+            else {
+                try { tsSec = Long.parseLong(String.valueOf(tsObj)); } catch (Exception ignored) {}
+            }
+            long tsMs = tsSec > 0 ? tsSec * 1000L : 0L;
+            if (tsMs > 0 && System.currentTimeMillis() - tsMs > ENRICHMENT_CACHE_TTL_MS) return null;
+            return v;
+        }
     }
 
     private static void putCached(String key, Map<String, Object> value) {

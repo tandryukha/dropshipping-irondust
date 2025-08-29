@@ -37,6 +37,7 @@ public class TranslationService {
     private final String model;
     private final boolean enabled;
     private static final int REQUEST_TIMEOUT_SEC = 60;
+    private static final long TRANSLATION_CACHE_TTL_MS = Duration.ofDays(365).toMillis();
     // Persistent cache (single-node) for translations
     private static final Object PERSIST_LOCK = new Object();
     private static final File PERSIST_FILE = new File("tmp/translation-cache.json");
@@ -59,8 +60,8 @@ public class TranslationService {
         }
         
         boolean isExpired() {
-            // Cache for 24 hours
-            return System.currentTimeMillis() - timestamp > 86400000;
+            // Expire after configured TTL (1 year)
+            return System.currentTimeMillis() - timestamp > TRANSLATION_CACHE_TTL_MS;
         }
     }
     
@@ -344,8 +345,7 @@ public class TranslationService {
         synchronized (PERSIST_LOCK) {
             PersistEntry pe = PERSISTENT_CACHE.get(cacheKey);
             if (pe == null) return null;
-            TranslationCache tc = new TranslationCache(pe.t);
-            if (tc.isExpired()) return null;
+            if (System.currentTimeMillis() - pe.ts > TRANSLATION_CACHE_TTL_MS) return null;
             return mapToProductTranslation(pe.t);
         }
     }

@@ -3,7 +3,7 @@ export const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 // Minimal HTML sanitizer to allow a safe subset of tags and attributes
 // This is not exhaustive; expand allowlists as needed
-const ALLOWED_TAGS = new Set(['p','br','strong','em','b','i','ul','ol','li','span','div','h3','h4','h5','h6','table','thead','tbody','tr','th','td']);
+const ALLOWED_TAGS = new Set(['p','br','strong','em','b','i','ul','ol','li','span','div','article','h3','h4','h5','h6','table','thead','tbody','tr','th','td']);
 const ALLOWED_ATTRS = new Set(['style']);
 
 export function sanitizeHtml(unsafeHtml){
