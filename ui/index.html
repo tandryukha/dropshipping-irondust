@@ -57,9 +57,9 @@
     /* Enhanced panel */
     .panel{position:absolute;left:0;right:0;top:68px;z-index:20;background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:var(--shadow);display:none}
     .panel.visible{display:block}
-    .panel-inner{display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:12px;padding:16px}
+    .panel-inner{display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px}
     .col h4{margin:6px 0 10px;font-size:14px;color:#374151;font-weight:800;letter-spacing:.2px}
-    .product{display:grid;grid-template-columns:64px 1fr auto;gap:12px;padding:10px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:10px;cursor:pointer}
+    .product{display:grid;grid-template-columns:64px 1fr auto;gap:18px;padding:16px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:16px;cursor:pointer}
     .product:hover{box-shadow:0 8px 16px rgba(0,0,0,.06)}
     .badge{font-size:11px;padding:2px 6px;border-radius:999px;background:#ecfeff;color:#036972;border:1px solid #bbeef5}
     .price{font-weight:800}
@@ -67,16 +67,21 @@
     .add{border:0;border-radius:999px;padding:8px 10px;background:linear-gradient(180deg,#1cb6d9,#1099b8);color:#fff;font-weight:800;cursor:pointer;min-width:66px;box-shadow:0 8px 16px rgba(16,153,184,.25)}
     .add:hover{filter:brightness(1.02)}
     /* Clamp product titles to avoid jiggle */
-    .product .title{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.2;min-height:2.4em}
+    .product .title{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.28;min-height:2.56em}
     .hl{background:#fff4cc;border-radius:4px;padding:0 1px}
     /* Media column with tiny badges under image */
     .product .media{display:flex;flex-direction:column;align-items:center}
-    .product .badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;justify-content:center}
+    .product .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;justify-content:center}
+    /* Add breathing room between title and subtitle in search product cards */
+    .product .title{margin-bottom:6px}
+    .product .title + .muted{margin-top:8px}
     .product .pill-badge{font-size:10px;padding:2px 6px;border-radius:999px;border:1px solid #e5e7eb;background:#f9fafb;color:#374151}
     .product .pill-badge.vegan{background:#eef9ed;border-color:#d6f3d5;color:#065f06}
     .product .pill-badge.sugar{background:#ecfeff;border-color:#bbeef5;color:#036972}
     .product .pill-badge.sale{background:#fff5f5;border-color:#fecaca;color:#9b1c1c}
     .product .pill-badge.best{background:#fff7e6;border-color:#fde68a;color:#7c4a00}
+    /* Improve vertical rhythm for product subtitle */
+    .product .muted{line-height:1.6}
     /* Compact chips */
     .chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:999px;background:#f6f8fb;border:1px solid #e0e6ef;margin:4px 4px 0 0;font-size:12px;cursor:pointer;color:#1f2937;height:28px;white-space:nowrap}
     .chip[aria-pressed="true"]{background:#dff6ff;border-color:#6bd3ee;color:#06485b;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
@@ -215,12 +220,12 @@
     .home-hero .trust{display:flex;gap:10px;color:#6b7280;font-size:12px}
     .home-controls{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
     .home-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .home-card{background:#fff;border:1px solid #e9edf0;border-radius:16px;box-shadow:var(--shadow);padding:10px;display:grid;grid-template-columns:80px 1fr auto;gap:10px;cursor:pointer}
+    .home-card{background:#fff;border:1px solid #e9edf0;border-radius:16px;box-shadow:var(--shadow);padding:14px;display:grid;grid-template-columns:80px 1fr auto;gap:12px;cursor:pointer}
     .home-card:hover{box-shadow:0 10px 22px rgba(0,0,0,.08)}
-    .home-card .meta{display:flex;flex-direction:column;gap:4px}
-    .home-card .title{font-weight:800;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    .home-card .sub{font-size:12px;color:#6b7280}
-    .home-card .cta{display:grid;gap:6px;justify-items:end}
+    .home-card .meta{display:flex;flex-direction:column;gap:6px}
+    .home-card .title{font-weight:800;line-height:1.28;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.56em}
+    .home-card .sub{font-size:12px;color:#6b7280;line-height:1.5}
+    .home-card .cta{display:grid;gap:8px;justify-items:end}
     /* Normalize Add button size in home grid to match search list */
     .home-card .add{height:36px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;min-width:66px}
     .badge-sale{display:inline-block;background:#fff3f3;border:1px solid #ffc9c9;color:#b91c1c;border-radius:999px;padding:2px 6px;font-size:11px;font-weight:800}

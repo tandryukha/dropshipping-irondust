@@ -36,6 +36,17 @@ public class ProductDoc {
     private Map<String, List<String>> dynamic_attrs; // attr_pa_* fields collected at ingest
 
     private String search_text;
+    
+    // Multilingual fields
+    private Map<String, String> name_i18n;                  // name translations by language code
+    private Map<String, String> description_i18n;           // description translations
+    private Map<String, String> short_description_i18n;     // short description translations
+    private Map<String, String> benefit_snippet_i18n;       // benefit snippet translations
+    private Map<String, List<String>> categories_names_i18n; // category name translations
+    private Map<String, String> form_i18n;                  // form translations
+    private Map<String, String> flavor_i18n;                // flavor translations
+    private Map<String, String> search_text_i18n;           // search text in all languages
+    private Map<String, List<Map<String, String>>> faq_i18n; // FAQ translations by language
 
     // Parsed + Derived fields (Phase 1)
     private String form;
@@ -123,6 +134,26 @@ public class ProductDoc {
     public void setDynamic_attrs(Map<String, List<String>> dynamic_attrs) { this.dynamic_attrs = dynamic_attrs; }
     public String getSearch_text() { return search_text; }
     public void setSearch_text(String search_text) { this.search_text = search_text; }
+    
+    // Multilingual field getters and setters
+    public Map<String, String> getName_i18n() { return name_i18n; }
+    public void setName_i18n(Map<String, String> name_i18n) { this.name_i18n = name_i18n; }
+    public Map<String, String> getDescription_i18n() { return description_i18n; }
+    public void setDescription_i18n(Map<String, String> description_i18n) { this.description_i18n = description_i18n; }
+    public Map<String, String> getShort_description_i18n() { return short_description_i18n; }
+    public void setShort_description_i18n(Map<String, String> short_description_i18n) { this.short_description_i18n = short_description_i18n; }
+    public Map<String, List<String>> getCategories_names_i18n() { return categories_names_i18n; }
+    public void setCategories_names_i18n(Map<String, List<String>> categories_names_i18n) { this.categories_names_i18n = categories_names_i18n; }
+    public Map<String, String> getForm_i18n() { return form_i18n; }
+    public void setForm_i18n(Map<String, String> form_i18n) { this.form_i18n = form_i18n; }
+    public Map<String, String> getFlavor_i18n() { return flavor_i18n; }
+    public void setFlavor_i18n(Map<String, String> flavor_i18n) { this.flavor_i18n = flavor_i18n; }
+    public Map<String, String> getSearch_text_i18n() { return search_text_i18n; }
+    public void setSearch_text_i18n(Map<String, String> search_text_i18n) { this.search_text_i18n = search_text_i18n; }
+    public Map<String, String> getBenefit_snippet_i18n() { return benefit_snippet_i18n; }
+    public void setBenefit_snippet_i18n(Map<String, String> benefit_snippet_i18n) { this.benefit_snippet_i18n = benefit_snippet_i18n; }
+    public Map<String, List<Map<String, String>>> getFaq_i18n() { return faq_i18n; }
+    public void setFaq_i18n(Map<String, List<Map<String, String>>> faq_i18n) { this.faq_i18n = faq_i18n; }
 
     public String getForm() { return form; }
     public void setForm(String form) { this.form = form; }

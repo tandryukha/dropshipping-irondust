@@ -6,6 +6,8 @@ import { mountFlavorPopover } from './ui/flavor-popover.js';
 import { mountSearchPanel } from './ui/search-panel.js';
 import { mountPdp, openProduct } from './ui/pdp.js';
 import { mountHome, showHome, hideHome } from './ui/home.js';
+import { mountLanguageSelector } from './ui/language-selector.js';
+import './ui/translations.js'; // Auto-applies translations
 
 // Wire header bits that remain static
 function mountHeader() {
@@ -64,6 +66,7 @@ route('/p/:id', (id)=>{
 
 // Boot
 mountHeader();
+mountLanguageSelector();
 mountFlavorPopover();
 mountSearchPanel();
 mountPdp();

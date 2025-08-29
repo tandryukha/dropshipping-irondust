@@ -63,6 +63,8 @@ public class SearchController {
                             if (h instanceof Map<?, ?> m) {
                                 ProductDoc d = new ProductDoc();
                                 mapToProductDoc(m, d);
+                                // Apply language-specific fields if requested
+                                applyLanguageFields(d, body.getLang());
                                 items.add(d);
                             }
                         }
@@ -152,6 +154,51 @@ public class SearchController {
                 conv.put(String.valueOf(e.getKey()), (List<String>) e.getValue());
             }
             d.setDynamic_attrs(conv);
+        }
+        
+        // Multilingual fields
+        d.setName_i18n((Map<String, String>) m.get("name_i18n"));
+        d.setDescription_i18n((Map<String, String>) m.get("description_i18n"));
+        d.setShort_description_i18n((Map<String, String>) m.get("short_description_i18n"));
+        d.setCategories_names_i18n((Map<String, List<String>>) m.get("categories_names_i18n"));
+        d.setForm_i18n((Map<String, String>) m.get("form_i18n"));
+        d.setFlavor_i18n((Map<String, String>) m.get("flavor_i18n"));
+        d.setBenefit_snippet_i18n((Map<String, String>) m.get("benefit_snippet_i18n"));
+        d.setFaq_i18n((Map<String, List<Map<String, String>>>) m.get("faq_i18n"));
+        d.setSearch_text_i18n((Map<String, String>) m.get("search_text_i18n"));
+    }
+
+    private void applyLanguageFields(ProductDoc d, String lang) {
+        if (lang == null || lang.isEmpty()) return;
+        
+        // Apply language-specific name
+        if (d.getName_i18n() != null && d.getName_i18n().containsKey(lang)) {
+            d.setName(d.getName_i18n().get(lang));
+        }
+        
+        // Apply language-specific categories
+        if (d.getCategories_names_i18n() != null && d.getCategories_names_i18n().containsKey(lang)) {
+            d.setCategories_names(d.getCategories_names_i18n().get(lang));
+        }
+        
+        // Apply language-specific form
+        if (d.getForm_i18n() != null && d.getForm_i18n().containsKey(lang)) {
+            d.setForm(d.getForm_i18n().get(lang));
+        }
+        
+        // Apply language-specific flavor
+        if (d.getFlavor_i18n() != null && d.getFlavor_i18n().containsKey(lang)) {
+            d.setFlavor(d.getFlavor_i18n().get(lang));
+        }
+        
+        // Apply language-specific benefit snippet
+        if (d.getBenefit_snippet_i18n() != null && d.getBenefit_snippet_i18n().containsKey(lang)) {
+            d.setBenefit_snippet(d.getBenefit_snippet_i18n().get(lang));
+        }
+        
+        // Apply language-specific FAQ
+        if (d.getFaq_i18n() != null && d.getFaq_i18n().containsKey(lang)) {
+            d.setFaq(d.getFaq_i18n().get(lang));
         }
     }
 }

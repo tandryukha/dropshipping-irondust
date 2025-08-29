@@ -128,9 +128,9 @@ function renderProductHTML(item, query){
       </div>
       <div>
         <div class="title">${highlight(name)} ${sale}</div>
-        <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class="badge">In stock</span>':''}</div>
+        <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class=\"badge\">In stock</span>':''}</div>
       </div>
-      <div style="display:grid;gap:6px;justify-items:end">
+      <div style="display:grid;gap:10px;justify-items:end">
         <div class="price">${symbol}${price}</div>
         <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>${btnLabel}</button>
       </div>

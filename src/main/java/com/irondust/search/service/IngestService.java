@@ -6,6 +6,8 @@ import com.irondust.search.model.ProductDoc;
 import com.irondust.search.model.RawProduct;
 import com.irondust.search.model.EnrichedProduct;
 import com.irondust.search.service.enrichment.EnrichmentPipeline;
+import com.irondust.search.service.TranslationService;
+import com.irondust.search.service.TranslationService.ProductTranslation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.util.stream.Collectors;
 import com.irondust.search.dto.IngestDtos;
 
 @Service
@@ -23,12 +26,15 @@ public class IngestService {
     private final WooStoreService wooStoreService;
     private final MeiliService meiliService;
     private final AppProperties appProperties;
+    private final TranslationService translationService;
 
     public IngestService(WooStoreService wooStoreService, MeiliService meiliService, 
-                        AppProperties appProperties, EnrichmentPipeline enrichmentPipeline) {
+                        AppProperties appProperties, EnrichmentPipeline enrichmentPipeline,
+                        TranslationService translationService) {
         this.wooStoreService = wooStoreService;
         this.meiliService = meiliService;
         this.appProperties = appProperties;
+        this.translationService = translationService;
     }
 
     public Mono<IngestDtos.IngestReport> ingestFull() {
@@ -36,8 +42,8 @@ public class IngestService {
         int parallelism = Math.max(1, appProperties.getIngestParallelism());
 
         return wooStoreService.paginateProducts()
-                .flatMap(json -> Mono.fromCallable(() -> {
-                            DocWithReport r = transformWithEnrichmentWithReport(json);
+                .flatMap(json -> transformWithEnrichmentWithReport(json)
+                        .map(r -> {
                             int current = counter.incrementAndGet();
                             int warnCount = r.report.getWarnings() != null ? r.report.getWarnings().size() : 0;
                             int confCount = r.report.getConflicts() != null ? r.report.getConflicts().size() : 0;
@@ -78,7 +84,12 @@ public class IngestService {
                             "goal_preworkout_score", "goal_strength_score", "goal_endurance_score",
                             "goal_lean_muscle_score", "goal_recovery_score", "goal_weight_loss_score", "goal_wellness_score"
                     ));
-                    List<String> searchable = List.of("name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", "synonyms_en", "synonyms_ru", "synonyms_et");
+                    List<String> searchable = List.of(
+                            "name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", 
+                            "synonyms_en", "synonyms_ru", "synonyms_et",
+                            // Multilingual fields
+                            "name_i18n", "search_text_i18n", "categories_names_i18n"
+                    );
 
                     // ensure index and settings first, then upload in chunks
                     int chunkSize = appProperties.getUploadChunkSize() > 0 ? appProperties.getUploadChunkSize() : 500;
@@ -94,17 +105,19 @@ public class IngestService {
     public Mono<IngestDtos.IngestReport> ingestByIds(List<Long> productIds) {
         return wooStoreService.fetchProductsByIds(productIds)
                 .index()
-                .map(tuple -> {
+                .flatMap(tuple -> {
                     int current = (int) (tuple.getT1() + 1);
                     JsonNode json = tuple.getT2();
-                    DocWithReport r = transformWithEnrichmentWithReport(json);
-                    int total = productIds.size();
-                    int pct = (int) Math.round((current * 100.0) / Math.max(total, 1));
-                    int warnCount = r.report.getWarnings() != null ? r.report.getWarnings().size() : 0;
-                    int confCount = r.report.getConflicts() != null ? r.report.getConflicts().size() : 0;
-                    log.info("Targeted ingest progress: {}/{} ({}%) id={} warnings={} conflicts={}",
-                            current, total, pct, r.report.getId(), warnCount, confCount);
-                    return r;
+                    return transformWithEnrichmentWithReport(json)
+                            .map(r -> {
+                                int total = productIds.size();
+                                int pct = (int) Math.round((current * 100.0) / Math.max(total, 1));
+                                int warnCount = r.report.getWarnings() != null ? r.report.getWarnings().size() : 0;
+                                int confCount = r.report.getConflicts() != null ? r.report.getConflicts().size() : 0;
+                                log.info("Targeted ingest progress: {}/{} ({}%) id={} warnings={} conflicts={}",
+                                        current, total, pct, r.report.getId(), warnCount, confCount);
+                                return r;
+                            });
                 })
                 .collectList()
                 .flatMap(results -> {
@@ -133,7 +146,7 @@ public class IngestService {
         }
     }
 
-    private DocWithReport transformWithEnrichmentWithReport(JsonNode p) {
+    private Mono<DocWithReport> transformWithEnrichmentWithReport(JsonNode p) {
         // Create raw product from JSON
         RawProduct raw = RawProduct.fromJsonNode(p);
 
@@ -141,6 +154,23 @@ public class IngestService {
         EnrichmentPipeline pipeline = new EnrichmentPipeline();
         EnrichedProduct enriched = pipeline.enrich(raw);
         
+        // Always attempt translations - TranslationService will handle enabling/disabling based on API key
+        return translateProduct(enriched)
+            .map(translations -> {
+                ProductDoc d = createProductDoc(enriched, translations);
+                IngestDtos.ProductReport report = createReport(enriched);
+                return new DocWithReport(d, report);
+            })
+            .onErrorResume(e -> {
+                log.error("Translation failed for product {}: {}", enriched.getId(), e.getMessage());
+                // Fall back to non-translated version
+                ProductDoc d = createProductDoc(enriched, null);
+                IngestDtos.ProductReport report = createReport(enriched);
+                return Mono.just(new DocWithReport(d, report));
+            });
+    }
+    
+    private ProductDoc createProductDoc(EnrichedProduct enriched, Map<String, ProductTranslation> translations) {
         // Convert enriched product to ProductDoc for Meilisearch
         ProductDoc d = new ProductDoc();
         d.setId(enriched.getId());
@@ -166,6 +196,63 @@ public class IngestService {
         d.setBrand_name(enriched.getBrand_name());
         d.setDynamic_attrs(enriched.getDynamic_attrs());
         d.setSearch_text(enriched.getSearch_text());
+        
+        // Add translations if available
+        if (translations != null && !translations.isEmpty()) {
+            Map<String, String> nameI18n = new HashMap<>();
+            Map<String, String> descI18n = new HashMap<>();
+            Map<String, String> shortDescI18n = new HashMap<>();
+            Map<String, List<String>> categoriesI18n = new HashMap<>();
+            Map<String, String> formI18n = new HashMap<>();
+            Map<String, String> flavorI18n = new HashMap<>();
+            Map<String, String> benefitSnippetI18n = new HashMap<>();
+            Map<String, String> searchTextI18n = new HashMap<>();
+            Map<String, List<Map<String, String>>> faqI18n = new HashMap<>();
+            
+            for (Map.Entry<String, ProductTranslation> entry : translations.entrySet()) {
+                String lang = entry.getKey();
+                ProductTranslation trans = entry.getValue();
+                
+                if (trans.name != null) nameI18n.put(lang, trans.name);
+                if (trans.description != null) descI18n.put(lang, trans.description);
+                if (trans.shortDescription != null) shortDescI18n.put(lang, trans.shortDescription);
+                if (trans.benefitSnippet != null) benefitSnippetI18n.put(lang, trans.benefitSnippet);
+                if (trans.categories != null && !trans.categories.isEmpty()) {
+                    categoriesI18n.put(lang, trans.categories);
+                }
+                if (trans.form != null) formI18n.put(lang, trans.form);
+                if (trans.flavor != null) flavorI18n.put(lang, trans.flavor);
+                
+                // Convert FAQ format
+                if (trans.faq != null && !trans.faq.isEmpty()) {
+                    List<Map<String, String>> faqList = new ArrayList<>();
+                    for (ProductTranslation.FaqItem item : trans.faq) {
+                        Map<String, String> faqMap = new HashMap<>();
+                        faqMap.put("q", item.q);
+                        faqMap.put("a", item.a);
+                        faqList.add(faqMap);
+                    }
+                    faqI18n.put(lang, faqList);
+                }
+                
+                // Build search text for each language
+                String searchText = buildSearchText(trans.name, trans.description, 
+                    trans.categories, enriched.getBrand_name());
+                if (searchText != null && !searchText.isEmpty()) {
+                    searchTextI18n.put(lang, searchText);
+                }
+            }
+            
+            d.setName_i18n(nameI18n);
+            d.setDescription_i18n(descI18n);
+            d.setShort_description_i18n(shortDescI18n);
+            d.setCategories_names_i18n(categoriesI18n);
+            d.setForm_i18n(formI18n);
+            d.setFlavor_i18n(flavorI18n);
+            d.setBenefit_snippet_i18n(benefitSnippetI18n);
+            d.setFaq_i18n(faqI18n);
+            d.setSearch_text_i18n(searchTextI18n);
+        }
 
         // Phase 1 parsed/enriched fields
         d.setForm(enriched.getForm());
@@ -231,16 +318,62 @@ public class IngestService {
 
         d.setDynamic_attrs(enrichedAttrs);
 
-        // Build per-product report
+        return d;
+    }
+    
+    private IngestDtos.ProductReport createReport(EnrichedProduct enriched) {
         IngestDtos.ProductReport rep = new IngestDtos.ProductReport();
         rep.setId(enriched.getId());
         // Standardize to empty arrays instead of nulls for easier client handling
         rep.setWarnings(enriched.getWarnings() != null ? enriched.getWarnings() : java.util.List.of());
         rep.setConflicts(enriched.getConflicts() != null ? enriched.getConflicts() : java.util.List.of());
-
-        return new DocWithReport(d, rep);
+        return rep;
     }
 
+    private String buildSearchText(String name, String description, List<String> categories, String brand) {
+        List<String> parts = new ArrayList<>();
+        if (name != null && !name.isEmpty()) parts.add(name);
+        if (description != null && !description.isEmpty()) {
+            // Strip HTML tags from description
+            String cleanDesc = description.replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ").trim();
+            if (!cleanDesc.isEmpty()) parts.add(cleanDesc);
+        }
+        if (categories != null) {
+            parts.addAll(categories);
+        }
+        if (brand != null && !brand.isEmpty()) parts.add(brand);
+        return String.join(" ", parts);
+    }
+    
+    private Mono<Map<String, ProductTranslation>> translateProduct(EnrichedProduct enriched) {
+        // Prepare source data for translation
+        ProductTranslation source = new ProductTranslation();
+        source.name = enriched.getName();
+        source.description = enriched.getDescription();
+        source.shortDescription = null; // Not available in current data model
+        source.benefitSnippet = enriched.getBenefit_snippet();
+        source.categories = enriched.getCategories_names();
+        source.form = enriched.getForm();
+        source.flavor = enriched.getFlavor();
+        
+        // Convert FAQ format
+        if (enriched.getFaq() != null && !enriched.getFaq().isEmpty()) {
+            source.faq = new ArrayList<>();
+            for (Map<String, String> faqItem : enriched.getFaq()) {
+                String q = faqItem.get("q");
+                String a = faqItem.get("a");
+                if (q != null && a != null) {
+                    source.faq.add(new ProductTranslation.FaqItem(q, a));
+                }
+            }
+        }
+        
+        // Let the translation service detect the source language
+        String sourceLanguage = null; // Will be auto-detected
+        
+        return translationService.translateProduct(sourceLanguage, source);
+    }
+    
     private static <T> List<List<T>> chunk(List<T> input, int size) {
         List<List<T>> chunks = new ArrayList<>();
         for (int i = 0; i < input.size(); i += size) {

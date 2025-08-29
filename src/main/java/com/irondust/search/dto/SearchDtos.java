@@ -15,6 +15,7 @@ public class SearchDtos {
         private Integer page = 1;
         @NotNull @Min(1)
         private Integer size = 24;
+        private String lang; // Language preference: en, ru, est
 
         public String getQ() { return q; }
         public void setQ(String q) { this.q = q; }
@@ -26,6 +27,8 @@ public class SearchDtos {
         public void setPage(Integer page) { this.page = page; }
         public Integer getSize() { return size; }
         public void setSize(Integer size) { this.size = size; }
+        public String getLang() { return lang; }
+        public void setLang(String lang) { this.lang = lang; }
     }
 
     public static class SearchResponseBody<T> {
