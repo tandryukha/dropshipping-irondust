@@ -31,9 +31,14 @@ public class WooStoreService {
     }
 
     public Flux<JsonNode> paginateProducts() {
-        int perPage = appProperties.getPerPage();
+        int configuredPerPage = appProperties.getPerPage();
+        int effectivePerPage = Math.max(1, Math.min(100, configuredPerPage));
+        if (effectivePerPage != configuredPerPage) {
+            log.warn("Clamping per_page from {} to {} (Woo endpoint limit)", configuredPerPage, effectivePerPage);
+        }
+        int finalPerPage = effectivePerPage;
         return Flux.create(sink -> {
-            fetchPage(1, perPage, sink);
+            fetchPage(1, finalPerPage, sink);
         });
     }
 
@@ -57,10 +62,12 @@ public class WooStoreService {
     }
 
     private void fetchPage(int page, int perPage, reactor.core.publisher.FluxSink<JsonNode> sink) {
+        // Extra safety: clamp per_page again at the call site
+        int safePerPage = Math.max(1, Math.min(100, perPage));
         wooClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/wp-json/wc/store/v1/products")
-                        .queryParam("per_page", perPage)
+                        .queryParam("per_page", safePerPage)
                         .queryParam("page", page)
                         .build())
                 .accept(MediaType.APPLICATION_JSON)
@@ -71,7 +78,7 @@ public class WooStoreService {
                         for (JsonNode node : json) {
                             sink.next(node);
                         }
-                        fetchPage(page + 1, perPage, sink);
+                        fetchPage(page + 1, safePerPage, sink);
                     } else {
                         sink.complete();
                     }

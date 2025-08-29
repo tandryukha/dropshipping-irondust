@@ -4,7 +4,7 @@ server:
 app:
   adminKey: dev_admin_key
   baseUrl: https://www.irondust.eu
-  perPage: 1000
+  perPage: 100
   indexName: products_lex
   ingestParallelism: 30
   meiliConcurrentUpdates: 25
