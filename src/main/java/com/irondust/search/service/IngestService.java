@@ -157,6 +157,24 @@ public class IngestService {
         // Always attempt translations - TranslationService will handle enabling/disabling based on API key
         return translateProduct(enriched)
             .map(translations -> {
+                // Merge translation warnings into product warnings for reporting
+                java.util.List<String> mergedWarnings = new java.util.ArrayList<>(
+                        enriched.getWarnings() != null ? enriched.getWarnings() : java.util.List.of());
+                if (translations != null) {
+                    for (java.util.Map.Entry<String, ProductTranslation> e : translations.entrySet()) {
+                        String lang = e.getKey();
+                        ProductTranslation tr = e.getValue();
+                        if (tr != null && tr.warnings != null && !tr.warnings.isEmpty()) {
+                            for (String w : tr.warnings) {
+                                mergedWarnings.add("translation_" + lang + ": " + w);
+                            }
+                        }
+                    }
+                }
+                if (!mergedWarnings.isEmpty()) {
+                    enriched.setWarnings(mergedWarnings);
+                }
+
                 ProductDoc d = createProductDoc(enriched, translations);
                 IngestDtos.ProductReport report = createReport(enriched);
                 return new DocWithReport(d, report);

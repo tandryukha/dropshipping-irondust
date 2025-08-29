@@ -36,6 +36,7 @@ public class TranslationService {
     private final String apiKey;
     private final String model;
     private final boolean enabled;
+    private static final int REQUEST_TIMEOUT_SEC = 60;
     // Persistent cache (single-node) for translations
     private static final Object PERSIST_LOCK = new Object();
     private static final File PERSIST_FILE = new File("tmp/translation-cache.json");
@@ -142,23 +143,46 @@ public class TranslationService {
         String cacheKey = buildCacheKey(sourceLang, targetLang, source);
         TranslationCache cached = translationCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) {
-            return Mono.just(mapToProductTranslation(cached.translations));
+            return Mono.just(mapToProductTranslation(cached.translations))
+                    .map(tr -> {
+                        if (looksMistranslated(sourceLang, targetLang, source, tr)) {
+                            if (tr.warnings == null) tr.warnings = new ArrayList<>();
+                            tr.warnings.add("translation_validation_failed " + sourceLang + "→" + targetLang + " (cache)");
+                        }
+                        return tr;
+                    });
         }
         // Check persistent cache
         ProductTranslation persisted = getFromPersistent(cacheKey);
         if (persisted != null) {
             translationCache.put(cacheKey, new TranslationCache(productTranslationToMap(persisted)));
-            return Mono.just(persisted);
+            return Mono.just(persisted)
+                    .map(tr -> {
+                        if (looksMistranslated(sourceLang, targetLang, source, tr)) {
+                            if (tr.warnings == null) tr.warnings = new ArrayList<>();
+                            tr.warnings.add("translation_validation_failed " + sourceLang + "→" + targetLang + " (persist)");
+                        }
+                        return tr;
+                    });
         }
         
         // Build translation request
         String systemPrompt = buildSystemPrompt(sourceLang, targetLang);
         String userContent = buildTranslationContent(source);
+
+        // Log payload sizes and rough token estimate
+        long sysChars = systemPrompt != null ? systemPrompt.length() : 0;
+        long userChars = userContent != null ? userContent.length() : 0;
+        long sysTok = estimateTokens(systemPrompt);
+        long userTok = estimateTokens(userContent);
+        long approxTotalTok = sysTok + userTok + 200; // overhead cushion
+        log.info("Translate request → {}→{} sysChars={} (~{} tok) userChars={} (~{} tok) approxTotalTok~{} model={} timeout={}s",
+                sourceLang, targetLang, sysChars, sysTok, userChars, userTok, approxTotalTok, model, REQUEST_TIMEOUT_SEC);
         
         ObjectNode request = objectMapper.createObjectNode();
         request.put("model", model);
         request.put("temperature", 0.1); // Low temperature for consistency
-        request.put("max_tokens", 2000);
+        request.put("max_tokens", 6000);
         
         ArrayNode messages = request.putArray("messages");
         ObjectNode systemMsg = messages.addObject();
@@ -177,9 +201,16 @@ public class TranslationService {
                 .uri("/chat/completions")
                 .bodyValue(request.toString())
                 .retrieve()
+                .onStatus(status -> status.isError(), resp ->
+                        resp.bodyToMono(String.class).defaultIfEmpty("")
+                                .flatMap(body -> {
+                                    log.error("OpenAI translation HTTP {}: {}", resp.statusCode().value(), truncateForLog(body));
+                                    return Mono.error(new RuntimeException("OpenAI error " + resp.statusCode().value()));
+                                })
+                )
                 .bodyToMono(JsonNode.class)
-                .timeout(Duration.ofSeconds(30))
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
+                .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SEC))
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).jitter(0.5))
                 .map(response -> parseTranslationResponse(response, source))
                 .doOnSuccess(translation -> {
                     // Cache the result
@@ -187,35 +218,17 @@ public class TranslationService {
                     translationCache.put(cacheKey, new TranslationCache(translationMap));
                     putToPersistent(cacheKey, translationMap);
                 })
-                .doOnError(e -> log.error("OpenAI translation error: {}", e.getMessage()))
+                .doOnError(e -> log.error("OpenAI translation error ({}): {}", e.getClass().getSimpleName(), e.getMessage()))
                 .onErrorReturn(source);
 
-        // Validate language; if looks wrong, perform one retry bypassing cache with stronger prompt
-        return primary.flatMap(tr -> {
-            if (looksMistranslated(sourceLang, targetLang, source, tr)) {
-                log.warn("Translation validation failed for {}→{}; retrying once with stronger prompt", sourceLang, targetLang);
-                String strongPrompt = buildSystemPrompt(sourceLang, targetLang) + "\nImportant: The output MUST be entirely in " + getLanguageName(targetLang) + 
-                        ". Do not leave any source-language text. If the source is already in the target language, you may keep it.";
-                ObjectNode req2 = objectMapper.createObjectNode();
-                req2.put("model", model);
-                req2.put("temperature", 0.1);
-                req2.put("max_tokens", 2000);
-                ArrayNode msgs2 = req2.putArray("messages");
-                ObjectNode sys2 = msgs2.addObject(); sys2.put("role", "system"); sys2.put("content", strongPrompt);
-                ObjectNode usr2 = msgs2.addObject(); usr2.put("role", "user"); usr2.put("content", userContent);
-                ObjectNode rf2 = req2.putObject("response_format"); rf2.put("type", "json_object");
-                return webClient.post()
-                        .uri("/chat/completions")
-                        .bodyValue(req2.toString())
-                        .retrieve()
-                        .bodyToMono(JsonNode.class)
-                        .timeout(Duration.ofSeconds(30))
-                        .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
-                        .map(response -> parseTranslationResponse(response, source))
-                        .doOnError(e -> log.error("OpenAI translation (retry) error: {}", e.getMessage()))
-                        .onErrorReturn(tr);
+        // Validate language; if looks wrong, attach a warning and return first pass as-is (no retry)
+        return primary.map(tr -> {
+            if (tr != source && looksMistranslated(sourceLang, targetLang, source, tr)) {
+                if (tr.warnings == null) tr.warnings = new ArrayList<>();
+                tr.warnings.add("translation_validation_failed " + sourceLang + "→" + targetLang);
+                log.warn("Translation validation failed for {}→{}; returning first pass without retry", sourceLang, targetLang);
             }
-            return Mono.just(tr);
+            return tr;
         });
     }
     
@@ -237,6 +250,7 @@ public class TranslationService {
             7. For product forms (powder, capsules, etc.), use standard translations
             8. Maintain consistent terminology across all fields
             9. IMPORTANT: The final output must be entirely in the target language (%s). Do NOT leave text in the source language.
+            10. Output ONLY a raw JSON object. Do NOT include markdown, code fences, or any commentary.
             
             Return a JSON object with these exact fields:
             {
@@ -347,26 +361,81 @@ public class TranslationService {
     }
 
     private boolean looksMistranslated(String sourceLang, String targetLang, ProductTranslation source, ProductTranslation out) {
-        String desc = out.description != null ? out.description : "";
-        String name = out.name != null ? out.name : "";
-        String combined = (name + " \n" + desc).toLowerCase();
-        // If target is English but text contains Cyrillic or Estonian diacritics/keywords, likely wrong
+        String outDesc = out.description != null ? out.description : "";
+        String outName = out.name != null ? out.name : "";
+        String outCombined = (outName + " \n" + outDesc).toLowerCase();
+        // Ignore legal entity tokens like OÜ / Osaühing when validating language
+        outCombined = stripLegalEntityTokens(outCombined);
+
+        String srcDesc = source.description != null ? source.description : "";
+        String srcName = source.name != null ? source.name : "";
+        String srcCombined = (srcName + " \n" + srcDesc).toLowerCase();
+        srcCombined = stripLegalEntityTokens(srcCombined);
+
+        // Quick difference check to reduce false positives when brand/numerical content dominates
+        double changeRatio = stringChangeRatio(srcCombined, outCombined);
+
         if (LANG_EN.equals(targetLang)) {
-            if (containsCyrillic(combined)) return true;
-            if (containsEstonianMarkers(combined)) return true;
+            // English should not contain Cyrillic or strong Estonian markers
+            if (containsCyrillic(outCombined)) return true;
+            if (containsEstonianMarkers(outCombined)) return true;
+            // If no clear markers but text changed sufficiently, accept
+            if (changeRatio >= 0.25) return false;
+        } else if (LANG_RU.equals(targetLang)) {
+            // Prefer Cyrillic, but accept if text changed a lot and Estonian markers disappeared
+            if (containsCyrillic(outCombined)) return false;
+            if (changeRatio >= 0.35 && !containsEstonianMarkers(outCombined)) return false;
+            return true;
+        } else if (LANG_EST.equals(targetLang)) {
+            // Estonian should have markers; if not, but minimal change, consider mistranslation
+            if (containsEstonianMarkers(outCombined)) return false;
+            if (changeRatio >= 0.35) return false;
+            return true;
         }
-        if (LANG_RU.equals(targetLang)) {
-            if (!containsCyrillic(combined)) return true;
-        }
-        if (LANG_EST.equals(targetLang)) {
-            if (!containsEstonianMarkers(combined)) return true;
-        }
-        // Also if output equals input for key fields and source/target differ
+
+        // If target differs from source and output equals input for description, suspicious
         if (!Objects.equals(sourceLang, targetLang)) {
-            String srcDesc = source.description != null ? source.description : "";
-            if (!srcDesc.isBlank() && srcDesc.equals(out.description)) return true;
+            if (!srcDesc.isBlank() && srcDesc.equals(out.description)) {
+                // But allow equality if name changed significantly
+                if (stringChangeRatio(srcName, outName) < 0.25) return true;
+            }
         }
         return false;
+    }
+
+    private String stripLegalEntityTokens(String text) {
+        if (text == null) return null;
+        String t = text;
+        // Remove common legal forms that can include diacritics and cause false positives
+        // Use Unicode-aware boundaries: not preceded/followed by a letter
+        t = t.replaceAll("(?iu)(?<!\\p{L})(oü|osaühing)(?!\\p{L})", "");
+        // Collapse extra whitespace introduced by removals
+        t = t.replaceAll("\\s{2,}", " ").trim();
+        return t;
+    }
+
+    private double stringChangeRatio(String a, String b) {
+        if (a == null) a = ""; if (b == null) b = "";
+        int max = Math.max(a.length(), b.length());
+        if (max == 0) return 0.0;
+        int common = longestCommonSubsequenceLength(a, b);
+        int diff = max - common;
+        return diff / (double) Math.max(1, max);
+    }
+
+    // Simple LCS length for short-ish strings; caps for performance
+    private int longestCommonSubsequenceLength(String a, String b) {
+        int n = Math.min(a.length(), 2000);
+        int m = Math.min(b.length(), 2000);
+        int[][] dp = new int[n + 1][m + 1];
+        for (int i = 1; i <= n; i++) {
+            char ca = a.charAt(i - 1);
+            for (int j = 1; j <= m; j++) {
+                if (ca == b.charAt(j - 1)) dp[i][j] = dp[i - 1][j - 1] + 1;
+                else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+            }
+        }
+        return dp[n][m];
     }
 
     private boolean containsCyrillic(String text) {
@@ -382,9 +451,9 @@ public class TranslationService {
     
     private String buildTranslationContent(ProductTranslation source) {
         Map<String, Object> content = new HashMap<>();
-        content.put("name", source.name);
-        content.put("description", source.description);
-        content.put("short_description", source.shortDescription);
+        content.put("name", safeTrim(source.name, 1000));
+        content.put("description", sanitizeHtmlForModel(source.description));
+        content.put("short_description", safeTrim(source.shortDescription, 4000));
         content.put("benefit_snippet", source.benefitSnippet);
         content.put("categories", source.categories);
         content.put("form", source.form);
@@ -411,15 +480,59 @@ public class TranslationService {
             return "{}";
         }
     }
+
+    private String safeTrim(String s, int max) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (t.length() <= max) return t;
+        return t.substring(0, Math.max(0, max - 1)) + "…";
+    }
+
+    private String sanitizeHtmlForModel(String html) {
+        if (html == null) return null;
+        String s = html;
+        // Drop script/style blocks
+        s = s.replaceAll("(?is)<script[^>]*>.*?</script>", "");
+        s = s.replaceAll("(?is)<style[^>]*>.*?</style>", "");
+        // Strip all tag attributes to reduce token bloat
+        s = s.replaceAll("(?is)<([a-zA-Z0-9]+)([^>]*)>", "<$1>");
+        // Collapse excessive whitespace
+        s = s.replaceAll("\n{3,}", "\n\n");
+        s = s.replaceAll("[\t\u000B\f\r]+", " ");
+        // Hard cap length to keep request under context limits
+        if (s.length() > 12000) s = s.substring(0, 11999) + "…";
+        return s;
+    }
+
+    private String truncateForLog(String body) {
+        if (body == null) return "";
+        return body.length() > 1000 ? body.substring(0, 1000) + "…" : body;
+    }
+
+    private long estimateTokens(String text) {
+        if (text == null || text.isEmpty()) return 0;
+        // Rough heuristic: ~4 characters per token
+        return Math.max(1, Math.round(text.length() / 4.0));
+    }
     
     private ProductTranslation parseTranslationResponse(JsonNode response, ProductTranslation fallback) {
         try {
             JsonNode content = response.path("choices").path(0).path("message").path("content");
-            if (content.isMissingNode() || !content.isTextual()) {
+            if (content.isMissingNode()) {
                 return fallback;
             }
-            
-            JsonNode translationJson = objectMapper.readTree(content.asText());
+
+            JsonNode translationJson;
+            if (content.isObject()) {
+                translationJson = content;
+            } else if (content.isTextual()) {
+                String raw = content.asText();
+                String jsonCandidate = extractJsonObject(raw);
+                if (jsonCandidate == null) return fallback;
+                translationJson = objectMapper.readTree(jsonCandidate);
+            } else {
+                return fallback;
+            }
             
             ProductTranslation result = new ProductTranslation();
             result.name = translationJson.path("name").asText(fallback.name);
@@ -462,6 +575,36 @@ public class TranslationService {
             log.error("Failed to parse translation response", e);
             return fallback;
         }
+    }
+
+    /**
+     * Attempts to extract a clean JSON object string from model output.
+     * Handles code fences and leading/trailing noise. Returns null if not found.
+     */
+    private String extractJsonObject(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        // Strip code fences if present
+        if (s.startsWith("```")) {
+            int start = s.indexOf('\n');
+            if (start >= 0) {
+                s = s.substring(start + 1);
+            }
+            int endFence = s.lastIndexOf("```");
+            if (endFence > 0) {
+                s = s.substring(0, endFence).trim();
+            }
+        }
+        // If it already looks like JSON, try directly
+        if (s.startsWith("{") && s.endsWith("}")) return s;
+        // Try to locate the first '{' and the last '}' and parse that slice
+        int first = s.indexOf('{');
+        int last = s.lastIndexOf('}');
+        if (first >= 0 && last > first) {
+            String candidate = s.substring(first, last + 1);
+            return candidate;
+        }
+        return null;
     }
     
     /**
@@ -565,10 +708,12 @@ public class TranslationService {
         public String form;
         public String flavor;
         public List<FaqItem> faq;
+        public List<String> warnings;
         
         public ProductTranslation() {
             this.categories = new ArrayList<>();
             this.faq = new ArrayList<>();
+            this.warnings = new ArrayList<>();
         }
         
         public static class FaqItem {
