@@ -1,4 +1,5 @@
 import { $, $$ } from '../core/dom.js';
+import { bus } from '../core/bus.js';
 import { navigate } from '../core/router.js';
 import { searchProducts } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
@@ -159,6 +160,12 @@ export function mountHome(){
 
   // Initial load
   if (section) fetchPage({ append:false });
+
+  // Re-fetch current page when language changes
+  bus.addEventListener('language:changed', () => {
+    state.page = 1; state.reachedEnd = false;
+    fetchPage({ append:false });
+  });
 }
 
 export function showHome(){ const s = $('#home'); if (s) s.classList.add('visible'); }

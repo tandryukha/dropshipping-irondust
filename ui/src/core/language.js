@@ -8,6 +8,7 @@ const STORAGE_KEY = 'irondust_language';
 class LanguageStore {
   constructor() {
     this.current = this.loadLanguage();
+    try { document.documentElement.setAttribute('lang', this.current); } catch(_e) {}
   }
   
   loadLanguage() {
@@ -29,7 +30,8 @@ class LanguageStore {
     
     this.current = lang;
     localStorage.setItem(STORAGE_KEY, lang);
-    bus.dispatch('language:changed', lang);
+    try { document.documentElement.setAttribute('lang', lang); } catch(_e) {}
+    bus.dispatchEvent(new CustomEvent('language:changed', { detail: lang }));
   }
   
   getLanguage() {

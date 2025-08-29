@@ -1,4 +1,5 @@
 import { $, $$ } from '../core/dom.js';
+import { bus } from '../core/bus.js';
 import { searchProducts } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
 import { derivePricePer100g } from '../core/metrics.js';
@@ -981,6 +982,20 @@ export function mountSearchPanel() {
     updateAppliedBar();
     runFilteredSearch();
   }
+
+  // Re-fetch results and refresh labels when language changes
+  bus.addEventListener('language:changed', () => {
+    // Rebuild applied bar labels from current chip texts
+    const updated = new Map();
+    searchState.activeFilters.forEach((_label, chip) => {
+      const label = chip.textContent.trim().replace(/\s+/g, ' ');
+      updated.set(chip, label);
+    });
+    searchState.activeFilters = updated;
+    updateAppliedBar();
+    if (window.checkChipOverflow) window.checkChipOverflow();
+    if (window.__runFilteredSearch) window.__runFilteredSearch();
+  });
 }
 
 

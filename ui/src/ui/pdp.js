@@ -352,6 +352,16 @@ export function mountPdp() {
       console.warn('Failed to open product', err);
     }
   });
+
+  // Re-open the current product when language changes to fetch translated fields
+  bus.addEventListener('language:changed', () => {
+    const prod = (window && window.location && window.location.hash || '').slice(1);
+    const m = prod.match(/^\/p\/([^/]+)$/);
+    if (m && m[1]) {
+      // Trigger the same open-product flow
+      bus.dispatchEvent(new CustomEvent('open-product', { detail: { id: m[1] } }));
+    }
+  });
 }
 
 export function openProduct(id){

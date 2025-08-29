@@ -4,8 +4,9 @@ import { language } from '../core/language.js';
 
 export function mountLanguageSelector() {
   // Find the existing EN placeholder
-  const langPlaceholder = document.querySelector('.kbd[aria-hidden="true"]');
-  if (!langPlaceholder || langPlaceholder.textContent !== 'EN') return;
+  const candidates = Array.from(document.querySelectorAll('.actions .kbd[aria-hidden="true"], .kbd[aria-hidden="true"]'));
+  const langPlaceholder = candidates.find(el => (el.textContent || '').trim().toUpperCase() === 'EN');
+  if (!langPlaceholder) return;
   
   // Replace with an interactive language selector
   const selector = document.createElement('select');
@@ -43,9 +44,7 @@ export function mountLanguageSelector() {
   selector.addEventListener('change', (e) => {
     const newLang = e.target.value;
     language.setLanguage(newLang);
-    // Reload the page to apply new language
-    // In a real app, we'd update the UI dynamically
-    window.location.reload();
+    // Dynamic UI updates are handled via language:changed bus event
   });
   
   // Replace the placeholder
