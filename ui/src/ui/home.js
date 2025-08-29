@@ -58,7 +58,7 @@ function renderCardHTML(item){
     <div class="home-card" data-id="${id}" role="listitem">
       <img src="${img}" alt="${name}" width="80" height="80" style="border-radius:12px">
       <div class="meta">
-        <div class="title">${name} ${sale}</div>
+        <div class="title" style="font-weight:700">${name} ${sale}</div>
         <div class="sub">${sub.join(' • ')}</div>
         ${metrics}
       </div>

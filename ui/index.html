@@ -68,6 +68,7 @@
     .add:hover{filter:brightness(1.02)}
     /* Clamp product titles to avoid jiggle */
     .product .title{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.2;min-height:2.4em}
+    .hl{background:#fff4cc;border-radius:4px;padding:0 1px}
     /* Media column with tiny badges under image */
     .product .media{display:flex;flex-direction:column;align-items:center}
     .product .badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;justify-content:center}
@@ -319,7 +320,7 @@
               <div class="product" role="listitem">
                 <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="64" height="64" style="border-radius:10px">
                 <div>
-                  <div class="title" style="font-weight:800">Whey Protein Isolate — Vanilla</div>
+                  <div class="title">Whey Protein Isolate — Vanilla</div>
                   <div class="muted" style="font-size:12px">1kg • 26g protein <span class="badge">In stock</span> <span class="badge">2-day delivery</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
@@ -331,7 +332,7 @@
               <div class="product">
                 <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="64" height="64" style="border-radius:10px">
                 <div>
-                  <div class="title" style="font-weight:800">Creatine Monohydrate — 300g</div>
+                  <div class="title">Creatine Monohydrate — 300g</div>
                   <div class="muted" style="font-size:12px">Top rated <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
@@ -343,7 +344,7 @@
               <div class="product">
                 <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="64" height="64" style="border-radius:10px">
                 <div>
-                  <div class="title" style="font-weight:800">BCAA 2:1:1 — Tropical</div>
+                  <div class="title">BCAA 2:1:1 — Tropical</div>
                   <div class="muted" style="font-size:12px">Low sugar <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
@@ -355,7 +356,7 @@
               <div class="product">
                 <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="64" height="64" style="border-radius:10px">
                 <div>
-                  <div class="title" style="font-weight:800">Omega-3 Softgels (120)</div>
+                  <div class="title">Omega-3 Softgels (120)</div>
                   <div class="muted" style="font-size:12px">Heart <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
@@ -653,6 +654,10 @@
           </button>
         </div>
       </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-reset" id="resetGoals">Reset</button>
+      <button class="btn-apply" id="applyGoals">Apply Goals</button>
     </div>
   </div>
   

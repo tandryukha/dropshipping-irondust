@@ -8,7 +8,9 @@ import { navigate } from '../core/router.js';
 const searchState = {
   activeFilters: new Map(),
   activePreset: null,
-  sortOrder: 'relevance'
+  sortOrder: 'relevance',
+  goalsMultiSelect: false,
+  activeGoals: [] // labels of currently applied multi-goal selection
 };
 
 // Helpers to compare filters across duplicate chips
@@ -59,9 +61,30 @@ function attachOpenHandlers(root) {
   });
 }
 
-function renderProductHTML(item){
+function escapeHtml(text){
+  if (text == null) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildHighlighter(query){
+  const q = (query||'').trim();
+  if (q.length < 2) return (s)=>escapeHtml(s);
+  const terms = Array.from(new Set(q.split(/\s+/).filter(t=>t && t.length>1)));
+  if (terms.length === 0) return (s)=>escapeHtml(s);
+  const escaped = terms.map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+  const re = new RegExp('(' + escaped.join('|') + ')', 'ig');
+  return (s)=>escapeHtml(s).replace(re, '<span class="hl">$1</span>');
+}
+
+function renderProductHTML(item, query){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/p/120/120';
   const name = item?.name || 'Unnamed';
+  const highlight = buildHighlighter(query);
   const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2).replace('.', ',') : '';
   const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
   const inStock = item?.in_stock;
@@ -104,7 +127,7 @@ function renderProductHTML(item){
         </div>
       </div>
       <div>
-        <div class="title" style="font-weight:800">${name} ${sale}</div>
+        <div class="title">${highlight(name)} ${sale}</div>
         <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class="badge">In stock</span>':''}</div>
       </div>
       <div style="display:grid;gap:6px;justify-items:end">
@@ -141,6 +164,29 @@ function updateAppliedBar() {
     chip.querySelector('button').addEventListener('click', (e) => {
       e.stopPropagation();
       clearPreset();
+      updateAppliedBar();
+      if (window.__runFilteredSearch) window.__runFilteredSearch();
+    });
+    appliedBar.appendChild(chip);
+  }
+  // Show active multi-goal selection summary when no single preset label
+  if (!searchState.activePreset && Array.isArray(searchState.activeGoals) && searchState.activeGoals.length > 0) {
+    const chip = document.createElement('div');
+    chip.className = 'applied-chip';
+    chip.innerHTML = `
+      <span>Goals: ${searchState.activeGoals.join(', ')}</span>
+      <button aria-label="Clear goals">×</button>
+    `;
+    chip.querySelector('button').addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Clear only goal_tags from preset filters
+      const merged = { ...(searchState.__presetFilters||{}) };
+      delete merged.goal_tags;
+      searchState.__presetFilters = merged;
+      searchState.activeGoals = [];
+      // Also clear selection on top-level panel cards and modal
+      $$('#searchPanel .preset-grid .preset-card.active').forEach(card=>card.classList.remove('active'));
+      $$('#goalsModal .preset-card.active').forEach(card=>card.classList.remove('active'));
       updateAppliedBar();
       if (window.__runFilteredSearch) window.__runFilteredSearch();
     });
@@ -386,6 +432,44 @@ export function mountSearchPanel() {
       card.__hasPresetHandler = true;
       
       card.addEventListener('click', () => {
+        // In goals modal multi-select mode, do not run single-select preset behavior
+        const inModal = !!card.closest('#goalsModal');
+        if (searchState.goalsMultiSelect && inModal) return;
+
+        // In main panel (not modal), support multi-select for high-level goals
+        if (!inModal && card.closest('.preset-grid')) {
+          card.classList.toggle('active');
+          const activeTop = $$('#searchPanel .preset-grid .preset-card.active');
+          const selectedPanelTags = [];
+          const selectedPanelLabels = [];
+          activeTop.forEach(c => {
+            const f = JSON.parse(c.getAttribute('data-filters')||'{}');
+            const tags = Array.isArray(f.goal_tags) ? f.goal_tags : [];
+            tags.forEach(t=>{ if(!selectedPanelTags.includes(t)) selectedPanelTags.push(t); });
+            const lbl = c.querySelector('.preset-label')?.textContent?.trim();
+            if (lbl && !selectedPanelLabels.includes(lbl)) selectedPanelLabels.push(lbl);
+          });
+          // Determine all tags represented in the top panel
+          const panelAllTags = [];
+          $$('#searchPanel .preset-grid .preset-card').forEach(c => {
+            const f = JSON.parse(c.getAttribute('data-filters')||'{}');
+            const tags = Array.isArray(f.goal_tags) ? f.goal_tags : [];
+            tags.forEach(t=>{ if(!panelAllTags.includes(t)) panelAllTags.push(t); });
+          });
+          // Preserve existing non-panel goal tags
+          const existing = Array.isArray(searchState.__presetFilters?.goal_tags) ? searchState.__presetFilters.goal_tags : [];
+          const preserved = existing.filter(t => !panelAllTags.includes(t));
+          const newGoalTags = Array.from(new Set([ ...preserved, ...selectedPanelTags ]));
+          const merged = { ...(searchState.__presetFilters||{}), in_stock: true };
+          if (newGoalTags.length > 0) merged.goal_tags = newGoalTags; else delete merged.goal_tags;
+          searchState.__presetFilters = merged;
+          searchState.activePreset = newGoalTags.length === 1 && selectedPanelTags.length === 1 && preserved.length === 0 ? (selectedPanelLabels[0] || null) : null;
+          searchState.activeGoals = selectedPanelLabels;
+          updateAppliedBar();
+          if (window.checkChipOverflow) window.checkChipOverflow();
+          runFilteredSearch();
+          return;
+        }
         const filters = JSON.parse(card.getAttribute('data-filters') || '{}');
         const isActive = card.classList.contains('active');
         // Toggle off if already active
@@ -451,23 +535,106 @@ export function mountSearchPanel() {
   const goalsModal = $('#goalsModal');
   const goalsOverlay = $('#goalsOverlay');
   const goalsClose = $('#goalsClose');
+  const applyGoals = $('#applyGoals');
+  const resetGoals = $('#resetGoals');
   
+  function syncGoalsModalFromState(){
+    // Clear all active marks first
+    $$('#goalsModal .preset-card').forEach(c=>c.classList.remove('active'));
+    // Prefer syncing by explicit selected goal labels to avoid accidental tag overlaps
+    const selectedLabels = Array.isArray(searchState.activeGoals) ? searchState.activeGoals : [];
+    if (selectedLabels.length > 0) {
+      $$('#goalsModal .preset-card').forEach(card=>{
+        const lbl = card.querySelector('.preset-label')?.textContent?.trim();
+        if (lbl && selectedLabels.includes(lbl)) card.classList.add('active');
+      });
+      return;
+    }
+    // Fallback: sync by tags only if no labels are known
+    const current = searchState.__presetFilters || {};
+    const arr = Array.isArray(current.goal_tags) ? current.goal_tags : [];
+    if (arr.length === 0) return;
+    $$('#goalsModal .preset-card').forEach(card=>{
+      const f = JSON.parse(card.getAttribute('data-filters')||'{}');
+      const tags = Array.isArray(f.goal_tags) ? f.goal_tags : [];
+      if (tags.some(t=>arr.includes(t))) card.classList.add('active');
+    });
+  }
+
   moreGoalsBtn?.addEventListener('click', () => {
     goalsModal.style.display = '';
     goalsOverlay.style.display = '';
-    setupPresetCards(); // Re-setup for any new cards
+    setupPresetCards(); // Re-setup for any new cards (base behavior)
+    searchState.goalsMultiSelect = true;
+    // In goals modal, clicking a card should toggle selection without immediate search
+    $$('#goalsModal .preset-card').forEach(card => {
+      if (card.__goalsToggleBound) return; card.__goalsToggleBound = true;
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        card.classList.toggle('active');
+      });
+    });
+    // Sync from current state
+    syncGoalsModalFromState();
   });
   
   goalsClose?.addEventListener('click', (e) => {
     e.stopPropagation();
     goalsModal.style.display = 'none';
     goalsOverlay.style.display = 'none';
+    searchState.goalsMultiSelect = false;
   });
   
   goalsOverlay?.addEventListener('click', (e) => {
     e.stopPropagation();
     goalsModal.style.display = 'none';
     goalsOverlay.style.display = 'none';
+    searchState.goalsMultiSelect = false;
+  });
+
+  // Apply/Reset for goals modal (multi-select)
+  applyGoals?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    // Gather selected goal tags from active cards
+    const selected = [];
+    const selectedLabels = [];
+    $$('#goalsModal .preset-card.active').forEach(card=>{
+      const f = JSON.parse(card.getAttribute('data-filters')||'{}');
+      const tags = Array.isArray(f.goal_tags) ? f.goal_tags : [];
+      tags.forEach(t=>{ if(!selected.includes(t)) selected.push(t); });
+      const lbl = card.querySelector('.preset-label')?.textContent?.trim();
+      if (lbl && !selectedLabels.includes(lbl)) selectedLabels.push(lbl);
+    });
+    // Build merged filters: always include in_stock=true
+    const merged = { ...(searchState.__presetFilters||{}), in_stock: true };
+    if (selected.length > 0) merged.goal_tags = selected; else delete merged.goal_tags;
+    // Clear preset label; we are in custom multi-goal selection mode
+    searchState.activePreset = selected.length === 1 ? (selectedLabels[0] || null) : null;
+    searchState.activeGoals = selected.length > 1 ? selectedLabels : (selected.length === 1 ? [selectedLabels[0]] : []);
+    // Turn off all chips (goal presets are not chips) but leave other chips as-is
+    // We only modify __presetFilters to carry goal_tags and in_stock
+    searchState.__presetFilters = merged;
+    // Sync top-level panel goal cards to reflect selected goals
+    $$('#searchPanel .preset-grid .preset-card').forEach(c => {
+      const f = JSON.parse(c.getAttribute('data-filters')||'{}');
+      const tags = Array.isArray(f.goal_tags) ? f.goal_tags : [];
+      const on = tags.some(t => selected.includes(t));
+      c.classList.toggle('active', on);
+    });
+    goalsModal.style.display = 'none';
+    goalsOverlay.style.display = 'none';
+    searchState.goalsMultiSelect = false;
+    updateAppliedBar();
+    if (window.checkChipOverflow) window.checkChipOverflow();
+    runFilteredSearch();
+  });
+
+  resetGoals?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    // Clear goal selections in modal
+    $$('#goalsModal .preset-card.active').forEach(card=>card.classList.remove('active'));
+    // Do NOT modify main state here; reset is local to modal until Apply
+    searchState.goalsMultiSelect = true; // stay in modal selection mode
   });
   
   const allFiltersBtn = $('#allFiltersBtn');
@@ -676,7 +843,7 @@ export function mountSearchPanel() {
       let items = Array.isArray(data?.items) ? data.items : [];
       
       if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
-      productsList.innerHTML = items.map(renderProductHTML).join('');
+      productsList.innerHTML = items.map(it=>renderProductHTML(it, query)).join('');
       attachAddHandlers(productsList);
       attachOpenHandlers(productsList);
     }catch(e){
@@ -787,7 +954,7 @@ export function mountSearchPanel() {
       let items = Array.isArray(data?.items) ? data.items : [];
       
       if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
-      productsList.innerHTML = items.map(renderProductHTML).join('');
+      productsList.innerHTML = items.map(it=>renderProductHTML(it, query)).join('');
       attachAddHandlers(productsList);
       attachOpenHandlers(productsList);
     }catch(e){
