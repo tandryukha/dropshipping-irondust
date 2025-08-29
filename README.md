@@ -308,6 +308,24 @@ docker-compose logs api | grep -i "warning\|conflict"
 - `GET /health` - Health check
 - `GET /health/meili` - Meilisearch health check
 
+## 🧠 Cache Management
+
+The API caches AI enrichment and translations to reduce cost and latency on re-ingests.
+
+- Enrichment cache file: `tmp/ai-enrichment-cache.json`
+- Translation cache file: `tmp/translation-cache.json`
+
+Clear caches per request (requires `x-admin-key`) by adding headers to ingest calls:
+
+```bash
+curl -X POST http://localhost:4000/ingest/products \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: dev_admin_key" \
+  -H "x-clear-ai-cache: true" \
+  -H "x-clear-translation-cache: true" \
+  -d '{"ids": [31476]}'
+```
+
 ## 🔮 Future Enhancements
 
 ### Phase 2: AI Enrichment

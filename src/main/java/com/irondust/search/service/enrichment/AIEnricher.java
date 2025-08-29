@@ -7,10 +7,13 @@ import com.irondust.search.model.RawProduct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
@@ -31,6 +34,67 @@ public class AIEnricher {
     private final String apiKey;
     private final String model;
 
+    // Persistent cache (single-node) for enrichment responses
+    private static final Object CACHE_LOCK = new Object();
+    private static final File CACHE_FILE = new File("tmp/ai-enrichment-cache.json");
+    private static final ObjectMapper STATIC_MAPPER = new ObjectMapper();
+    private static Map<String, Map<String, Object>> PERSISTENT_CACHE = new LinkedHashMap<>();
+
+    static {
+        synchronized (CACHE_LOCK) {
+            try {
+                if (CACHE_FILE.exists()) {
+                    byte[] bytes = Files.readAllBytes(CACHE_FILE.toPath());
+                    if (bytes.length > 0) {
+                        PERSISTENT_CACHE = STATIC_MAPPER.readValue(
+                            bytes, new TypeReference<Map<String, Map<String, Object>>>() {}
+                        );
+                    }
+                }
+            } catch (Exception e) {
+                LoggerFactory.getLogger(AIEnricher.class).warn("Failed to load AI cache: {}", e.toString());
+                PERSISTENT_CACHE = new LinkedHashMap<>();
+            }
+        }
+    }
+
+    private static void ensureCacheDir() {
+        File dir = CACHE_FILE.getParentFile();
+        if (dir != null && !dir.exists()) dir.mkdirs();
+    }
+
+    private static void savePersistentCache() {
+        ensureCacheDir();
+        try {
+            byte[] bytes = STATIC_MAPPER.writeValueAsBytes(PERSISTENT_CACHE);
+            Files.write(CACHE_FILE.toPath(), bytes);
+        } catch (IOException e) {
+            LoggerFactory.getLogger(AIEnricher.class).warn("Failed to save AI cache: {}", e.toString());
+        }
+    }
+
+    public static void clearPersistentCache() {
+        synchronized (CACHE_LOCK) {
+            PERSISTENT_CACHE.clear();
+            try {
+                Files.deleteIfExists(CACHE_FILE.toPath());
+            } catch (IOException e) {
+                LoggerFactory.getLogger(AIEnricher.class).warn("Failed to delete AI cache file: {}", e.toString());
+            }
+        }
+    }
+
+    private static Map<String, Object> getCached(String key) {
+        synchronized (CACHE_LOCK) { return PERSISTENT_CACHE.get(key); }
+    }
+
+    private static void putCached(String key, Map<String, Object> value) {
+        synchronized (CACHE_LOCK) {
+            PERSISTENT_CACHE.put(key, value);
+            savePersistentCache();
+        }
+    }
+
     public AIEnricher() {
         this.apiKey = System.getenv("OPENAI_API_KEY");
         String m = System.getenv("OPENAI_MODEL");
@@ -45,8 +109,21 @@ public class AIEnricher {
 
     public Map<String, Object> enrich(RawProduct raw, ParsedProduct parsed) {
         try {
+            // Cache key mode: default to raw-only so cached AI responses survive code changes
+            String cacheKeyMode = System.getenv().getOrDefault("AI_CACHE_KEY_MODE", "raw");
+            String inputForHashJson = "raw_parsed".equalsIgnoreCase(cacheKeyMode)
+                    ? buildInputJson(raw, parsed)
+                    : buildRawOnlyInputJson(raw);
+            String inputHash = sha256Hex(inputForHashJson);
             String input = buildInputJson(raw, parsed);
-            String inputHash = sha256Hex(input);
+            String cacheKey = model + ":v1:" + inputHash;
+
+            // Cache lookup
+            Map<String, Object> cached = getCached(cacheKey);
+            if (cached != null && !cached.isEmpty()) {
+                log.info("AI cache hit → product={} key={}", raw.getId(), cacheKey);
+                return cached;
+            }
 
             Map<String, Object> req = new LinkedHashMap<>();
             req.put("model", model);
@@ -81,6 +158,8 @@ public class AIEnricher {
             out.put("ai_input_hash", inputHash);
             out.put("ai_enrichment_ts", System.currentTimeMillis() / 1000);
             out.put("enrichment_version", 1);
+            // Persist cache
+            putCached(cacheKey, out);
             return out;
         } catch (Exception e) {
             log.warn("AI enrichment error: {}", e.toString());
@@ -103,6 +182,19 @@ public class AIEnricher {
                "For goal_scores, set score in [0.0,1.0] reflecting how well the product serves each goal; set confidence in [0.0,1.0]. " +
                "Bias: creatine → strength/endurance; pre-workout boosters → preworkout; multivitamins → wellness; fat-burners → weight_loss; protein → lean_muscle/recovery.\n" +
                "INPUT:" + inputJson;
+    }
+
+    private String buildRawOnlyInputJson(RawProduct raw) throws Exception {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", raw.getId());
+        m.put("name", raw.getName());
+        m.put("slug", raw.getSlug());
+        m.put("sku", raw.getSku());
+        m.put("search_text", raw.getSearch_text());
+        m.put("brand", raw.getBrand_name());
+        m.put("categories", raw.getCategories_names());
+        m.put("attrs", raw.getDynamic_attrs());
+        return mapper.writeValueAsString(m);
     }
 
     private String buildInputJson(RawProduct raw, ParsedProduct parsed) throws Exception {

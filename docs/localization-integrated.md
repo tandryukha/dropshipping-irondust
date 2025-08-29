@@ -116,6 +116,19 @@ curl "http://localhost:4000/products/wc_31489?lang=ru"
 - Cost: ~$0.0003 per product (all 3 languages)
 - Example: 10,000 products = ~$3 total
 
+## 🧠 Caching
+
+- Translations are cached in-memory for 24h and persisted to disk at `tmp/translation-cache.json`.
+- AI enrichment responses are cached and persisted to `tmp/ai-enrichment-cache.json`.
+- You can clear caches per ingest request via headers (admin key required):
+
+```bash
+curl -X POST http://localhost:4000/ingest/full \
+  -H "x-admin-key: dev_admin_key" \
+  -H "x-clear-translation-cache: true" \
+  -H "x-clear-ai-cache: true"
+```
+
 ## 🔍 Example: Complete Flow
 
 1. **Ingest Product**

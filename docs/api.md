@@ -7,6 +7,13 @@ Base URL: http://localhost:4000
 - POST /ingest/full — Ingest all products
 - POST /ingest/products — Ingest specific products by ID
 
+### Cache management headers
+
+- `x-clear-ai-cache: true` — Clears AI enrichment cache on disk (`tmp/ai-enrichment-cache.json`)
+- `x-clear-translation-cache: true` — Clears translation cache on disk (`tmp/translation-cache.json`)
+
+Both headers are optional and can be included with either ingest endpoint. Requires `x-admin-key`.
+
 ### Ingestion performance and parallelism
 
 The full ingestion endpoint performs enrichment and indexing with bounded parallelism.
@@ -23,6 +30,8 @@ Example:
 curl -X POST http://localhost:4000/ingest/products \
   -H "Content-Type: application/json" \
   -H "x-admin-key: dev_admin_key" \
+  -H "x-clear-ai-cache: true" \
+  -H "x-clear-translation-cache: true" \
   -d '{"ids": [31476, 31477]}'
 ```
 

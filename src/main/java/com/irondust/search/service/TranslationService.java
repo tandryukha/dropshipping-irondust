@@ -13,9 +13,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
+import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.nio.file.Files;
 
 /**
  * Translation service for product localization.
@@ -33,6 +36,10 @@ public class TranslationService {
     private final String apiKey;
     private final String model;
     private final boolean enabled;
+    // Persistent cache (single-node) for translations
+    private static final Object PERSIST_LOCK = new Object();
+    private static final File PERSIST_FILE = new File("tmp/translation-cache.json");
+    private static Map<String, PersistEntry> PERSISTENT_CACHE = new LinkedHashMap<>();
     
     // Supported languages
     public static final String LANG_EST = "est";
@@ -137,6 +144,12 @@ public class TranslationService {
         if (cached != null && !cached.isExpired()) {
             return Mono.just(mapToProductTranslation(cached.translations));
         }
+        // Check persistent cache
+        ProductTranslation persisted = getFromPersistent(cacheKey);
+        if (persisted != null) {
+            translationCache.put(cacheKey, new TranslationCache(productTranslationToMap(persisted)));
+            return Mono.just(persisted);
+        }
         
         // Build translation request
         String systemPrompt = buildSystemPrompt(sourceLang, targetLang);
@@ -172,6 +185,7 @@ public class TranslationService {
                     // Cache the result
                     Map<String, String> translationMap = productTranslationToMap(translation);
                     translationCache.put(cacheKey, new TranslationCache(translationMap));
+                    putToPersistent(cacheKey, translationMap);
                 })
                 .doOnError(e -> log.error("OpenAI translation error: {}", e.getMessage()))
                 .onErrorReturn(source);
@@ -241,6 +255,95 @@ public class TranslationService {
             
             If a field is null or empty in the source, keep it null in the translation.
             """, sourceLanguageName, targetLanguageName, targetLanguageName);
+    }
+
+    // Entry persisted on disk
+    private static class PersistEntry {
+        public Map<String, String> t;
+        public long ts;
+    }
+
+    static {
+        synchronized (PERSIST_LOCK) {
+            try {
+                if (PERSIST_FILE.exists()) {
+                    byte[] bytes = Files.readAllBytes(PERSIST_FILE.toPath());
+                    if (bytes.length > 0) {
+                        // read as Map<String, PersistEntry>
+                        ObjectMapper om = new ObjectMapper();
+                        Map<String, Object> raw = om.readValue(bytes, Map.class);
+                        Map<String, PersistEntry> loaded = new LinkedHashMap<>();
+                        for (Map.Entry<String, Object> e : raw.entrySet()) {
+                            if (!(e.getValue() instanceof Map<?, ?> m)) continue;
+                            PersistEntry pe = new PersistEntry();
+                            Object ts = m.get("ts");
+                            Object t = m.get("t");
+                            pe.ts = (ts instanceof Number) ? ((Number) ts).longValue() : System.currentTimeMillis();
+                            if (t instanceof Map<?, ?> tm) {
+                                Map<String, String> conv = new LinkedHashMap<>();
+                                for (Map.Entry<?, ?> te : tm.entrySet()) {
+                                    conv.put(String.valueOf(te.getKey()), te.getValue() != null ? String.valueOf(te.getValue()) : null);
+                                }
+                                pe.t = conv;
+                            } else {
+                                pe.t = new LinkedHashMap<>();
+                            }
+                            loaded.put(e.getKey(), pe);
+                        }
+                        PERSISTENT_CACHE = loaded;
+                    }
+                }
+            } catch (Exception e) {
+                LoggerFactory.getLogger(TranslationService.class).warn("Failed to load translation cache: {}", e.toString());
+                PERSISTENT_CACHE = new LinkedHashMap<>();
+            }
+        }
+    }
+
+    public void clearPersistentCache() {
+        synchronized (PERSIST_LOCK) {
+            PERSISTENT_CACHE.clear();
+            try { Files.deleteIfExists(PERSIST_FILE.toPath()); } catch (IOException e) {
+                LoggerFactory.getLogger(TranslationService.class).warn("Failed to delete translation cache file: {}", e.toString());
+            }
+            translationCache.clear();
+        }
+    }
+
+    private static void ensurePersistDir() {
+        File dir = PERSIST_FILE.getParentFile();
+        if (dir != null && !dir.exists()) dir.mkdirs();
+    }
+
+    private static void savePersistentCache(Map<String, PersistEntry> data) {
+        ensurePersistDir();
+        try {
+            ObjectMapper om = new ObjectMapper();
+            byte[] bytes = om.writeValueAsBytes(data);
+            Files.write(PERSIST_FILE.toPath(), bytes);
+        } catch (IOException e) {
+            LoggerFactory.getLogger(TranslationService.class).warn("Failed to save translation cache: {}", e.toString());
+        }
+    }
+
+    private ProductTranslation getFromPersistent(String cacheKey) {
+        synchronized (PERSIST_LOCK) {
+            PersistEntry pe = PERSISTENT_CACHE.get(cacheKey);
+            if (pe == null) return null;
+            TranslationCache tc = new TranslationCache(pe.t);
+            if (tc.isExpired()) return null;
+            return mapToProductTranslation(pe.t);
+        }
+    }
+
+    private void putToPersistent(String cacheKey, Map<String, String> tmap) {
+        synchronized (PERSIST_LOCK) {
+            PersistEntry pe = new PersistEntry();
+            pe.t = new LinkedHashMap<>(tmap);
+            pe.ts = System.currentTimeMillis();
+            PERSISTENT_CACHE.put(cacheKey, pe);
+            savePersistentCache(PERSISTENT_CACHE);
+        }
     }
 
     private boolean looksMistranslated(String sourceLang, String targetLang, ProductTranslation source, ProductTranslation out) {
