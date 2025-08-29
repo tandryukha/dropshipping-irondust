@@ -2,7 +2,7 @@ import { $, $$ } from '../core/dom.js';
 import { bus } from '../core/bus.js';
 import { searchProducts } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
-import { derivePricePer100g } from '../core/metrics.js';
+import { derivePricePer100g, isCountBasedForm } from '../core/metrics.js';
 import { navigate } from '../core/router.js';
 
 // State management
@@ -93,7 +93,7 @@ function renderProductHTML(item, query){
   if (Array.isArray(item?.categories_names) && item.categories_names.length) subtitleBits.push(item.categories_names[0]);
   const form = (typeof item?.form === 'string' ? item.form : '');
   if (form) subtitleBits.push(form);
-  const isCountBased = form === 'capsules' || form === 'tabs';
+  const isCountBased = isCountBasedForm(form);
   if (isCountBased) {
     if (typeof item?.unit_count === 'number') subtitleBits.push(`${item.unit_count} pcs`);
     if (typeof item?.price_per_unit === 'number') subtitleBits.push(`${symbol}${item.price_per_unit.toFixed(2).replace('.', ',')}/unit`);

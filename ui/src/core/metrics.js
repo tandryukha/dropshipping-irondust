@@ -35,3 +35,20 @@ export function derivePricePer100g(item){
 }
 
 
+// Classify count-based dosage forms where price per 100g is not meaningful
+// Examples: capsules, tablets, softgels, gummies, sachets, ampoules
+export function isCountBasedForm(form){
+  if (typeof form !== 'string' || !form) return false;
+  const f = form.toLowerCase().trim();
+  const tokens = new Set([
+    'capsule','capsules','caps',
+    'tab','tabs','tablet','tablets',
+    'softgel','softgels',
+    'gummy','gummies','chewable','chewables','lozenge','lozenges',
+    'sachet','sachets','stick','sticks','packet','packets',
+    'ampoule','ampoules','vial','vials','ampul'
+  ]);
+  return tokens.has(f);
+}
+
+

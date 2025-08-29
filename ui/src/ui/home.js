@@ -2,6 +2,7 @@ import { $, $$ } from '../core/dom.js';
 import { bus } from '../core/bus.js';
 import { navigate } from '../core/router.js';
 import { searchProducts } from '../api/api.js';
+import { isCountBasedForm } from '../core/metrics.js';
 import { openFor } from './flavor-popover.js';
 
 const state = {
@@ -49,8 +50,9 @@ function renderCardHTML(item){
     else sub.push('New');
   }
   // price metrics
+  const isCount = isCountBasedForm(item?.form);
   const pps = typeof item?.price_per_serving === 'number' ? ` • ${symbol}${item.price_per_serving.toFixed(2).replace('.', ',')}/serv` : '';
-  const p100 = typeof item?.price_per_100g === 'number' ? ` • ${symbol}${item.price_per_100g.toFixed(2).replace('.', ',')}/100g` : '';
+  const p100 = (!isCount && typeof item?.price_per_100g === 'number') ? ` • ${symbol}${item.price_per_100g.toFixed(2).replace('.', ',')}/100g` : '';
   const metrics = pps || p100 ? `<div class="sub">${pps ? pps.slice(3) : ''}${pps && p100 ? ' • ' : ''}${p100 ? p100.slice(3) : ''}</div>` : '';
   const hasVariants = (Array.isArray(item?.dynamic_attrs?.flavors) && item.dynamic_attrs.flavors.length) || (typeof item?.flavor === 'string' && item.flavor.trim());
   const btnLabel = hasVariants ? 'Choose flavor' : 'Add';

@@ -4,6 +4,7 @@ import { store } from '../core/store.js';
 import { getProduct } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
 import { t } from '../core/language.js';
+import { isCountBasedForm } from '../core/metrics.js';
 
 const els = {};
 
@@ -296,7 +297,7 @@ export function mountPdp() {
       if (els.pdpFacts) {
         const facts = [];
         const form = typeof prod?.form === 'string' ? prod.form : '';
-        const isCountBased = form === 'capsules' || form === 'tabs';
+        const isCountBased = isCountBasedForm(form);
         if (form) facts.push(`${t('pdp.form','Form')}: ${form}`);
         if (!isCountBased) {
           if (typeof prod?.net_weight_g === 'number') facts.push(`${t('pdp.net','Net')}: ${prod.net_weight_g} g`);
