@@ -51,6 +51,29 @@ curl -X POST http://localhost:4000/search \
 
 - GET /products/{id} — Get specific product details
 
+### Fields (excerpt)
+
+- `dosage_text` — AI-extracted single-sentence dosage. Localized when `?lang` is provided.
+- `timing_text` — AI-extracted single-sentence timing. Localized when `?lang` is provided.
+- `dosage_text_i18n` — Map of language → dosage sentence.
+- `timing_text_i18n` — Map of language → timing sentence.
+
+Language overrides: when `?lang` is set (`est`, `en`, `ru`), the API returns localized values from the corresponding `*_i18n` entries when available.
+
+Example:
+
+```bash
+curl -s "http://localhost:4000/products/wc_30177?lang=en" | jq '.name, .dosage_text, .timing_text'
+```
+
+Expected output (shape):
+
+```json
+"XTEND EAA 40 servings Tropical"
+"1 scoop (~12.5 g) mixed with 300–500 ml water"
+"Before, during, or after workout"
+```
+
 ## Health
 
 - GET /health — Health check
