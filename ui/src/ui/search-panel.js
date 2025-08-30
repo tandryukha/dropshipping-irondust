@@ -112,10 +112,12 @@ function renderProductHTML(item, query){
   const btnLabel = hasVariants ? 'Choose flavor' : 'Add';
   const subtitle = subtitleBits.join(' • ');
   const salePct = (item?.is_on_sale === true && typeof item?.discount_pct === 'number') ? Math.round(item.discount_pct) : null;
-  const sale = (typeof salePct === 'number' && salePct > 0) ? `<span class=\"badge\" style=\"background:#fff3f3;border-color:#ffc9c9;color:#b91c1c\">-${salePct}%</span>` : '';
+  const sale = (typeof salePct === 'number' && salePct > 0) ? `<span class="badge" style="background:#fff3f3;border-color:#ffc9c9;color:#b91c1c">-${salePct}%</span>` : '';
   const vegan = Array.isArray(item?.diet_tags) && item.diet_tags.includes('vegan');
   const sugarFree = Array.isArray(item?.diet_tags) && item.diet_tags.includes('sugar_free');
   const bestseller = item?.bestseller === true || (typeof item?.review_count === 'number' && item.review_count > 200);
+  const snippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
+  const snippetLine = snippet ? `<div class="muted" style="font-size:12px;line-height:1.5;margin-top:4px">${highlight(snippet.length > 160 ? (snippet.slice(0, 157).trim()+"…") : snippet)}</div>` : '';
   return `
     <div class="product" role="listitem" data-id="${item?.id||''}">
       <div class="media">
@@ -129,7 +131,8 @@ function renderProductHTML(item, query){
       </div>
       <div>
         <div class="title">${highlight(name)} ${sale}</div>
-        <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class=\"badge\">In stock</span>':''}</div>
+        ${snippetLine}
+        <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class="badge">In stock</span>':''}</div>
       </div>
       <div style="display:grid;gap:10px;justify-items:end">
         <div class="price">${symbol}${price}</div>

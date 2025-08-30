@@ -262,6 +262,8 @@ public class IngestService {
             Map<String, String> formI18n = new HashMap<>();
             Map<String, String> flavorI18n = new HashMap<>();
             Map<String, String> benefitSnippetI18n = new HashMap<>();
+            Map<String, String> dosageI18n = new HashMap<>();
+            Map<String, String> timingI18n = new HashMap<>();
             Map<String, String> searchTextI18n = new HashMap<>();
             Map<String, List<Map<String, String>>> faqI18n = new HashMap<>();
             
@@ -278,6 +280,14 @@ public class IngestService {
                 }
                 if (trans.form != null) formI18n.put(lang, trans.form);
                 if (trans.flavor != null) flavorI18n.put(lang, trans.flavor);
+                if (enriched.getDosage_text() != null) {
+                    String v = (trans.dosageText != null && !trans.dosageText.isBlank()) ? trans.dosageText : enriched.getDosage_text();
+                    dosageI18n.put(lang, v);
+                }
+                if (enriched.getTiming_text() != null) {
+                    String v = (trans.timingText != null && !trans.timingText.isBlank()) ? trans.timingText : enriched.getTiming_text();
+                    timingI18n.put(lang, v);
+                }
                 
                 // Convert FAQ format
                 if (trans.faq != null && !trans.faq.isEmpty()) {
@@ -306,6 +316,8 @@ public class IngestService {
             d.setForm_i18n(formI18n);
             d.setFlavor_i18n(flavorI18n);
             d.setBenefit_snippet_i18n(benefitSnippetI18n);
+            d.setDosage_text_i18n(dosageI18n);
+            d.setTiming_text_i18n(timingI18n);
             d.setFaq_i18n(faqI18n);
             d.setSearch_text_i18n(searchTextI18n);
         }
@@ -357,6 +369,8 @@ public class IngestService {
         // AI UX fields
         d.setBenefit_snippet(enriched.getBenefit_snippet());
         d.setFaq(enriched.getFaq());
+        d.setDosage_text(enriched.getDosage_text());
+        d.setTiming_text(enriched.getTiming_text());
 
         // Add enriched fields to dynamic_attrs for backward compatibility
         Map<String, List<String>> enrichedAttrs = new LinkedHashMap<>(enriched.getDynamic_attrs() != null ? enriched.getDynamic_attrs() : new LinkedHashMap<>());

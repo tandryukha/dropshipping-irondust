@@ -114,6 +114,9 @@ public class SearchController {
         d.setBrand_slug((String) m.get("brand_slug"));
         d.setBrand_name((String) m.get("brand_name"));
         d.setSearch_text((String) m.get("search_text"));
+        // Optional AI dosage/timing fields
+        d.setDosage_text((String) m.get("dosage_text"));
+        d.setTiming_text((String) m.get("timing_text"));
         // phase 1 fields
         d.setForm((String) m.get("form"));
         Object fl = m.get("flavor");
@@ -164,6 +167,8 @@ public class SearchController {
         d.setForm_i18n((Map<String, String>) m.get("form_i18n"));
         d.setFlavor_i18n((Map<String, String>) m.get("flavor_i18n"));
         d.setBenefit_snippet_i18n((Map<String, String>) m.get("benefit_snippet_i18n"));
+        d.setDosage_text_i18n((Map<String, String>) m.get("dosage_text_i18n"));
+        d.setTiming_text_i18n((Map<String, String>) m.get("timing_text_i18n"));
         d.setFaq_i18n((Map<String, List<Map<String, String>>>) m.get("faq_i18n"));
         d.setSearch_text_i18n((Map<String, String>) m.get("search_text_i18n"));
     }
@@ -194,6 +199,13 @@ public class SearchController {
         // Apply language-specific benefit snippet
         if (d.getBenefit_snippet_i18n() != null && d.getBenefit_snippet_i18n().containsKey(lang)) {
             d.setBenefit_snippet(d.getBenefit_snippet_i18n().get(lang));
+        }
+        // Apply language-specific dosage/timing
+        if (d.getDosage_text_i18n() != null && d.getDosage_text_i18n().containsKey(lang)) {
+            d.setDosage_text(d.getDosage_text_i18n().get(lang));
+        }
+        if (d.getTiming_text_i18n() != null && d.getTiming_text_i18n().containsKey(lang)) {
+            d.setTiming_text(d.getTiming_text_i18n().get(lang));
         }
         
         // Apply language-specific FAQ

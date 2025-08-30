@@ -87,6 +87,14 @@ public class ProductDoc {
     private String benefit_snippet;
     private List<java.util.Map<String, String>> faq;
 
+    // AI dosage/timing (localized variants provided via *_i18n below)
+    private String dosage_text;
+    private String timing_text;
+
+    // Localized dosage/timing
+    private Map<String, String> dosage_text_i18n;
+    private Map<String, String> timing_text_i18n;
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getParent_id() { return parent_id; }
@@ -221,6 +229,14 @@ public class ProductDoc {
     public void setBenefit_snippet(String benefit_snippet) { this.benefit_snippet = benefit_snippet; }
     public List<java.util.Map<String, String>> getFaq() { return faq; }
     public void setFaq(List<java.util.Map<String, String>> faq) { this.faq = faq; }
+    public String getDosage_text() { return dosage_text; }
+    public void setDosage_text(String dosage_text) { this.dosage_text = dosage_text; }
+    public String getTiming_text() { return timing_text; }
+    public void setTiming_text(String timing_text) { this.timing_text = timing_text; }
+    public Map<String, String> getDosage_text_i18n() { return dosage_text_i18n; }
+    public void setDosage_text_i18n(Map<String, String> dosage_text_i18n) { this.dosage_text_i18n = dosage_text_i18n; }
+    public Map<String, String> getTiming_text_i18n() { return timing_text_i18n; }
+    public void setTiming_text_i18n(Map<String, String> timing_text_i18n) { this.timing_text_i18n = timing_text_i18n; }
 }
 
 

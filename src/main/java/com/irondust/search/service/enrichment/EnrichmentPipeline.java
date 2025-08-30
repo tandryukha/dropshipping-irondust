@@ -388,6 +388,11 @@ public class EnrichmentPipeline {
         if (faq instanceof List<?> l) enriched.setFaq((List<Map<String, String>>) (List<?>) l);
         Object syn = gen.get("synonyms_multi");
         if (syn instanceof Map<?, ?> m) enriched.setSynonyms_multi((Map<String, List<String>>) (Map<?, ?>) m);
+        // New: AI dosage/timing
+        Object dz = gen.get("dosage_text");
+        if (dz instanceof String ds && !ds.isBlank()) enriched.setDosage_text(ds);
+        Object tm = gen.get("timing_text");
+        if (tm instanceof String ts && !ts.isBlank()) enriched.setTiming_text(ts);
     }
 
     @SuppressWarnings("unchecked")

@@ -62,6 +62,15 @@ public class ProductController {
         if (benefitSnippetI18n != null && benefitSnippetI18n.containsKey(lang)) {
             doc.put("benefit_snippet", benefitSnippetI18n.get(lang));
         }
+        // Apply language-specific dosage/timing if present
+        Map<String, String> dosageI18n = (Map<String, String>) doc.get("dosage_text_i18n");
+        if (dosageI18n != null && dosageI18n.containsKey(lang)) {
+            doc.put("dosage_text", dosageI18n.get(lang));
+        }
+        Map<String, String> timingI18n = (Map<String, String>) doc.get("timing_text_i18n");
+        if (timingI18n != null && timingI18n.containsKey(lang)) {
+            doc.put("timing_text", timingI18n.get(lang));
+        }
         
         // Apply language-specific FAQ
         Map<String, List<Map<String, String>>> faqI18n = (Map<String, List<Map<String, String>>>) doc.get("faq_i18n");

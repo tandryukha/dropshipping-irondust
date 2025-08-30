@@ -363,16 +363,10 @@ public class UnitParser implements EnricherStep {
             }
         }
         // Fallback from title/text pattern like "60 caps", "120 tablets", etc.,
-        // even if form wasn't normalized yet
+        // even if form wasn't normalized yet. Use heuristics to prefer plausible counts.
         String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
-        Matcher m = CAPS_SERVINGS_PATTERN.matcher(text);
-        if (m.find()) {
-            try {
-                int v = Integer.parseInt(m.group(1));
-                if (v > 0 && v <= 2000) return v;
-            } catch (NumberFormatException ignored) {}
-        }
-        return null;
+        Integer best = choosePlausibleCapsTabsCount(text);
+        return best;
     }
 
     private Double parseServingSizeFromText(RawProduct raw) {
@@ -460,13 +454,56 @@ public class UnitParser implements EnricherStep {
                 try { int v = Integer.parseInt(first); if (v > 0 && v <= 5000) return v; } catch (Exception ignored) {}
             }
         }
-        // Pattern from title/text like "60 caps", "120 tablets"
+        // Pattern from title/text like "60 caps", "120 tablets" with heuristics
         String text = (raw.getName() + " " + (raw.getSearch_text() != null ? raw.getSearch_text() : "")).toLowerCase();
-        Matcher m = CAPS_SERVINGS_PATTERN.matcher(text);
-        if (m.find()) {
-            try { int v = Integer.parseInt(m.group(1)); if (v > 0 && v <= 5000) return v; } catch (Exception ignored) {}
-        }
+        Integer best = choosePlausibleCapsTabsCount(text);
+        if (best != null && best > 0 && best <= 5000) return best;
         return null;
+    }
+
+    /**
+     * Chooses a plausible capsules/tablets count from free text by scanning all
+     * occurrences of number + (caps/capsules/tablets/tabs) and scoring them.
+     *
+     * <p>Heuristics applied:
+     * <ul>
+     *   <li>Prefer full tokens ("capsules", "tablets") over abbreviations ("caps", "tabs").</li>
+     *   <li>Prefer typical packaging ranges: 30..600. Penalize very large values (>= 601).</li>
+     *   <li>If multiple candidates exist, choose the highest scoring; discard if all scores are negative.</li>
+     * </ul>
+     *
+     * <p>This avoids misinterpreting product names like "BCAA 2200 caps" where the
+     * number refers to milligrams rather than count, while still handling phrases
+     * like "400 capsules / 2200 mg per serving".
+     */
+    private Integer choosePlausibleCapsTabsCount(String text) {
+        Matcher m = CAPS_SERVINGS_PATTERN.matcher(text);
+        double bestScore = Double.NEGATIVE_INFINITY;
+        Integer bestVal = null;
+        while (m.find()) {
+            try {
+                int v = Integer.parseInt(m.group(1));
+                String token = m.group(2).toLowerCase();
+                double score = 0.0;
+                boolean isFull = token.contains("capsule") || token.contains("tablet") || token.contains("kapslid") || token.contains("tabletid");
+                boolean isAbbrev = token.equals("caps") || token.equals("kaps") || token.equals("tabs") || token.equals("tab");
+                if (isFull) score += 1.0;
+                if (isAbbrev) score += 0.0;
+                // Range preferences
+                if (v >= 30 && v <= 600) score += 1.0;
+                else if (v >= 10 && v < 30) score += 0.5;
+                else if (v > 600) score -= 1.5; // strong penalty for implausibly high counts
+                else score -= 0.5; // very small counts unlikely for packaging
+                // Slight preference for values that are multiples of 30/60/90/120 common in packaging
+                int[] commons = {30, 60, 90, 100, 120, 180, 200, 240, 300, 360, 400, 500, 600};
+                for (int c : commons) {
+                    if (v == c) { score += 0.3; break; }
+                }
+                if (score > bestScore) { bestScore = score; bestVal = v; }
+            } catch (Exception ignored) {}
+        }
+        if (bestScore <= -1.0) return null; // discard clearly implausible matches
+        return bestVal;
     }
 
     private Integer parseUnitsPerServing(RawProduct raw) {

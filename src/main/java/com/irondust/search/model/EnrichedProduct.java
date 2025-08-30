@@ -94,6 +94,12 @@ public class EnrichedProduct extends ParsedProduct {
      */
     private Integer enrichment_version;
 
+    // AI dosage/timing (plain text, language-neutral base)
+    /** Single-sentence dosage guidance extracted/normalized by AI. */
+    private String dosage_text;
+    /** Single-sentence timing guidance extracted/normalized by AI. */
+    private String timing_text;
+
     // Getters and setters for AI-generated fields
     public String getBenefit_snippet() { return benefit_snippet; }
     public void setBenefit_snippet(String benefit_snippet) { this.benefit_snippet = benefit_snippet; }
@@ -113,6 +119,11 @@ public class EnrichedProduct extends ParsedProduct {
     public void setAi_enrichment_ts(Long ai_enrichment_ts) { this.ai_enrichment_ts = ai_enrichment_ts; }
     public Integer getEnrichment_version() { return enrichment_version; }
     public void setEnrichment_version(Integer enrichment_version) { this.enrichment_version = enrichment_version; }
+
+    public String getDosage_text() { return dosage_text; }
+    public void setDosage_text(String dosage_text) { this.dosage_text = dosage_text; }
+    public String getTiming_text() { return timing_text; }
+    public void setTiming_text(String timing_text) { this.timing_text = timing_text; }
 
     /**
      * Creates an EnrichedProduct instance from a ParsedProduct.

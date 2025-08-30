@@ -14,23 +14,32 @@ function extractDosageFromText(searchText) {
   
   // Multi-language dosage patterns
   const dosagePatterns = [
-    /Soovitatav\s+p[aä]evane\s+annus:\s*([^\.!\n]+)/i,
-    /P[aä]evane\s+tarbimine:\s*([^\.!\n]+)/i,
-    /(\d+\s*portsjon[^\.!\n]*)/i,
-    /(\d+\s*m[õo]õtelusikas[^\.!\n]*)/i,
-    /Рекомендуемая\s+суточная\s+доза:\s*([^\.!\n]+)/i,
-    /Способ\s+применения:\s*([^\.!\n]+)/i,
-    /(\d+\s*капсул[^\.!\n]*)/i,
-    /(\d+\s*мерн(?:ая|ых)?\s*ложк[^\.!\n]*)/i,
-    /Recommended\s+daily\s+dose:\s*([^\.!\n]+)/i,
-    /Suggested\s+use:\s*([^\.!\n]+)/i,
-    /(\d+\s*(?:capsules?|tabs?|scoops?|servings?)[^\.!\n]*)/i
+    // Prefer explicit "Usage:" blocks; capture only the first sentence
+    /(Kasutamine|Применение|Usage)\s*:\s*([^\.\!\n]+)/i,
+    // Explicit daily dose labels
+    /Soovitatav\s+p[aä]evane\s+annus:\s*([^\.\!\n]+)/i,
+    /P[aä]evane\s+tarbimine:\s*([^\.\!\n]+)/i,
+    /Рекомендуемая\s+суточная\s+доза:\s*([^\.\!\n]+)/i,
+    /Recommended\s+daily\s+dose:\s*([^\.\!\n]+)/i,
+    // Common free-text formats (kept short to avoid swallowing long descriptions)
+    /(\d+\s*m[õo]õtelusikas[^\.\!\n]{0,120})/i,
+    /(\d+\s*капсул[^\.\!\n]{0,120})/i,
+    /(\d+\s*мерн(?:ая|ых)?\s*ложк[^\.\!\n]{0,120})/i,
+    /(\d+\s*(?:capsules?|tabs?|tablets?|scoops?)[^\.\!\n]{0,120})/i
+    // Intentionally no generic "servings" fallback to avoid noisy captures.
   ];
   
   for (const pattern of dosagePatterns) {
     const match = searchText.match(pattern);
     if (match) {
-      return match[1].trim();
+      const raw = (match[2] ?? match[1]).trim();
+      // Clamp overly long captures to sentence boundary to avoid unrelated text
+      if (raw.length > 160) {
+        const cut = raw.slice(0, 160);
+        const boundary = Math.max(cut.lastIndexOf('.'), Math.max(cut.lastIndexOf(','), cut.lastIndexOf(' ')));
+        return (boundary > 40 ? cut.slice(0, boundary) : cut).trim();
+      }
+      return raw;
     }
   }
   return null;
@@ -168,6 +177,7 @@ export function mountPdp() {
     pdpPrice: $('#pdpPrice'),
     pdpStars: $('#pdpStars'),
     pdpReviewCount: $('#pdpReviewCount'),
+    pdpBenefitSnippet: $('#pdpBenefitSnippet'),
     pdpFlavors: $('#pdpFlavors'),
     pdpFlavorLabel: $('#pdpFlavorLabel'),
     pdpImage: $('#pdpImage'),
@@ -267,6 +277,10 @@ export function mountPdp() {
       els.pdpPrice.textContent = formatPrice(prod?.price_cents, prod?.currency||'EUR');
       els.pdpStars.textContent = renderStars(typeof prod?.rating === 'number' ? prod.rating : undefined);
       els.pdpReviewCount.textContent = String(prod?.review_count ?? '0');
+      if (els.pdpBenefitSnippet) {
+        const bs = (typeof prod?.benefit_snippet === 'string' ? prod.benefit_snippet : '').trim();
+        els.pdpBenefitSnippet.textContent = bs ? (bs.length > 160 ? (bs.slice(0,157).trim() + '…') : bs) : '';
+      }
       if (Array.isArray(prod?.images) && prod.images.length) {
         els.pdpImage.src = prod.images[0];
         els.pdpImage.alt = prod?.name || 'Product image';
@@ -328,11 +342,15 @@ export function mountPdp() {
 
     // Update Dosage and Timing boxes dynamically
     if (els.dosageBox) {
-      const dosageContent = extractDosageFromText(prod?.search_text) || t('pdp.fallback.dosage','2 capsules per day with food');
+      const dosageContent = (typeof prod?.dosage_text === 'string' && prod.dosage_text.trim())
+        ? prod.dosage_text.trim()
+        : (extractDosageFromText(prod?.search_text) || t('pdp.fallback.dosage','2 capsules per day with food'));
       els.dosageBox.innerHTML = '<div style="font-size:12px;color:var(--fp-muted)">'+t('pdp.dosage','Dosage')+'</div>' + dosageContent;
     }
     if (els.timingBox) {
-      const timingContent = extractTimingFromText(prod?.search_text) || t('pdp.fallback.timing','With meals or within 30 min post-workout');
+      const timingContent = (typeof prod?.timing_text === 'string' && prod.timing_text.trim())
+        ? prod.timing_text.trim()
+        : (extractTimingFromText(prod?.search_text) || t('pdp.fallback.timing','With meals or within 30 min post-workout'));
       els.timingBox.innerHTML = '<div style="font-size:12px;color:var(--fp-muted)">'+t('pdp.timing','Timing')+'</div>' + timingContent;
     }
 

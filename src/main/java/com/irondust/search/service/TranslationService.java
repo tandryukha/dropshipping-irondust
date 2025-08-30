@@ -259,6 +259,8 @@ public class TranslationService {
                 "description": "translated description or null",
                 "short_description": "translated short description or null",
                 "benefit_snippet": "translated benefit snippet or null",
+                "dosage_text": "translated dosage sentence or null",
+                "timing_text": "translated timing sentence or null",
                 "categories": ["translated", "category", "names"],
                 "form": "translated form or null",
                 "flavor": "translated flavor or null",
@@ -583,6 +585,9 @@ public class TranslationService {
                     translationJson.path("flavor").asText(null);
             result.benefitSnippet = translationJson.path("benefit_snippet").isNull() ? null :
                     translationJson.path("benefit_snippet").asText(null);
+            // Optional dosage/timing lines
+            result.dosageText = translationJson.path("dosage_text").isNull() ? null : translationJson.path("dosage_text").asText(null);
+            result.timingText = translationJson.path("timing_text").isNull() ? null : translationJson.path("timing_text").asText(null);
             
             // Parse FAQ array
             if (translationJson.has("faq") && translationJson.get("faq").isArray()) {
@@ -695,6 +700,8 @@ public class TranslationService {
         map.put("shortDescription", pt.shortDescription);
         map.put("form", pt.form);
         map.put("flavor", pt.flavor);
+        map.put("dosage_text", pt.dosageText);
+        map.put("timing_text", pt.timingText);
         // Categories stored as JSON array string
         try {
             map.put("categories", objectMapper.writeValueAsString(pt.categories));
@@ -721,6 +728,8 @@ public class TranslationService {
         } catch (Exception e) {
             pt.categories = new ArrayList<>();
         }
+        pt.dosageText = map.get("dosage_text");
+        pt.timingText = map.get("timing_text");
         return pt;
     }
     
@@ -732,6 +741,8 @@ public class TranslationService {
         public String description;
         public String shortDescription;
         public String benefitSnippet;
+        public String dosageText;
+        public String timingText;
         public List<String> categories;
         public String form;
         public String flavor;
