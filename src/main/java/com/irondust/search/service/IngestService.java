@@ -16,7 +16,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import com.irondust.search.dto.IngestDtos;
 
 @Service
@@ -95,9 +94,13 @@ public class IngestService {
                     int chunkSize = appProperties.getUploadChunkSize() > 0 ? appProperties.getUploadChunkSize() : 500;
                     int meiliConcurrency = Math.max(1, appProperties.getMeiliConcurrentUpdates());
 
+                    java.util.Set<String> keepIds = allDocs.stream().map(ProductDoc::getId)
+                            .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+
                     return meiliService.ensureIndexWithSettings(filterable, sortable, searchable)
                             .thenMany(Flux.fromIterable(chunk(allDocs, chunkSize)))
                             .flatMap(meiliService::addOrReplaceDocuments, meiliConcurrency)
+                            .then(meiliService.pruneDocumentsNotIn(keepIds))
                             .then(Mono.fromSupplier(() -> buildReport(allDocs.size(), reports)));
                 });
     }
@@ -146,7 +149,42 @@ public class IngestService {
         }
     }
 
+    private boolean isBlacklisted(JsonNode p) {
+        try {
+            String name = p.path("name").asText("").toLowerCase();
+            String slug = p.path("slug").asText("").toLowerCase();
+            String desc = p.path("description").asText("").toLowerCase();
+            java.util.Set<String> tokens = java.util.Set.of(
+                "gift card", "giftcard", "present card", "voucher", "kinkekaart", "kingitus", "presentkaart"
+            );
+            for (String t : tokens) {
+                if (name.contains(t) || slug.contains(t) || desc.contains(t)) {
+                    return true;
+                }
+            }
+            if (p.path("categories").isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode c : p.path("categories")) {
+                    String cs = c.path("slug").asText("").toLowerCase();
+                    String cn = c.path("name").asText("").toLowerCase();
+                    for (String t : tokens) {
+                        if (cs.contains(t.replace(" ", "-")) || cn.contains(t)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
     private Mono<DocWithReport> transformWithEnrichmentWithReport(JsonNode p) {
+        // Skip blacklisted/non-supplement items (e.g., gift/present cards)
+        if (isBlacklisted(p)) {
+            String id = "wc_" + p.path("id").asLong();
+            log.info("Skipping blacklisted product {}", id);
+            return Mono.empty();
+        }
+
         // Create raw product from JSON
         RawProduct raw = RawProduct.fromJsonNode(p);
 

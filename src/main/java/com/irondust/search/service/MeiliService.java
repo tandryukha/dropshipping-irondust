@@ -13,6 +13,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.core.ParameterizedTypeReference;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 import java.util.HashMap;
 import java.util.List;
@@ -72,6 +73,54 @@ public class MeiliService {
                 .body(BodyInserters.fromValue(documents))
                 .retrieve()
                 .bodyToMono(Map.class)
+                .then();
+    }
+
+    public Flux<String> listAllDocumentIds() {
+        String index = appProperties.getIndexName();
+        int pageSize = 1000;
+        return Flux
+            .range(0, Integer.MAX_VALUE)
+            .concatMap(offsetPage -> meiliClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/indexes/{uid}/documents")
+                            .queryParam("limit", pageSize)
+                            .queryParam("offset", offsetPage * pageSize)
+                            .queryParam("fields", "id")
+                            .build(index))
+                    .retrieve()
+                    .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.List<java.util.Map<String, Object>>>() {})
+                    .flatMapMany(list -> {
+                        if (list == null || list.isEmpty()) {
+                            return Flux.empty();
+                        }
+                        return Flux.fromIterable(list)
+                                .map(m -> String.valueOf(m.get("id")));
+                    })
+            )
+            .takeUntilOther(Mono.defer(() -> Mono.empty()));
+    }
+
+    public Mono<Void> deleteDocumentsByIds(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return Mono.empty();
+        String index = appProperties.getIndexName();
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("ids", ids);
+        return meiliClient.post().uri("/indexes/{uid}/documents/delete-batch", index)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(payload))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .then();
+    }
+
+    public Mono<Void> pruneDocumentsNotIn(java.util.Set<String> keepIds) {
+        final java.util.Set<String> keep = (keepIds == null) ? java.util.Set.of() : keepIds;
+        final int batchSize = 500;
+        return listAllDocumentIds()
+                .filter(id -> !keep.contains(id))
+                .buffer(batchSize)
+                .concatMap(this::deleteDocumentsByIds)
                 .then();
     }
 

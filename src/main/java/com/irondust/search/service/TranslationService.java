@@ -384,7 +384,7 @@ public class TranslationService {
         } else if (LANG_RU.equals(targetLang)) {
             // Prefer Cyrillic, but accept if the text changed and no Estonian markers remain
             if (containsCyrillic(outCombined)) return false;
-            if (changeRatio >= 0.25 && !containsEstonianMarkers(outCombined)) return false;
+            if (changeRatio >= 0.20 && !containsEstonianMarkers(outCombined)) return false;
             return true;
         } else if (LANG_EST.equals(targetLang)) {
             // Estonian should not contain Cyrillic or strong English-only markers

@@ -28,8 +28,7 @@ public class ServingCalculator implements EnricherStep {
                 confidence.put("servings", 0.85);
                 sources.put("servings", "derived");
             } else {
-                warnings.add(Warn.unitAmbiguity(raw.getId(), "servings", 
-                    String.format("Calculated servings %.2f seems unreasonable", servings)));
+                // Reduce noise: do not emit unit ambiguity here; rely on UnitParser sanity corrections instead
             }
         }
 

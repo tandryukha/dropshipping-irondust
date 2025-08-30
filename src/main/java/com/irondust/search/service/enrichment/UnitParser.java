@@ -20,6 +20,11 @@ public class UnitParser implements EnricherStep {
         "portsjon[^.!?\\n]*?\\(\\s*(?:~|≈|u\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(g|ml)\\s*\\)",
         Pattern.CASE_INSENSITIVE
     );
+    // Reverse order serving size: "per serving 5 g", "serving size 5 g"
+    private static final Pattern SERVING_SIZE_REVERSE = Pattern.compile(
+        "(per\\s*serving|serving\\s*size|portsjoni\\s*suurus)[^0-9]{0,20}(\\d+(?:[.,]\\d+)?)\\s*(mg|g|ml)",
+        Pattern.CASE_INSENSITIVE
+    );
 
     // Broad parentheses grams pattern; will be used only if we can relate it to serving context
     private static final Pattern PAREN_G_PATTERN = Pattern.compile(
@@ -153,7 +158,7 @@ public class UnitParser implements EnricherStep {
             sources.put("unit_mass_g", "regex");
         }
 
-        // Infer form from unit-related evidence if still missing
+        // Infer form from unit-related evidence if still missing (late fallback)
         if (!updates.containsKey("form") && (soFar.getForm() == null || soFar.getForm().isBlank())) {
             Integer ucHint = (Integer) updates.getOrDefault("unit_count", soFar.getUnit_count());
             boolean hasUnitEvidence = ucHint != null || ups != null || umg != null;
@@ -183,8 +188,12 @@ public class UnitParser implements EnricherStep {
                     updates.put("net_weight_g", candidate);
                     confidence.put("net_weight_g", 0.80);
                     sources.put("net_weight_g", "corrected");
-                    // Only emit ambiguity warning for large corrections (avoid noisy small adjustments)
-                    if (ratio >= 3.0 || existingWeight < ss * 0.5) {
+                    // Suppress noise for clear per-serving mistakes (existing equals serving size)
+                    boolean perServingMistake = Math.abs(existingWeight - ss) <= Math.max(0.2 * ss, 0.5);
+                    boolean strongEvidence = usedServings >= 10; // typical realistic packaging
+                    // Only emit ambiguity warning for extreme corrections that are not obvious per-serving mistakes
+                    boolean shouldWarn = !perServingMistake && (ratio >= 8.0 || existingWeight < ss * 0.25) && !strongEvidence;
+                    if (shouldWarn) {
                         warnings.add(Warn.unitAmbiguity(raw.getId(), "net_weight_g",
                                 "Corrected net weight from " + existingWeight + "g to " + candidate + "g based on serving size × servings"));
                     }
@@ -238,8 +247,7 @@ public class UnitParser implements EnricherStep {
                         updates.put("servings", rounded);
                         confidence.put("servings", Math.max(confidence.getOrDefault("servings", 0.8), 0.85));
                         sources.put("servings", (sources.containsKey("servings") ? sources.get("servings") + "|" : "") + "corrected");
-                        warnings.add(Warn.unitAmbiguity(raw.getId(), "servings",
-                                "Corrected servings from " + currentServings + " to " + rounded + " based on net_weight_g/serving_size_g"));
+                        // Do not emit a unit ambiguity warning for servings correction to reduce noise
                     }
                 }
             }
@@ -372,31 +380,32 @@ public class UnitParser implements EnricherStep {
         if (text == null) return null;
 
         // Collect all candidates and pick the most plausible (prefer g/ml; ignore tiny mg values)
-        Matcher matcher = SERVING_SIZE_PATTERN.matcher(text);
         Double best = null;
+        Matcher matcher = SERVING_SIZE_PATTERN.matcher(text);
         while (matcher.find()) {
             try {
                 double value = Double.parseDouble(matcher.group(1).replace(",", "."));
                 String unit = matcher.group(2).toLowerCase();
-
-                double grams;
-                if (unit.equals("mg")) {
-                    grams = value / 1000.0;
-                    // Ignore ingredient-only mg mentions like "150 mg per serving"; keep only if >= 1 g
-                    if (grams < 1.0) continue;
-                } else {
-                    // g or ml (assume ml==g)
-                    grams = value;
-                }
-                // Heuristic bounds for serving size (avoid absurd values)
+                double grams = unit.equals("mg") ? value / 1000.0 : value;
+                if (unit.equals("mg") && grams < 1.0) continue;
                 if (grams <= 0 || grams > 500) continue;
-
-                // Prefer the largest plausible value among candidates (e.g., pick 6 g over 1 g)
                 if (best == null || grams > best) best = grams;
             } catch (NumberFormatException e) {
                 warnings.add(Warn.unitAmbiguity(raw.getId(), "serving_size_g",
                         "Failed to parse serving size from text: " + matcher.group()));
             }
+        }
+        // Reverse order pattern
+        Matcher rev = SERVING_SIZE_REVERSE.matcher(text);
+        while (rev.find()) {
+            try {
+                double value = Double.parseDouble(rev.group(2).replace(",", "."));
+                String unit = rev.group(3).toLowerCase();
+                double grams = unit.equals("mg") ? value / 1000.0 : value;
+                if (unit.equals("mg") && grams < 1.0) continue;
+                if (grams <= 0 || grams > 500) continue;
+                if (best == null || grams > best) best = grams;
+            } catch (NumberFormatException ignored) {}
         }
         if (best != null) return best;
 
@@ -434,11 +443,21 @@ public class UnitParser implements EnricherStep {
     }
 
     private Integer parseUnitCount(RawProduct raw) {
-        // Attribute: tablettide-arv
+        // Attribute: tablettide-arv or any taxonomy that implies count of units
         if (raw.getDynamic_attrs() != null) {
+            // Known key
             List<String> cnt = raw.getDynamic_attrs().get("attr_pa_tablettide-arv");
             if (cnt != null && !cnt.isEmpty()) {
                 try { int v = Integer.parseInt(cnt.get(0)); if (v > 0 && v <= 5000) return v; } catch (Exception ignored) {}
+            }
+            // Broad scan of other possible keys
+            for (Map.Entry<String, List<String>> e : raw.getDynamic_attrs().entrySet()) {
+                String k = e.getKey() != null ? e.getKey().toLowerCase() : "";
+                if (!(k.contains("tablett") || k.contains("tabs") || k.contains("tab") || k.contains("kaps") || k.contains("caps"))) continue;
+                List<String> vals = e.getValue();
+                if (vals == null || vals.isEmpty()) continue;
+                String first = vals.get(0);
+                try { int v = Integer.parseInt(first); if (v > 0 && v <= 5000) return v; } catch (Exception ignored) {}
             }
         }
         // Pattern from title/text like "60 caps", "120 tablets"

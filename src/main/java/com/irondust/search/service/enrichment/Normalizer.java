@@ -115,12 +115,27 @@ public class Normalizer implements EnricherStep {
         boolean hasGramsInText = GRAMS_PATTERN.matcher(text).find();
 
         boolean categorySuggestsPowder = false;
+        boolean categorySuggestsCapsules = false;
         if (raw.getCategories_names() != null) {
             for (String c : raw.getCategories_names()) {
                 String cl = c.toLowerCase();
                 if (cl.contains("kreatiin") || cl.contains("monohüdraat") || cl.contains("monohudraat")
                     || cl.contains("üksikud aminohapped") || cl.contains("uksikud aminohapped")) {
                     categorySuggestsPowder = true;
+                    break;
+                }
+                if (cl.contains("omega") || cl.contains("oomega") || cl.contains("vitamin") || cl.contains("vitamiin")
+                    || cl.contains("mineral") || cl.contains("rasvhape") || cl.contains("rasvhapped")) {
+                    categorySuggestsCapsules = true;
+                }
+            }
+        }
+        // Slug-based fallback as some stores rely more on slugs than names
+        if (!categorySuggestsCapsules && raw.getCategories_slugs() != null) {
+            for (String s : raw.getCategories_slugs()) {
+                String sl = s.toLowerCase();
+                if (sl.contains("omega") || sl.contains("oomega") || sl.contains("vitamin") || sl.contains("vitamiin")) {
+                    categorySuggestsCapsules = true;
                     break;
                 }
             }
@@ -147,8 +162,14 @@ public class Normalizer implements EnricherStep {
         if (powderEvidence && !capsEvidence) {
             return "powder";
         }
+        // Category fallback: supplements like omega-3 / vitamins are most commonly capsules/softgels
+        if (categorySuggestsCapsules && !powderEvidence) {
+            return mentionsTabs ? "tabs" : "capsules";
+        }
         // Final fallback: substring checks without word-boundary sensitivity
-        if (text.contains("softgel") || text.contains("softgels") || text.contains("caps") || text.contains("kaps")) {
+        if (text.contains("softgel") || text.contains("softgels") || text.contains("caps") || text.contains("kaps")
+            || text.contains("oomega") || text.contains("omega 3") || text.contains("omega-3") || text.contains("omega")
+            || text.contains("fish oil") || text.contains("kalaõli") || text.contains("kalaoli")) {
             return "capsules";
         }
         if (text.contains("tablet") || text.contains("tabs") || text.contains("tabletid")) {
