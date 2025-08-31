@@ -12,6 +12,11 @@ public class AppProperties {
     private int ingestParallelism;
     private int meiliConcurrentUpdates;
     private int uploadChunkSize;
+    /**
+     * Directory where full-ingest reports are saved as timestamped JSON files.
+     * Defaults to "tmp/ingest-history" when not set.
+     */
+    private String ingestHistoryDir;
 
     public String getAdminKey() {
         return adminKey;
@@ -67,6 +72,14 @@ public class AppProperties {
 
     public void setUploadChunkSize(int uploadChunkSize) {
         this.uploadChunkSize = uploadChunkSize;
+    }
+
+    public String getIngestHistoryDir() {
+        return ingestHistoryDir;
+    }
+
+    public void setIngestHistoryDir(String ingestHistoryDir) {
+        this.ingestHistoryDir = ingestHistoryDir;
     }
 }
 

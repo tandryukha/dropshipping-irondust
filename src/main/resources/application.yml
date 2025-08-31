@@ -9,6 +9,7 @@ app:
   ingestParallelism: 30
   meiliConcurrentUpdates: 25
   uploadChunkSize: 10000
+  ingestHistoryDir: ${INGEST_HISTORY_DIR:tmp/ingest-history}
 
 meili:
   host: ${MEILI_HOST:http://127.0.0.1:7700}

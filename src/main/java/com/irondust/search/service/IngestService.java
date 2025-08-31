@@ -101,7 +101,8 @@ public class IngestService {
                             .thenMany(Flux.fromIterable(chunk(allDocs, chunkSize)))
                             .flatMap(meiliService::addOrReplaceDocuments, meiliConcurrency)
                             .then(meiliService.pruneDocumentsNotIn(keepIds))
-                            .then(Mono.fromSupplier(() -> buildReport(allDocs.size(), reports)));
+                            .then(Mono.fromSupplier(() -> buildReport(allDocs.size(), reports)))
+                            .flatMap(report -> persistFullIngestReport(report).thenReturn(report));
                 });
     }
 
@@ -465,6 +466,35 @@ public class IngestService {
         report.setWarnings_total(warningsTotal);
         report.setConflicts_total(conflictsTotal);
         return report;
+    }
+
+    /**
+     * Persist a JSON snapshot of the final full-ingest report for historical auditing.
+     * Files are written to app.ingestHistoryDir (default: tmp/ingest-history) using
+     * a timestamped filename like ingest_YYYYMMDD_HHmmss.json.
+     */
+    private Mono<Void> persistFullIngestReport(IngestDtos.IngestReport report) {
+        return Mono.fromRunnable(() -> {
+            try {
+                String dir = appProperties.getIngestHistoryDir();
+                if (dir == null || dir.isBlank()) {
+                    dir = "tmp/ingest-history";
+                }
+                java.nio.file.Path historyDir = java.nio.file.Paths.get(dir);
+                java.nio.file.Files.createDirectories(historyDir);
+
+                java.time.ZonedDateTime now = java.time.ZonedDateTime.now();
+                String ts = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssXXX"));
+                String fileName = "ingest_" + ts.replace(":", "-") + ".json";
+                java.nio.file.Path out = historyDir.resolve(fileName);
+
+                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                om.writerWithDefaultPrettyPrinter().writeValue(out.toFile(), report);
+                log.info("Saved full-ingest report to {}", out.toAbsolutePath());
+            } catch (Exception e) {
+                log.warn("Failed to persist full-ingest report: {}", e.toString());
+            }
+        }).subscribeOn(Schedulers.boundedElastic()).then();
     }
 }
 

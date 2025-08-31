@@ -7,6 +7,12 @@ Base URL: http://localhost:4000
 - POST /ingest/full — Ingest all products
 - POST /ingest/products — Ingest specific products by ID
 
+### Ingest history
+
+- On successful completion of a full ingest, the API writes a JSON snapshot of the final report to disk for auditing.
+- Location: configurable via `app.ingestHistoryDir` (default: `tmp/ingest-history`).
+- Filename format: `ingest_YYYYMMDD_HHmmss±HH:MM.json` (colons replaced by hyphens for filesystem safety).
+
 ### Cache management headers
 
 - `x-clear-ai-cache: true` — Clears AI enrichment cache on disk (`tmp/ai-enrichment-cache.json`)
