@@ -54,8 +54,14 @@ function renderCardHTML(item){
   const pps = typeof item?.price_per_serving === 'number' ? ` • ${symbol}${item.price_per_serving.toFixed(2).replace('.', ',')}/serv` : '';
   const p100 = (!isCount && typeof item?.price_per_100g === 'number') ? ` • ${symbol}${item.price_per_100g.toFixed(2).replace('.', ',')}/100g` : '';
   const metrics = pps || p100 ? `<div class="sub">${pps ? pps.slice(3) : ''}${pps && p100 ? ' • ' : ''}${p100 ? p100.slice(3) : ''}</div>` : '';
-  const hasVariants = (Array.isArray(item?.dynamic_attrs?.flavors) && item.dynamic_attrs.flavors.length) || (typeof item?.flavor === 'string' && item.flavor.trim());
-  const btnLabel = hasVariants ? 'Choose flavor' : 'Add';
+  // Compute flavors list and show chooser only when there are multiple options
+  const flavorsList = (()=>{
+    if (Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors;
+    const list = [];
+    if (typeof item?.flavor === 'string' && item.flavor.trim()) list.push(item.flavor.trim());
+    return list;
+  })();
+  const btnLabel = (Array.isArray(flavorsList) && flavorsList.length > 1) ? 'Choose flavor' : 'Add';
   const sale = item?.is_on_sale === true && typeof item?.discount_pct === 'number' ? `<span class="badge-sale">-${Math.round(item.discount_pct)}%</span>` : '';
   return `
     <div class="home-card" data-id="${id}" role="listitem">
@@ -66,7 +72,7 @@ function renderCardHTML(item){
         ${metrics}
         <div class="price-add">
           <div style="font-weight:800">${symbol}${price}</div>
-          <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>${btnLabel}</button>
+          <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify(flavorsList)}'>${btnLabel}</button>
         </div>
       </div>
     </div>`;
@@ -76,7 +82,15 @@ function bindHandlers(container){
   // Add-to-cart popover
   container.querySelectorAll('.js-add').forEach(btn=>{
     if (btn.__addBound) return; btn.__addBound = true;
-    btn.addEventListener('click', (e)=>{ e.stopPropagation(); openFor(btn); });
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const list = JSON.parse(btn.dataset.flavors || '[]');
+      if (Array.isArray(list) && list.length === 1) {
+        openFor(btn, { initialFlavor: list[0] });
+      } else {
+        openFor(btn);
+      }
+    });
   });
   // Navigate to PDP on card click
   container.querySelectorAll('.home-card').forEach(card=>{
