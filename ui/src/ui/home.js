@@ -64,10 +64,10 @@ function renderCardHTML(item){
         <div class="title" style="font-weight:700">${name} ${sale}</div>
         <div class="sub">${sub.join(' • ')}</div>
         ${metrics}
-      </div>
-      <div class="cta">
-        <div style="font-weight:800">${symbol}${price}</div>
-        <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>${btnLabel}</button>
+        <div class="price-add">
+          <div style="font-weight:800">${symbol}${price}</div>
+          <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>${btnLabel}</button>
+        </div>
       </div>
     </div>`;
 }
