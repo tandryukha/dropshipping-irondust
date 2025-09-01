@@ -272,10 +272,23 @@
 
     /* Mobile: search sheet fullscreen */
     @media (max-width:900px){
-      .panel-inner{left:0;right:0;top:0;transform:none;opacity:1;position:absolute;width:100vw;height:100dvh;border-radius:0;grid-template-columns:1fr;padding:12px}
-      .panel.visible .panel-inner{transform:none}
+      .panel-inner{
+        left:0!important;right:0!important;top:0!important;transform:none!important;opacity:1;position:absolute;width:100%!important;max-width:none!important;
+        height:100vh; /* fallback */
+        height:100dvh; /* modern dynamic viewport */
+        height:100svh; /* iOS Safari dynamic viewport */
+        max-height:none!important;border-radius:0!important;border:0!important;box-shadow:none!important;
+        grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;
+        padding:12px; padding-bottom:calc(12px + env(safe-area-inset-bottom));
+        overflow:hidden
+      }
+      .panel.visible .panel-inner{transform:none;height:100svh!important;max-height:none!important}
       .panel-footer{position:sticky;bottom:0}
       .sticky-col{position:static}
+      /* Ensure products column has scrollable height on mobile (account for header and footer) */
+      #productsCol{max-height:none!important;min-height:0;overflow:auto}
+      /* Hide side sections to prioritize results on mobile */
+      #goalsCol,#contentCol{display:none}
     }
 
     /* Flavor picker popover (appears when clicking Add) */
