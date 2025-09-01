@@ -106,7 +106,6 @@ function renderProductHTML(item, query){
   }
   if (typeof item?.rating === 'number' && typeof item?.review_count === 'number') {
     if (item.review_count >= 3) subtitleBits.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
-    else subtitleBits.push('New');
   }
   const hasVariants = (Array.isArray(item?.dynamic_attrs?.flavors) && item.dynamic_attrs.flavors.length) || (typeof item?.flavor === 'string' && item.flavor.trim());
   const btnLabel = hasVariants ? 'Choose flavor' : 'Add';
@@ -115,9 +114,8 @@ function renderProductHTML(item, query){
   const sale = (typeof salePct === 'number' && salePct > 0) ? `<span class="badge" style="background:#fff3f3;border-color:#ffc9c9;color:#b91c1c">-${salePct}%</span>` : '';
   const vegan = Array.isArray(item?.diet_tags) && item.diet_tags.includes('vegan');
   const sugarFree = Array.isArray(item?.diet_tags) && item.diet_tags.includes('sugar_free');
-  const bestseller = item?.bestseller === true || (typeof item?.review_count === 'number' && item.review_count > 200);
   const snippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
-  const snippetLine = snippet ? `<div class="muted" style="font-size:12px;line-height:1.5;margin-top:4px">${highlight(snippet.length > 160 ? (snippet.slice(0, 157).trim()+"…") : snippet)}</div>` : '';
+  const snippetLine = snippet ? `<div class="muted benefit-snippet" style="font-size:12px;line-height:1.5;margin-top:4px">${highlight(snippet.length > 160 ? (snippet.slice(0, 157).trim()+"…") : snippet)}</div>` : '';
   return `
     <div class="product" role="listitem" data-id="${item?.id||''}">
       <div class="media">
@@ -126,7 +124,6 @@ function renderProductHTML(item, query){
           ${vegan?'<span class="pill-badge vegan">Vegan</span>':''}
           ${sugarFree?'<span class="pill-badge sugar">Sugar-free</span>':''}
           ${typeof salePct==='number' && salePct>0?'<span class="pill-badge sale">-'+salePct+'%</span>':''}
-          ${bestseller?'<span class="pill-badge best">Bestseller</span>':''}
         </div>
       </div>
       <div>
@@ -136,7 +133,9 @@ function renderProductHTML(item, query){
       </div>
       <div style="display:grid;gap:10px;justify-items:end">
         <div class="price">${symbol}${price}</div>
-        <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>${btnLabel}</button>
+        <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+        </button>
       </div>
     </div>`;
 }

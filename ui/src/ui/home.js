@@ -79,7 +79,6 @@ function renderCardHTML(item){
   if (typeof item?.form === 'string' && item.form) sub.push(item.form);
   if (typeof item?.rating === 'number' && typeof item?.review_count === 'number') {
     if (item.review_count >= 3) sub.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
-    else sub.push('New');
   }
   // price metrics
   const isCount = isCountBasedForm(item?.form);
@@ -104,7 +103,9 @@ function renderCardHTML(item){
         ${metrics}
         <div class="price-add">
           <div style="font-weight:800">${symbol}${price}</div>
-          <button class="add js-add" data-name="${name}" data-flavors='${JSON.stringify(flavorsList)}'>${btnLabel}</button>
+          <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="${name}" data-flavors='${JSON.stringify(flavorsList)}'>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+          </button>
         </div>
       </div>
     </div>`;

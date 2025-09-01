@@ -71,9 +71,10 @@
     .product:hover{box-shadow:0 8px 16px rgba(0,0,0,.06)}
     .badge{font-size:11px;padding:2px 6px;border-radius:999px;background:#ecfeff;color:#036972;border:1px solid #bbeef5}
     .price{font-weight:800}
-    /* Unified, slightly smaller add buttons */
-    .add{border:0;border-radius:999px;padding:8px 10px;background:linear-gradient(180deg,#1cb6d9,#1099b8);color:#fff;font-weight:800;cursor:pointer;min-width:66px;box-shadow:0 8px 16px rgba(16,153,184,.25)}
+    /* Icon-only Add buttons for search/home */
+    .add{border:0;border-radius:999px;width:36px;height:36px;padding:0;display:grid;place-items:center;background:linear-gradient(180deg,#1cb6d9,#1099b8);color:#fff;cursor:pointer;min-width:36px;box-shadow:0 8px 16px rgba(16,153,184,.25)}
     .add:hover{filter:brightness(1.02)}
+    .add svg{width:18px;height:18px;fill:#fff}
     /* Clamp product titles to avoid jiggle */
     .product .title{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.28;min-height:2.56em}
     .hl{background:#fff4cc;border-radius:4px;padding:0 1px}
@@ -88,6 +89,8 @@
     .product .pill-badge.sugar{background:#ecfeff;border-color:#bbeef5;color:#036972}
     .product .pill-badge.sale{background:#fff5f5;border-color:#fecaca;color:#9b1c1c}
     .product .pill-badge.best{background:#fff7e6;border-color:#fde68a;color:#7c4a00}
+    /* Clamp benefit snippet in search results to avoid tall cards */
+    .product .benefit-snippet{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
     /* Improve vertical rhythm for product subtitle */
     .product .muted{line-height:1.6}
     /* Compact chips */
@@ -235,7 +238,7 @@
     .home-card .sub{font-size:12px;color:#6b7280;line-height:1.5}
     .home-card .price-add{display:flex;align-items:center;justify-content:space-between;gap:8px}
     /* Normalize Add button size in home grid to match search list */
-    .home-card .add{height:36px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;min-width:66px}
+    .home-card .add{width:36px;height:36px;padding:0;display:grid;place-items:center;min-width:36px}
     .badge-sale{display:inline-block;background:#fff3f3;border:1px solid #ffc9c9;color:#b91c1c;border-radius:999px;padding:2px 6px;font-size:11px;font-weight:800}
     .home-load{display:grid;place-items:center;margin:14px 0}
     @media (max-width:900px){ .home-grid{grid-template-columns:repeat(2,1fr)} .home-card .cta .add{width:100%} }
@@ -333,7 +336,9 @@
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
                   <div class="price">€42.90</div>
-                  <button class="add js-add" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>Choose flavor</button>
+                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+                  </button>
                 </div>
               </div>
 
@@ -345,7 +350,9 @@
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
                   <div class="price">€19.50</div>
-                  <button class="add js-add" data-name="Creatine Monohydrate" data-flavors='[]'>Add</button>
+                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Creatine Monohydrate" data-flavors='[]'>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+                  </button>
                 </div>
               </div>
 
@@ -357,7 +364,9 @@
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
                   <div class="price">€15.90</div>
-                  <button class="add js-add" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>Choose flavor</button>
+                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+                  </button>
                 </div>
               </div>
 
@@ -369,7 +378,9 @@
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
                   <div class="price">€12.40</div>
-                  <button class="add js-add" data-name="Omega-3 Softgels" data-flavors='[]'>Add</button>
+                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Omega-3 Softgels" data-flavors='[]'>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/></svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -478,7 +489,6 @@
       <div class="card">
         <img id="pdpImage" src="https://picsum.photos/seed/hero/720/360" alt="Product image" style="max-width:100%;max-height:260px;width:auto;height:auto;object-fit:contain;border-radius:12px;display:block;margin:0 auto 8px;background:#fff">
         <div class="title">
-          <span class="badge" style="background:#fff3d4;border-color:#ffe099;color:#6f4e00">Bestseller</span>
           <h2 style="margin:0;font-size:20px"><span id="pdpProductName">Ultra Whey Protein 2kg</span> — <span id="pdpFlavorLabel"></span></h2>
         </div>
         <div id="pdpBenefitSnippet" class="muted" style="font-size:14px;line-height:1.5;margin:6px 0 4px"></div>
