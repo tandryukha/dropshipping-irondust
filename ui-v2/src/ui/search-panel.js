@@ -647,23 +647,13 @@ export function mountSearchPanel() {
     // Update URL
     navigate('/search');
   });
-  // Hotkeys: '/' to focus, Cmd/Ctrl+K toggles, Esc closes
+  // Hotkeys: '/' to focus, Esc closes
   document.addEventListener('keydown', (e)=>{
     const key = e.key;
     if (key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault();
       openOverlay();
       (overlayInput||headerInput)?.focus();
-    }
-    if ((e.metaKey||e.ctrlKey) && key.toLowerCase()==='k') {
-      e.preventDefault();
-      if (searchPanel?.classList.contains('visible')) closeOverlay(); else openOverlay();
-    }
-    // F opens Filters sheet
-    if (!e.metaKey && !e.ctrlKey && !e.altKey && (key === 'f' || key === 'F')) {
-      if (!searchPanel?.classList.contains('visible')) openOverlay();
-      const allFiltersBtn = $('#allFiltersBtn');
-      if (allFiltersBtn) { e.preventDefault(); allFiltersBtn.click(); }
     }
     if (key === 'Escape' && searchPanel?.classList.contains('visible')) {
       e.preventDefault();

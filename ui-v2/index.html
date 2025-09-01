@@ -326,16 +326,14 @@
         </div>
       </div>
 
-      <!-- Search with bolt -->
+      <!-- Search -->
       <div class="search-wrap" aria-label="Global search">
         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M21 21l-4.3-4.3m1.8-5.1a7 7 0 11-14 0 7 7 0 0114 0z" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
         </svg>
         <label for="search" class="visually-hidden">Search</label>
         <input id="search" class="search-input" placeholder="Search whey, creatine, goals…" autocomplete="off" />
-        <button class="bolt" id="boltBtn" aria-label="Open command palette"><span>⚡</span></button>
         <span class="kbd" aria-hidden="true">/</span>
-        <span class="kbd" aria-hidden="true">⌘K</span>
       </div>
 
       <!-- Global sort removed by request (available in Popular section) -->
@@ -655,21 +653,7 @@
     </section>
   </div>
 
-  <!-- Command palette -->
-  <div aria-live="polite" aria-atomic="true" id="liveRegion" class="visually-hidden"></div>
-  <div class="overlay" id="overlay" aria-hidden="true"></div>
-  <section class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Command palette">
-    <div class="pal-head">
-      <input class="pal-input" id="palInput" placeholder="Find products, goals, content, actions…" aria-label="Command palette search">
-      <span class="kbd" aria-hidden="true">Esc</span>
-    </div>
-    <div class="pal-body" role="listbox" aria-label="Palette results">
-      <div class="row"><div class="key">KB</div><div><div style="font-weight:800">Adjustable Kettlebell</div><div style="font-size:12px;color:var(--fp-muted)">From €99 • Strength</div></div><button class="btn-ghost">Select</button></div>
-      <div class="row"><div class="key">PR</div><div><div style="font-weight:800">Whey Protein Isolate</div><div style="font-size:12px;color:var(--fp-muted)">1kg • Vanilla</div></div><button class="btn-ghost">Select</button></div>
-      <div class="row"><div class="key">%</div><div><div style="font-weight:800">Apply discount code</div><div style="font-size:12px;color:var(--fp-muted)">Enter coupon at checkout</div></div><button class="btn-ghost">Run</button></div>
-      <div class="row"><div class="key">?</div><div><div style="font-weight:800">Contact support</div><div style="font-size:12px;color:var(--fp-muted)">Chat or email</div></div><button class="btn-ghost">Open</button></div>
-    </div>
-  </section>
+  <!-- Removed command palette UI -->
 
   <!-- Flavor picker popover -->
   <div class="pop" id="flavorPop" role="dialog" aria-modal="true" aria-labelledby="flavorTitle">

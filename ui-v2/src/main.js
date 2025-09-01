@@ -11,16 +11,7 @@ import './ui/translations.js'; // Auto-applies translations
 
 // Wire header bits that remain static
 function mountHeader() {
-  // Command palette (kept minimal)
-  const overlay = $('#overlay'), palette = $('#palette'), palInput = $('#palInput'), boltBtn = $('#boltBtn');
-  function openPal(){ overlay.classList.add('visible'); palette.classList.add('visible'); palInput.focus(); }
-  function closePal(){ overlay.classList.remove('visible'); palette.classList.remove('visible'); palInput.blur(); }
-  boltBtn?.addEventListener('click', openPal);
-  overlay?.addEventListener('click', closePal);
-  document.addEventListener('keydown',(e)=>{
-    if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); palette.classList.contains('visible')?closePal():openPal(); }
-    if(e.key==='Escape' && palette.classList.contains('visible')) closePal();
-  });
+  // No command palette; only '/' shortcut handled in search-panel
 
   // Reference overlay
   const refBtn = $('#refBtn'), refImage = $('#refImage');
