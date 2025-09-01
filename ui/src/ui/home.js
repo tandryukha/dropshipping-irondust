@@ -139,6 +139,8 @@ async function fetchPage({ append=false }={}){
   if (state.loading || state.reachedEnd) return;
   state.loading = true;
   const grid = $('#homeGrid');
+  // Hide suggestions when fetching a fresh dataset
+  if (!append) { const sugWrap = $('#homeSuggestions'); const sugGrid = $('#homeSugGrid'); if (sugWrap) sugWrap.style.display = 'none'; if (sugGrid) sugGrid.innerHTML = ''; }
   if (!append) grid.innerHTML = '';
   const loader = document.createElement('div');
   loader.className = 'muted';
