@@ -303,13 +303,7 @@
         </div>
       </div>
 
-      <!-- Shop by goal chips under search -->
-      <div id="goalChips" style="grid-column:1 / -1; display:flex; gap:6px; align-items:center; margin-top:2px">
-        <button class="chip" data-preset="strength"><span>💪</span> Strength</button>
-        <button class="chip" data-preset="preworkout"><span>⚡</span> Pre-workout</button>
-        <button class="chip" data-preset="wellness"><span>🛡️</span> Wellness</button>
-        <button class="chip" data-preset="endurance"><span>🏃</span> Endurance</button>
-      </div>
+      
 
       <!-- Enhanced Search Panel -->
       <div id="searchPanel" class="panel" role="dialog" aria-label="Enhanced search panel" aria-modal="false">
@@ -448,26 +442,26 @@
     <!-- Home (grid-first) -->
     <section id="home" class="home" aria-label="Home product grid">
       <div class="home-hero">
-        <div style="font-weight:800;font-size:18px">Popular right now</div>
+        <div style="font-weight:800;font-size:18px">Browse products</div>
         <div class="trust">
-          <span>GMP-certified</span>
-          <span>30-day returns</span>
-          <span>Ships fast</span>
+          <span>Secure checkout</span>
+          <span>Transparent pricing</span>
+          <span>Human support</span>
         </div>
       </div>
       <div class="home-controls">
         <div style="display:flex;gap:8px;align-items:center">
-          <span class="chip" data-home-preset="bestsellers">Bestsellers</span>
-          <span class="chip" data-home-preset="trending">Trending</span>
-          <span class="chip" data-home-preset="new">New</span>
-          <span class="chip" data-home-preset="wellness">Wellness</span>
+          <span class="chip" data-home-preset="all">✨ All</span>
+          <span class="chip" data-home-preset="strength">💪 Strength</span>
+          <span class="chip" data-home-preset="endurance">🏃 Endurance</span>
+          <span class="chip" data-home-preset="wellness">🛡️ Wellness</span>
+          <span class="chip" data-home-preset="sale">🏷️ On sale</span>
         </div>
         <select id="homeSort" class="sort-select">
           <option value="rank">Featured</option>
           <option value="popular">Top Rated</option>
           <option value="price_asc">Price ↑</option>
           <option value="price_desc">Price ↓</option>
-          <option value="new">New</option>
         </select>
       </div>
       <div id="homeGrid" class="home-grid" role="list"></div>

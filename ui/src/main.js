@@ -44,7 +44,8 @@ route('/', ()=>{
   const headerSort = document.querySelector('.header-sort');
   const goalChips = document.querySelector('#goalChips');
   if (headerSort) headerSort.style.display = '';
-  if (goalChips) goalChips.style.display = '';
+  // Hide goal chips on home to avoid duplication with Featured chips
+  if (goalChips) goalChips.style.display = 'none';
 });
 route('/p/:id', (id)=>{ 
   // Ensure search panel is hidden when opening PDP via routing

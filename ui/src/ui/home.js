@@ -9,7 +9,7 @@ const state = {
   page: 1,
   size: 12,
   sort: 'rank',
-  preset: 'bestsellers',
+  preset: 'all',
   loading: false,
   reachedEnd: false
 };
@@ -19,7 +19,6 @@ function sortToBackend(sortKey){
     case 'price_asc': return ['price_cents:asc'];
     case 'price_desc': return ['price_cents:desc'];
     case 'popular': return ['rating:desc', 'review_count:desc'];
-    case 'new': return undefined; // let backend decide (fallback)
     case 'rank':
     default: return undefined; // backend default / merchandising
   }
@@ -27,11 +26,12 @@ function sortToBackend(sortKey){
 
 function presetToFilters(key){
   switch (key) {
-    case 'wellness': return { in_stock: true, goal_tags: ['wellness'] };
-    case 'trending': return { in_stock: true };
-    case 'new': return { in_stock: true };
-    case 'bestsellers':
-    default: return { in_stock: true };
+    case 'strength':   return { in_stock: true, goal_tags: ['strength'] };
+    case 'endurance':  return { in_stock: true, goal_tags: ['endurance'] };
+    case 'wellness':   return { in_stock: true, goal_tags: ['wellness'] };
+    case 'sale':       return { in_stock: true, is_on_sale: true };
+    case 'all':
+    default:           return { in_stock: true };
   }
 }
 
@@ -157,7 +157,7 @@ export function mountHome(){
   });
 
   // Default active preset
-  const def = $('#home .chip[data-home-preset="bestsellers"]');
+  const def = $('#home .chip[data-home-preset="all"]');
   if (def) def.setAttribute('aria-pressed','true');
 
   // Sort
