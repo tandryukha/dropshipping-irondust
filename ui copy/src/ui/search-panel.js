@@ -402,17 +402,28 @@ function setOverlayAria(open){
 function serializeFilters(obj){
   try{
     const parts = [];
-    Object.entries(obj||{}).forEach(([k,v])=>{
+    const keys = Object.keys(obj||{}).sort();
+    keys.forEach((k)=>{
+      const v = obj[k];
       if (Array.isArray(v)) {
-        parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v.join(','))}`);
+        const arr = v.slice().map(x=>String(x)).sort();
+        parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(arr.join(','))}`);
       } else if (v && typeof v === 'object' && 'op' in v && 'value' in v) {
-        parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v.op+':'+v.value)}`);
+        parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v.op)+':'+String(v.value))}`);
       } else if (typeof v !== 'undefined' && v !== null) {
         parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
       }
     });
     return parts.join('&');
   }catch(_e){ return ''; }
+}
+
+function buildSearchPath(query, filters){
+  const qsParts = [];
+  if (query) qsParts.push('q='+encodeURIComponent(query));
+  const fqs = serializeFilters(filters||{});
+  if (fqs) qsParts.push(fqs);
+  return '/search' + (qsParts.length? ('?'+qsParts.join('&')):'');
 }
 
 function parseHashQuery(){
@@ -504,6 +515,45 @@ export function mountSearchPanel() {
   const overlayFiltersBtn = $('#overlayFiltersBtn');
   const overlayClearBtn = $('#overlayClearBtn');
   const closeOverlayBtn = $('#closeOverlayBtn');
+  const applyFooterBtn = $('#applyFooterBtn');
+  const panelInner = document.querySelector('.panel-inner');
+
+  // Overlay paging state for infinite scroll
+  const oState = {
+    page: 1,
+    size: 10,
+    loading: false,
+    reachedEnd: false,
+    observer: null
+  };
+
+  function filtersSignature(obj){
+    try{ return JSON.stringify(canonicalize(obj||{})); }catch(_e){ return ''; }
+  }
+
+  function ensureSentinel(){
+    let sentinel = document.getElementById('overlayMoreSentinel');
+    if (!sentinel){
+      sentinel = document.createElement('div');
+      sentinel.id = 'overlayMoreSentinel';
+      sentinel.style.minHeight = '1px';
+      productsList?.parentElement?.appendChild(sentinel);
+    }
+    return sentinel;
+  }
+
+  function setupOverlayInfinite(){
+    const sentinel = ensureSentinel();
+    if (!panelInner || !sentinel) return;
+    if (oState.observer) { try { oState.observer.disconnect(); } catch(_e){} }
+    oState.observer = new IntersectionObserver((entries)=>{
+      const seen = entries.some(e=>e.isIntersecting);
+      if (!seen || oState.loading || oState.reachedEnd) return;
+      oState.page += 1;
+      performSearch({ append:true });
+    }, { root: panelInner, rootMargin: '800px 0px', threshold: 0 });
+    oState.observer.observe(sentinel);
+  }
   
   // Detect if current route is PDP
   function isOnPdp(){
@@ -534,6 +584,15 @@ export function mountSearchPanel() {
     searchPanel.classList.add('visible');
     setOverlayAria(true);
     lastOpenedAt = Date.now();
+    try{ document.body.classList.add('no-scroll'); }catch(_e){}
+    // Compute sticky offset for side columns based on header height
+    try{
+      const top = document.getElementById('panelTop');
+      if (top) {
+        const h = top.getBoundingClientRect().height;
+        document.documentElement.style.setProperty('--panel-top-offset', Math.ceil(h) + 'px');
+      }
+    }catch(_e){}
     setTimeout(() => {
       const checkOverflow = window.checkChipOverflow;
       if (checkOverflow) checkOverflow();
@@ -544,6 +603,7 @@ export function mountSearchPanel() {
     if (!searchPanel) return;
     searchPanel.classList.remove('visible');
     setOverlayAria(false);
+    try{ document.body.classList.remove('no-scroll'); }catch(_e){}
   }
   // expose for router
   window.__openSearchOverlay = openOverlay;
@@ -598,6 +658,12 @@ export function mountSearchPanel() {
     if ((e.metaKey||e.ctrlKey) && key.toLowerCase()==='k') {
       e.preventDefault();
       if (searchPanel?.classList.contains('visible')) closeOverlay(); else openOverlay();
+    }
+    // F opens Filters sheet
+    if (!e.metaKey && !e.ctrlKey && !e.altKey && (key === 'f' || key === 'F')) {
+      if (!searchPanel?.classList.contains('visible')) openOverlay();
+      const allFiltersBtn = $('#allFiltersBtn');
+      if (allFiltersBtn) { e.preventDefault(); allFiltersBtn.click(); }
     }
     if (key === 'Escape' && searchPanel?.classList.contains('visible')) {
       e.preventDefault();
@@ -1000,12 +1066,15 @@ export function mountSearchPanel() {
     persistQuickFilters();
   }
 
-  async function runFilteredSearch(){
-    if(!productsList) return;
+  async function performSearch({ append=false }={}){
+    if(!productsList || oState.loading) return;
     const query = (overlayInput?.value||headerInput?.value||'').trim();
     const filters = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
-    productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
+    if (!append) {
+      oState.page = 1; oState.reachedEnd = false; productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
+    }
     try{
+      oState.loading = true;
       const sort = (() => {
         switch (searchState.sortOrder) {
           case 'price_asc': return ['price_cents:asc'];
@@ -1013,35 +1082,49 @@ export function mountSearchPanel() {
           case 'popular': return ['rating:desc', 'review_count:desc'];
           case 'relevance':
           case 'new':
-          default: return undefined; // let backend default (incl. goal-based) apply
+          default: return undefined;
         }
       })();
       const searchParams = { 
-        size: 6, 
+        page: oState.page,
+        size: oState.size, 
         filters,
         ...(sort ? { sort } : {})
       };
       const data = await searchProducts(query, searchParams);
-      let items = Array.isArray(data?.items) ? data.items : [];
-      
-      updateResultCount(items.length);
-      if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
-      productsList.innerHTML = items.map(it=>renderProductHTML(it, query)).join('');
+      const items = Array.isArray(data?.items) ? data.items : [];
+      updateResultCount((items||[]).length);
+      const html = items.length ? items.map(it=>renderProductHTML(it, query)).join('') : '<div class="muted" style="padding:8px">No results</div>';
+      if (append && items.length) productsList.insertAdjacentHTML('beforeend', html); else productsList.innerHTML = html;
       attachAddHandlers(productsList);
       attachOpenHandlers(productsList);
-      // Update URL
-      const qsParts = [];
-      if (query) qsParts.push('q='+encodeURIComponent(query));
-      const fqs = serializeFilters(filters);
-      if (fqs) qsParts.push(fqs);
-      navigate('/search' + (qsParts.length? ('?'+qsParts.join('&')):''));
-      // Persist recent
+      if (items.length < oState.size) oState.reachedEnd = true;
+      setupOverlayInfinite();
+      // Update footer CTA label
+      try{
+        const btn = document.getElementById('applyFooterBtn');
+        if (btn) {
+          const count = (items||[]).length;
+          btn.textContent = count > 0 ? `Show results (${count})` : 'Show results';
+          btn.disabled = count === 0 && !append;
+        }
+      }catch(_e){}
+      // URL update unless on PDP
+      if (!String(location.hash||'').startsWith('#/p/')){
+        const path = buildSearchPath(query, filters);
+        const current = location.hash.slice(1) || '';
+        if (current !== path) navigate(path);
+      }
       if (query) persistRecentQuery(query);
     }catch(e){
       console.error('Search error:', e);
-      productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
+      if (!append) productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
+    } finally {
+      oState.loading = false;
     }
   }
+  // Preserve compatibility
+  async function runFilteredSearch(){ return performSearch({ append:false }); }
   // Expose for components outside this closure (e.g., applied filters bar)
   window.__runFilteredSearch = runFilteredSearch;
 
@@ -1123,35 +1206,7 @@ export function mountSearchPanel() {
     // When filters are active, allow empty query
     const filtersActive = Object.keys(getActiveFilters()).length>0;
     if(query.length < 2 && !filtersActive) return;
-    productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
-    try{
-      const sort = (() => {
-        switch (searchState.sortOrder) {
-          case 'price_asc': return ['price_cents:asc'];
-          case 'price_desc': return ['price_cents:desc'];
-          case 'popular': return ['rating:desc', 'review_count:desc'];
-          case 'relevance':
-          case 'new':
-          default: return undefined;
-        }
-      })();
-      const searchParams = { 
-        size: 6, 
-        filters: { ...getActiveFilters(), ...(searchState.__presetFilters||{}) },
-        ...(sort ? { sort } : {})
-      };
-      
-      const data = await searchProducts(query, searchParams);
-      let items = Array.isArray(data?.items) ? data.items : [];
-      
-      if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
-      productsList.innerHTML = items.map(it=>renderProductHTML(it, query)).join('');
-      attachAddHandlers(productsList);
-      attachOpenHandlers(productsList);
-    }catch(e){
-      console.error('Search error:', e);
-      productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
-    }
+    return performSearch({ append:false });
   }
   const debounced = debounce(runSearch, 300);
   overlayInput?.addEventListener('input', (e)=>{
@@ -1159,7 +1214,11 @@ export function mountSearchPanel() {
     const query = val.trim();
     const presetActive = !!(searchState.__presetFilters && Object.keys(searchState.__presetFilters||{}).length>0);
     const filtersActive = Object.keys(getActiveFilters()).length>0 || presetActive;
-    if (query.length === 0 && !filtersActive) { renderPreInputSuggestions(); }
+    if (query.length === 0 && !filtersActive) {
+      // Clear seeded/static results when overlay opens with no state
+      if (productsList) productsList.innerHTML = '';
+      renderPreInputSuggestions();
+    }
     debounced(val);
   });
   overlayInput?.addEventListener('keydown', (e)=>{ 
@@ -1169,7 +1228,8 @@ export function mountSearchPanel() {
       const presetActive = !!(searchState.__presetFilters && Object.keys(searchState.__presetFilters||{}).length>0);
       const filtersActive = Object.keys(getActiveFilters()).length>0 || presetActive;
       if (query.length === 0 && !filtersActive) return;
-      runSearch(overlayInput.value); 
+      runSearch(overlayInput.value);
+      if (query) persistRecentQuery(query);
     } 
   });
 
@@ -1222,8 +1282,115 @@ export function mountSearchPanel() {
       openOverlay();
       const hqs = parseHashQuery();
       const q = hqs.get('q') || '';
-      if (overlayInput) { overlayInput.value = q; if (q) overlayInput.dispatchEvent(new Event('input')); }
+      if (overlayInput) { overlayInput.value = q; }
+      applyFiltersFromParams(hqs);
+      const hasFilters = Object.keys(getActiveFilters()).length>0 || (searchState.__presetFilters && Object.keys(searchState.__presetFilters).length>0);
+      if (q || hasFilters) window.__runFilteredSearch?.(); else renderPreInputSuggestions();
     }
+  }catch(_e){ /* ignore */ }
+
+  // Keep overlay in sync when /search hash changes
+  window.addEventListener('hashchange', ()=>{
+    const h = String(location.hash||'');
+    if (h.startsWith('#/search')){
+      if (!searchPanel?.classList.contains('visible')) openOverlay();
+      const hqs = parseHashQuery();
+      const q = hqs.get('q') || '';
+      if (overlayInput) overlayInput.value = q;
+      applyFiltersFromParams(hqs);
+      const hasFilters = Object.keys(getActiveFilters()).length>0 || (searchState.__presetFilters && Object.keys(searchState.__presetFilters).length>0);
+      if (q || hasFilters) window.__runFilteredSearch?.(); else renderPreInputSuggestions();
+    }
+  });
+
+  // Footer Apply: expand to full page (/search) and close overlay
+  applyFooterBtn?.addEventListener('click', ()=>{
+    const query = (overlayInput?.value||headerInput?.value||'').trim();
+    const filters = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
+    const path = buildSearchPath(query, filters);
+    const current = location.hash.slice(1) || '';
+    if (current !== path) navigate(path);
+    closeOverlay();
+  });
+}
+
+// Apply filters from URLSearchParams to chips/state
+function applyFiltersFromParams(params){
+  try{
+    const target = {};
+    params.forEach((val, key)=>{
+      if (!val) return;
+      switch (key) {
+        case 'in_stock':
+          target.in_stock = (val === '1' || val === 'true');
+          break;
+        case 'form':
+          target.form = val;
+          break;
+        case 'diet_tags': {
+          const arr = val.split(',').map(s=>s.trim()).filter(Boolean);
+          if (arr.length) target.diet_tags = arr;
+          break;
+        }
+        case 'price_cents': {
+          const m = decodeURIComponent(val).match(/^(<=|>=|<|>|=|eq|lte|gte):?(\d+)$/i);
+          if (m) target.price_cents = { op: m[1].toLowerCase().replace('eq','=').replace('lte','<=').replace('gte','>='), value: Number(m[2]) };
+          break;
+        }
+        case 'price_per_serving': {
+          const m = decodeURIComponent(val).match(/^(<=|>=|<|>|=|eq|lte|gte):?(\d+(?:\.\d+)?)$/i);
+          if (m) target.price_per_serving = { op: m[1].toLowerCase().replace('eq','=').replace('lte','<=').replace('gte','>='), value: Number(m[2]) };
+          break;
+        }
+        default:
+          target[key] = val;
+      }
+    });
+
+    // Reset
+    $$('.chip[role="switch"]').forEach(chip => chip.setAttribute('aria-pressed', 'false'));
+    searchState.activeFilters.clear();
+    searchState.__presetFilters = {};
+
+    const toggleByFilter = (obj)=>{
+      const labelCache = new Map();
+      $$('.chip[role="switch"]').forEach(chip=>{
+        const f = getChipFilterObject(chip);
+        if (areFiltersEqual(f, obj)){
+          chip.setAttribute('aria-pressed','true');
+          const label = chip.textContent.trim().replace(/\s+/g, ' ');
+          labelCache.set(chip, label);
+        }
+      });
+      labelCache.forEach((label, chip)=> searchState.activeFilters.set(chip, label));
+      return labelCache.size > 0;
+    };
+
+    if (typeof target.in_stock === 'boolean'){
+      if (!toggleByFilter({ in_stock: true })) searchState.__presetFilters.in_stock = target.in_stock;
+    }
+    if (typeof target.form === 'string' && target.form){
+      if (!toggleByFilter({ form: target.form })) searchState.__presetFilters.form = target.form;
+    }
+    if (Array.isArray(target.diet_tags)){
+      const remaining = new Set(target.diet_tags);
+      ['vegan','gluten_free','sugar_free','lactose_free'].forEach(tag=>{
+        if (remaining.has(tag)){
+          toggleByFilter({ diet_tags: [tag] });
+          remaining.delete(tag);
+        }
+      });
+      if (remaining.size > 0) searchState.__presetFilters.diet_tags = Array.from(remaining);
+    }
+    if (target.price_cents && typeof target.price_cents === 'object'){
+      if (!toggleByFilter({ price_cents: target.price_cents })) searchState.__presetFilters.price_cents = target.price_cents;
+    }
+    if (target.price_per_serving && typeof target.price_per_serving === 'object'){
+      if (!toggleByFilter({ price_per_serving: target.price_per_serving })) searchState.__presetFilters.price_per_serving = target.price_per_serving;
+    }
+
+    updateAppliedBar();
+    if (window.checkChipOverflow) window.checkChipOverflow();
   }catch(_e){ /* ignore */ }
 }
 

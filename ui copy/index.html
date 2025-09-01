@@ -22,6 +22,7 @@
       margin:0;background:var(--fp-bg);color:var(--fp-dark);
       font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
     }
+    body.no-scroll{overflow:hidden}
     img{display:block;max-width:100%}
     button,input,select{font-family:inherit}
     a{text-decoration:none;color:inherit}
@@ -67,7 +68,9 @@
     .panel.visible{display:block}
     .panel::before{content:"";position:absolute;inset:0;background:rgba(15,18,25,.35);backdrop-filter:saturate(120%) blur(8px);opacity:0;transition:opacity .18s ease}
     .panel.visible::before{opacity:1}
-    .panel-inner{position:absolute;left:50%;top:8%;transform:translateX(-50%) scale(.98);opacity:0;width:min(1100px,94vw);background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:0 30px 80px rgba(0,0,0,.25);display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px;transition:transform .18s ease,opacity .18s ease}
+    .panel-inner{position:absolute;left:50%;top:8%;transform:translateX(-50%) scale(.98);opacity:0;width:min(1100px,94vw);background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:0 30px 80px rgba(0,0,0,.25);display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px;transition:transform .18s ease,opacity .18s ease;max-height:80vh;overflow:auto}
+    .panel-top{position:sticky;top:0;background:#fff;z-index:2;padding-bottom:8px;border-bottom:1px solid #eef1f4}
+    .sticky-col{position:sticky;top:var(--panel-top-offset,110px);align-self:start}
     .panel.visible .panel-inner{transform:translateX(-50%) scale(1);opacity:1}
     .panel-head{display:flex;gap:10px;align-items:center;margin-bottom:8px}
     .panel-input{flex:1;border:1px solid #e7ebef;border-radius:12px;padding:10px 12px;font-size:14px}
@@ -266,9 +269,10 @@
 
     /* Mobile: search sheet fullscreen */
     @media (max-width:900px){
-      .panel-inner{left:0;right:0;top:0;transform:none;opacity:1;position:absolute;width:100vw;border-radius:0;grid-template-columns:1fr;padding:12px}
+      .panel-inner{left:0;right:0;top:0;transform:none;opacity:1;position:absolute;width:100vw;height:100dvh;border-radius:0;grid-template-columns:1fr;padding:12px}
       .panel.visible .panel-inner{transform:none}
       .panel-footer{position:sticky;bottom:0}
+      .sticky-col{position:static}
     }
 
     /* Flavor picker popover (appears when clicking Add) */
@@ -340,7 +344,7 @@
       <!-- Enhanced Search Panel (Overlay Sheet) -->
       <div id="searchPanel" class="panel" role="dialog" aria-label="Search" aria-modal="true" aria-hidden="true">
         <div class="panel-inner" role="document">
-          <div style="grid-column:1 / -1">
+          <div id="panelTop" class="panel-top" style="grid-column:1 / -1">
             <div class="panel-head">
               <input id="searchOverlayInput" class="panel-input" placeholder="Search whey, creatine, goals…" autocomplete="off" aria-label="Search" />
               <div class="panel-actions">
@@ -350,9 +354,9 @@
             </div>
             <div id="chipsDock" class="chip-tray" aria-label="Quick filters dock"></div>
             <div id="preInputSuggestions" class="content-card" style="display:none;margin-top:8px"></div>
+            <!-- Applied Filters Bar (sticky with header) -->
+            <div id="appliedBar" class="applied-bar"></div>
           </div>
-          <!-- Applied Filters Bar (inline below head on desktop) -->
-          <div id="appliedBar" class="applied-bar" style="grid-column:1 / -1"></div>
           <!-- Products column WITH Add -->
           <div class="col" id="productsCol">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -427,7 +431,7 @@
           </div>
 
           <!-- Goals / Filters -->
-          <div class="col" id="goalsCol">
+          <div class="col sticky-col" id="goalsCol">
             <h4>Goals</h4>
             <div class="preset-grid">
               <button class="preset-card" data-filters='{"goal_tags":["strength"]}' data-preset="strength">
@@ -466,7 +470,7 @@
           </div>
 
           <!-- Content -->
-          <div class="col">
+          <div class="col sticky-col" id="contentCol">
             <h4>Content</h4>
             <div class="content-card">
               <div style="font-weight:800">How to time creatine?</div>
