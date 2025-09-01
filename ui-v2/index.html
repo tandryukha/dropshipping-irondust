@@ -165,7 +165,7 @@
     .applied-more{color:#6b7280;font-weight:600}
     
     /* Sort dropdown */
-    .sort-select{background:#fff;border:1px solid #e0e6ef;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:500;color:#374151;cursor:pointer}
+    .sort-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M5 7l5 5 5-5" stroke="%236b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat right 8px center;border:1px solid #e0e6ef;border-radius:8px;padding:4px 28px 4px 8px;font-size:12px;font-weight:600;color:#374151;cursor:pointer;line-height:1.6}
 
     /* PDP layout */
     .pdp{display:grid;grid-template-columns:1.8fr 1.2fr;gap:16px;margin-top:28px}
@@ -255,7 +255,8 @@
     .home.visible{display:block}
     .home-hero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .home-hero .trust{display:flex;gap:10px;color:#6b7280;font-size:12px}
-    .home-controls{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+    .home-controls{display:flex;justify-content:flex-start;align-items:center;margin:8px 0;gap:8px;flex-wrap:wrap}
+    .home-controls .sort-select{order:-1}
     .home-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
     .home-card{background:#fff;border:1px solid #e9edf0;border-radius:16px;box-shadow:var(--shadow);padding:14px;display:grid;grid-template-columns:80px 1fr;gap:12px;cursor:pointer}
     .home-card:hover{box-shadow:0 10px 22px rgba(0,0,0,.08)}
@@ -359,7 +360,7 @@
             <!-- Applied Filters Bar (sticky with header) -->
             <div id="appliedBar" class="applied-bar"></div>
             <!-- Products header and Sort moved here to stay sticky -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <div style="display:flex;justify-content:flex-start;align-items:center;margin-top:8px;gap:8px">
               <h4 style="margin:0">Products</h4>
               <select id="sortDropdown" class="sort-select">
                 <option value="relevance">Best match</option>

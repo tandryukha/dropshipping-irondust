@@ -1093,7 +1093,8 @@ export function mountSearchPanel() {
       };
       const data = await searchProducts(query, searchParams);
       const items = Array.isArray(data?.items) ? data.items : [];
-      updateResultCount((items||[]).length);
+      const total = typeof data?.total === 'number' ? data.total : (items||[]).length;
+      updateResultCount(total);
       const html = items.length ? items.map(it=>renderProductHTML(it, query)).join('') : '<div class="muted" style="padding:8px">No results</div>';
       if (append && items.length) productsList.insertAdjacentHTML('beforeend', html); else productsList.innerHTML = html;
       attachAddHandlers(productsList);
@@ -1104,7 +1105,7 @@ export function mountSearchPanel() {
       try{
         const btn = document.getElementById('applyFooterBtn');
         if (btn) {
-          const count = (items||[]).length;
+          const count = total;
           btn.textContent = count > 0 ? `Show results (${count})` : 'Show results';
           btn.disabled = count === 0 && !append;
         }
@@ -1327,6 +1328,11 @@ function applyFiltersFromParams(params){
         case 'form':
           target.form = val;
           break;
+        case 'goal_tags': {
+          const arr = val.split(',').map(s=>s.trim()).filter(Boolean);
+          if (arr.length) target.goal_tags = arr;
+          break;
+        }
         case 'diet_tags': {
           const arr = val.split(',').map(s=>s.trim()).filter(Boolean);
           if (arr.length) target.diet_tags = arr;
@@ -1371,6 +1377,30 @@ function applyFiltersFromParams(params){
     }
     if (typeof target.form === 'string' && target.form){
       if (!toggleByFilter({ form: target.form })) searchState.__presetFilters.form = target.form;
+    }
+    if (Array.isArray(target.goal_tags)){
+      // No explicit chips exist for individual goal tags; store in preset filters
+      const uniq = Array.from(new Set(target.goal_tags));
+      searchState.__presetFilters.goal_tags = uniq;
+      // Try to reflect selection on top-level goal cards
+      $$('#searchPanel .preset-grid .preset-card').forEach(c => {
+        const f = JSON.parse(c.getAttribute('data-filters')||'{}');
+        const tags = Array.isArray(f.goal_tags) ? f.goal_tags : [];
+        const on = tags.some(t => uniq.includes(t));
+        c.classList.toggle('active', on);
+      });
+      // Update appliedGoals chip label (multi-select summary)
+      const labels = [];
+      $$('#searchPanel .preset-grid .preset-card').forEach(c => {
+        const f = JSON.parse(c.getAttribute('data-filters')||'{}');
+        const tags = Array.isArray(f.goal_tags) ? f.goal_tags : [];
+        if (tags.some(t => uniq.includes(t))) {
+          const lbl = c.querySelector('.preset-label')?.textContent?.trim();
+          if (lbl && !labels.includes(lbl)) labels.push(lbl);
+        }
+      });
+      searchState.activePreset = labels.length === 1 ? labels[0] : null;
+      searchState.activeGoals = labels.length > 1 ? labels : (labels.length === 1 ? [labels[0]] : []);
     }
     if (Array.isArray(target.diet_tags)){
       const remaining = new Set(target.diet_tags);
