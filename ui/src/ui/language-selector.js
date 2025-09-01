@@ -3,55 +3,70 @@ import { bus } from '../core/bus.js';
 import { language } from '../core/language.js';
 
 export function mountLanguageSelector() {
-  // Find the existing EN placeholder
-  const candidates = Array.from(document.querySelectorAll('.actions .kbd[aria-hidden="true"], .kbd[aria-hidden="true"]'));
-  const langPlaceholder = candidates.find(el => (el.textContent || '').trim().toUpperCase() === 'EN');
-  if (!langPlaceholder) return;
-  
-  // Replace with an interactive language selector
-  const selector = document.createElement('select');
-  selector.className = 'lang-select';
-  selector.setAttribute('aria-label', 'Language selector');
-  
-  // Add styles
-  selector.style.cssText = `
-    background: #fff;
-    border: 1px solid #e0e6ef;
-    border-radius: 8px;
-    padding: 4px 8px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #374151;
-    cursor: pointer;
-    min-width: 65px;
-  `;
-  
-  // Populate options
-  const languages = language.getLanguageNames();
-  const currentLang = language.getLanguage();
-  
-  Object.entries(languages).forEach(([code, name]) => {
-    const option = document.createElement('option');
-    option.value = code;
-    option.textContent = name;
-    if (code === currentLang) {
-      option.selected = true;
+  // If a flag button exists, wire it; else, replace the EN placeholder.
+  let flagBtn = $('#langFlag');
+  if (!flagBtn) {
+    const candidates = Array.from(document.querySelectorAll('.actions .kbd[aria-hidden="true"], .kbd[aria-hidden="true"]'));
+    const langPlaceholder = candidates.find(el => (el.textContent || '').trim().toUpperCase() === 'EN');
+    if (!langPlaceholder) return;
+    flagBtn = document.createElement('button');
+    flagBtn.id = 'langFlag';
+    flagBtn.className = 'lang-flag';
+    langPlaceholder.parentNode.replaceChild(flagBtn, langPlaceholder);
+  }
+
+  function flagFor(code){
+    switch(code){
+      case 'ru': return '🇷🇺';
+      case 'est': return '🇪🇪';
+      case 'en':
+      default: return '🇬🇧';
     }
-    selector.appendChild(option);
+  }
+
+  // Initialize
+  flagBtn.textContent = flagFor(language.getLanguage());
+  flagBtn.setAttribute('aria-label', 'Language');
+  const menu = $('#langMenu');
+  if (menu) {
+    menu.innerHTML = '';
+    ['en','ru','est'].forEach(code => {
+      const b = document.createElement('button');
+      b.className = 'lang-item';
+      b.type = 'button';
+      b.setAttribute('data-code', code);
+      b.textContent = flagFor(code);
+      if (code === language.getLanguage()) b.setAttribute('aria-pressed','true');
+      b.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        menu.classList.remove('visible');
+        language.setLanguage(code);
+      });
+      menu.appendChild(b);
+    });
+  }
+
+  // Cycle languages on click
+  flagBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if (menu) menu.classList.toggle('visible');
   });
-  
-  // Handle changes
-  selector.addEventListener('change', (e) => {
-    const newLang = e.target.value;
-    language.setLanguage(newLang);
-    // Dynamic UI updates are handled via language:changed bus event
+
+  // Close on outside click
+  document.addEventListener('click', (e)=>{
+    if (!menu) return;
+    if (e.target.closest('#langMenu') || e.target.closest('#langFlag')) return;
+    menu.classList.remove('visible');
   });
-  
-  // Replace the placeholder
-  langPlaceholder.parentNode.replaceChild(selector, langPlaceholder);
-  
-  // Listen for language changes from other sources
-  bus.addEventListener('language:changed', (lang) => {
-    selector.value = lang;
+
+  // Sync on external language changes
+  bus.addEventListener('language:changed', (e)=>{
+    const code = typeof e?.detail === 'string' ? e.detail : language.getLanguage();
+    flagBtn.textContent = flagFor(code);
+    if (menu) {
+      Array.from(menu.querySelectorAll('.lang-item')).forEach(el=>{
+        el.setAttribute('aria-pressed', String(el.getAttribute('data-code')===code));
+      });
+    }
   });
 }

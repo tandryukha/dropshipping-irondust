@@ -9,11 +9,14 @@ export function applyTranslations() {
     searchInput.placeholder = t('search.placeholder', 'Search whey, creatine, goals…');
   }
   
-  // Cart text
+  // Cart UI (support old pill and new icon styles)
   const cartPill = $('.cart-pill');
   if (cartPill) {
     const count = $('#cartCount')?.textContent || '0';
     cartPill.innerHTML = `${t('cart', 'Cart')} · <span id="cartCount">${count}</span>`;
+  } else {
+    const cartIcon = $('.cart-icon');
+    if (cartIcon) cartIcon.setAttribute('aria-label', t('cart', 'Cart'));
   }
   
   // Sort dropdown options
