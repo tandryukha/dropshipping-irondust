@@ -242,6 +242,17 @@ public class TranslationService {
         String sourceLanguageName = getLanguageName(sourceLang);
         String targetLanguageName = getLanguageName(targetLang);
         
+        String estSpecificGuidance = "";
+        if (LANG_EST.equals(targetLang)) {
+            estSpecificGuidance = """
+
+            11. For Estonian, translate generic product terms into Estonian; keep brand and flavor unchanged.
+                Examples: "whey protein" → "vadakuvalk"; "protein" → "valk"; "casein" → "kaseiin";
+                "isolate" → "isolaat"; "concentrate" → "kontsentraat"; "creatine" → "kreatiin";
+                "beta-alanine" → "beeta-alaniin"; "pre-workout" → "treeningueelne"; "capsules" → "kapslid"; "powder" → "pulber".
+            """;
+        }
+        
         return String.format("""
             You are a professional translator specializing in e-commerce and sports nutrition products.
             Translate the following product information from %s to %s.
@@ -257,6 +268,7 @@ public class TranslationService {
             8. Maintain consistent terminology across all fields
             9. IMPORTANT: The final output must be entirely in the target language (%s). Do NOT leave text in the source language.
             10. Output ONLY a raw JSON object. Do NOT include markdown, code fences, or any commentary.
+            %s
             
             Return a JSON object with these exact fields:
             {
@@ -276,7 +288,7 @@ public class TranslationService {
             }
             
             If a field is null or empty in the source, keep it null in the translation.
-            """, sourceLanguageName, targetLanguageName, targetLanguageName);
+            """, sourceLanguageName, targetLanguageName, targetLanguageName, estSpecificGuidance);
     }
 
     // Entry persisted on disk
