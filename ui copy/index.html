@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>💪 Supplements 💪</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --fp-primary:#16a8c9;
+      --fp-dark:#222;
+      --fp-muted:#6b7280;
+      --fp-bg:#f6f7f9;
+      --fp-accent:#ffce3a;
+      --radius:16px;
+      --shadow:0 10px 20px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.05);
+      --ring:0 0 0 3px rgba(22,168,201,.25);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:var(--fp-bg);color:var(--fp-dark);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    }
+    img{display:block;max-width:100%}
+    button,input,select{font-family:inherit}
+    a{text-decoration:none;color:inherit}
+
+    .app{max-width:1200px;margin:0 auto;padding:20px 16px 96px;position:relative}
+
+    /* Header */
+    .header{
+      display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-bottom:16px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px}
+    .brand-badge{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--fp-primary),#67e0f5);box-shadow:var(--shadow)}
+    .brand-title{display:flex;flex-direction:column;line-height:1.05}
+    .brand-title small{color:var(--fp-muted);font-weight:600}
+
+    /* Search */
+    .search-wrap{
+      position:relative;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;
+      padding:8px 10px 8px 14px;border:1px solid #e8eaed;box-shadow:var(--shadow)
+    }
+    .search-wrap:focus-within{box-shadow:var(--ring),var(--shadow);border-color:#cfeef6}
+    .search-input{border:0;outline:0;background:transparent;width:100%;font-size:15px;padding:6px 4px}
+    .search-icon{opacity:.7}
+    .kbd{background:#eef2f4;border:1px solid #d4dade;border-bottom-width:2px;border-radius:6px;padding:4px 6px;font-size:12px;color:#3a3f45}
+    .bolt{border:0;background:transparent;width:36px;height:36px;border-radius:10px;display:grid;place-items:center}
+    .bolt span{width:20px;height:20px;border-radius:6px;background:var(--fp-primary);color:#fff;display:grid;place-items:center;font-weight:800;box-shadow:0 6px 14px rgba(22,168,201,.35)}
+
+    .actions{display:flex;gap:8px;align-items:center}
+    .cart-icon{position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #e3e8ef;box-shadow:var(--shadow)}
+    .cart-icon svg{width:20px;height:20px}
+    .cart-count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;background:var(--fp-primary);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 6px 14px rgba(22,168,201,.35)}
+    .lang-flag{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #e3e8ef;box-shadow:var(--shadow);font-size:18px;cursor:pointer}
+    .lang-wrap{position:relative}
+    .lang-menu{position:absolute;right:0;top:44px;background:#fff;border:1px solid #e3e8ef;border-radius:10px;box-shadow:var(--shadow);padding:6px;display:none;z-index:30}
+    .lang-menu.visible{display:flex;gap:6px}
+    .lang-item{width:32px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid #e0e6ef;border-radius:8px;background:#fff;font-size:16px;cursor:pointer}
+    .lang-item[aria-pressed="true"]{border-color:#6bd3ee;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
+    /* Global sort next to search */
+    .header-sort{display:none}
+
+    /* Enhanced panel */
+    .panel{position:absolute;left:0;right:0;top:68px;z-index:20;background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:var(--shadow);display:none}
+    .panel.visible{display:block}
+    .panel-inner{display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px}
+    .col h4{margin:6px 0 10px;font-size:14px;color:#374151;font-weight:800;letter-spacing:.2px}
+    .product{display:grid;grid-template-columns:72px 1fr auto;gap:18px;padding:16px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:16px;cursor:pointer;transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease}
+    .product:hover{border-color:#dbe8f0;box-shadow:0 10px 22px rgba(0,0,0,.08);transform:translateY(-2px)}
+    .badge{font-size:11px;padding:2px 6px;border-radius:999px;background:#ecfeff;color:#036972;border:1px solid #bbeef5}
+    .price{font-weight:800}
+    /* Scoped, richer price styling for search results only */
+    .panel .product .price{display:inline-flex;align-items:baseline;gap:2px;background:#f0fbff;border:1px solid #cfeef6;padding:4px 8px;border-radius:10px;color:#053d49}
+    .panel .product .price .cur{font-size:12px;opacity:.9}
+    .panel .product .price .maj{font-size:18px;letter-spacing:.2px}
+    .panel .product .price .min{font-size:12px;opacity:.85}
+    /* Icon-only Add buttons for search/home */
+    .add{border:0;border-radius:999px;width:36px;height:36px;padding:0;display:grid;place-items:center;background:linear-gradient(180deg,#1cb6d9,#1099b8);color:#fff;cursor:pointer;min-width:36px;box-shadow:0 8px 16px rgba(16,153,184,.25)}
+    .add:hover{filter:brightness(1.02)}
+    .add svg{width:18px;height:18px;fill:#fff}
+    /* Clamp product titles to avoid jiggle */
+    .product .title{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.28;min-height:2.56em}
+    .hl{background:#fff4cc;border-radius:4px;padding:0 1px}
+    /* Media column with tiny badges under image */
+    .product .media{display:flex;flex-direction:column;align-items:center}
+    .product .media img{background:#fff;box-shadow:0 6px 14px rgba(0,0,0,.06)}
+    .product .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;justify-content:center}
+    /* Add breathing room between title and subtitle in search product cards */
+    .product .title{margin-bottom:6px}
+    .product .title + .muted{margin-top:8px}
+    .product .pill-badge{font-size:10px;padding:2px 6px;border-radius:999px;border:1px solid #e5e7eb;background:#f9fafb;color:#374151}
+    .product .pill-badge.vegan{background:#eef9ed;border-color:#d6f3d5;color:#065f06}
+    .product .pill-badge.sugar{background:#ecfeff;border-color:#bbeef5;color:#036972}
+    .product .pill-badge.sale{background:#fff5f5;border-color:#fecaca;color:#9b1c1c}
+    .product .pill-badge.best{background:#fff7e6;border-color:#fde68a;color:#7c4a00}
+    /* Clamp benefit snippet in search results to avoid tall cards */
+    .product .benefit-snippet{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    /* Improve vertical rhythm for product subtitle */
+    .product .muted{line-height:1.6}
+
+    /* Tighter, bolder title and reduced gaps inside search results list only */
+    .panel .product .title{font-weight:700;min-height:0;margin-bottom:2px}
+    .panel .product .benefit-snippet{margin-top:2px}
+    .panel .product .title + .muted{margin-top:4px}
+    /* Compact chips */
+    .chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:999px;background:#f6f8fb;border:1px solid #e0e6ef;margin:4px 4px 0 0;font-size:12px;cursor:pointer;color:#1f2937;height:28px;white-space:nowrap}
+    .chip[aria-pressed="true"]{background:#dff6ff;border-color:#6bd3ee;color:#06485b;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
+    /* Chip group colors */
+    .chip-stock{background:#eef9ed;border-color:#d6f3d5}
+    .chip-stock[aria-pressed="true"]{background:#e2f7e1;border-color:#b9ebba;color:#065f06}
+    .chip-form{background:#f8f5ff;border-color:#e7e3ff}
+    .chip-form[aria-pressed="true"]{background:#f1ecff;border-color:#c7bfff;color:#4b3f72}
+    .chip-diet{background:#f2fbf6;border-color:#d6f3e3}
+    .chip-diet[aria-pressed="true"]{background:#e8f9f0;border-color:#b9ebcf;color:#065f46}
+    .chip-price,.chip-pps{background:#fff9f0;border-color:#ffe4c7}
+    .chip-price[aria-pressed="true"],.chip-pps[aria-pressed="true"]{background:#fff3e0;border-color:#ffc78a;color:#6b3f00}
+    .chip-overflow{background:#f3f4f6;border-color:#e5e7eb;font-weight:600}
+    
+    /* Preset cards */
+    .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+    .preset-card{background:#fff;border:1px solid #e0e6ef;border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:all .15s;position:relative}
+    .preset-card:hover{border-color:#6bd3ee;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    .preset-card.active{background:#e9fbff;border-color:#6bd3ee;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
+    .preset-card.suggested{border-color:#fbbf24;box-shadow:0 0 0 2px rgba(251,191,36,.25) inset}
+    .preset-card.suggested::after{content:"✨";position:absolute;top:4px;right:4px;font-size:12px}
+    .preset-icon{font-size:24px;line-height:1}
+    .preset-label{font-size:13px;font-weight:600;color:#374151}
+    
+    /* Chip tray with overflow control */
+    .chip-tray{display:flex;flex-wrap:nowrap;gap:6px;overflow:hidden;position:relative;align-items:center}
+    .content-card{padding:10px 12px;border:1px solid #eef1f4;border-radius:14px;margin-bottom:10px;background:#fff}
+    .pill{font-size:12px;padding:4px 8px;border-radius:999px;background:#f9fafb;border:1px solid #e5e7eb;margin-left:6px}
+    .tag{font-size:11px;background:#f2f4f7;border:1px solid #e5e7eb;padding:2px 6px;border-radius:999px;margin-left:4px}
+    .divider{height:1px;background:#eef1f4;margin:8px 0}
+    /* Inline expandable chip trays */
+    .more-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    
+    /* Filter buttons */
+    .btn-more-goals,.btn-all-filters{background:transparent;border:1px solid #e0e6ef;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;margin-top:8px;transition:all .15s}
+    .btn-more-goals:hover,.btn-all-filters:hover{background:#f9fafb;border-color:#d1d5db}
+    
+    /* Applied filters bar */
+    .applied-bar{display:flex;align-items:center;gap:6px;padding:8px 16px;background:#f0f9ff;border-bottom:1px solid #e0e6ef;min-height:44px}
+    .applied-bar:empty{display:none}
+    .applied-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;background:#fff;border:1px solid #d1d5db;font-size:12px;color:#374151}
+    .applied-chip button{background:transparent;border:0;width:16px;height:16px;display:grid;place-items:center;cursor:pointer;border-radius:50%;color:#6b7280}
+    .applied-chip button:hover{background:#f3f4f6}
+    .applied-more{color:#6b7280;font-weight:600}
+    
+    /* Sort dropdown */
+    .sort-select{background:#fff;border:1px solid #e0e6ef;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:500;color:#374151;cursor:pointer}
+
+    /* PDP layout */
+    .pdp{display:grid;grid-template-columns:1.8fr 1.2fr;gap:16px;margin-top:28px}
+    .card{background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:var(--shadow);padding:16px}
+    .title{display:flex;align-items:center;gap:8px}
+    .stars{color:#f5b301}
+    .qa-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 10px}
+    .qa-chip{border:1px solid #e2e8f0;background:#f8fafc;padding:8px 12px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer}
+    .qa-chip.active{background:#e9fbff;border-color:#a9e8f4;color:#065e67}
+    .qa-ans{display:none;margin:8px 0 12px;padding:12px;border-radius:12px;background:#f8fffd;border:1px solid #d8f3e6}
+    .facts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+    .fact{padding:6px 10px;border-radius:999px;background:#eef7ff;border:1px solid #d6e7ff;font-size:12px}
+    .mini{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+    .mini .box{border:1px solid #e6ebf0;border-radius:14px;padding:10px;background:#fcfdff}
+
+    /* Flavor row (PDP) */
+    .flavors{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+    .flavor{border:1px solid #e3e8ef;background:#f8fafc;border-radius:999px;padding:6px 10px;cursor:pointer}
+    .flavor[aria-pressed="true"]{background:#e9fbff;border-color:#a9e8f4;color:#065e67}
+
+    /* PDP Add CTA */
+    .pdp-cta{display:flex;gap:10px;align-items:center;margin:10px 0}
+    .qty-inline{display:flex;align-items:center;gap:8px;border:1px solid #d8dee6;background:#f8fafc;border-radius:10px;padding:4px 8px}
+    .qty-inline button{width:28px;height:28px;border:1px solid #d8dee6;background:#fff;border-radius:8px;font-weight:800;cursor:pointer}
+    /* Match PDP add button to product list add button */
+    .pdp-add{border:0;border-radius:999px;height:36px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#1cb6d9,#1099b8);color:#fff;font-weight:800;cursor:pointer;min-width:66px;box-shadow:0 8px 16px rgba(16,153,184,.25)}
+    .pdp-add:hover{filter:brightness(1.02)}
+
+    .bundle{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:12px;border:1px dashed #cfeef6;background:#f7feff;border-radius:14px;padding:12px}
+    .bundle .btn{background:var(--fp-accent);border:0;border-radius:10px;padding:8px 10px;font-weight:800}
+
+    .alt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .sku{border:1px solid #edf1f4;border-radius:14px;padding:10px;background:#fff}
+    .sku .btn{margin-top:8px;background:var(--fp-primary);border:0;border-radius:10px;padding:8px 10px;color:#fff;font-weight:800;width:100%}
+    .more{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px}
+    .more .sku{padding:8px}
+
+    /* Tabs (desc/composition/reviews) */
+    .tabs{margin-top:14px}
+    .tablist{display:flex;gap:8px;flex-wrap:wrap}
+    .tab{border:1px solid #e2e8f0;background:#f8fafc;border-radius:999px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .tab[aria-selected="true"]{background:#fff;border-color:#a9e8f4;box-shadow:var(--ring)}
+    .tabpanel{display:none;margin-top:10px;border:1px solid #edf1f4;border-radius:14px;padding:12px;background:#fff}
+    .tabpanel.active{display:block}
+    table{border-collapse:collapse;width:100%}
+    td,th{border:1px solid #e5e7eb;padding:8px;text-align:left}
+    th{background:#f7fafc}
+
+    /* Command palette (simple) */
+    .overlay{position:fixed;inset:0;background:rgba(15,18,25,.35);backdrop-filter:saturate(120%) blur(8px);display:none;z-index:40}
+    .overlay.visible{display:block}
+    
+    /* Modals */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);z-index:50}
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.2);max-width:600px;width:90%;max-height:80vh;overflow:hidden;z-index:60}
+    .modal-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+    .modal-header h3{margin:0;font-size:18px}
+    .modal-close{background:transparent;border:0;font-size:20px;cursor:pointer;color:#6b7280}
+    .modal-body{padding:20px;overflow-y:auto;max-height:60vh}
+    .modal-footer{padding:16px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;gap:12px}
+    .goal-group{margin-bottom:24px}
+    .goal-group h4{margin:0 0 12px;font-size:14px;color:#6b7280}
+    .preset-grid-modal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .filter-section{margin-bottom:20px}
+    .filter-section h4{margin:0 0 8px;font-size:14px;color:#374151}
+    .chip-group{display:flex;flex-wrap:wrap;gap:6px}
+    .checkbox-label{display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer}
+    .checkbox-label input{width:16px;height:16px}
+    .price-slider{width:100%;margin:12px 0}
+    .price-range{text-align:center;font-size:13px;color:#6b7280}
+    .price-quick-chips{display:flex;gap:6px;margin-bottom:12px}
+    .btn-apply{background:var(--fp-primary);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer}
+    .btn-reset{background:#f3f4f6;color:#374151;border:0;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer}
+    .palette{position:fixed;left:50%;top:14%;transform:translateX(-50%);width:min(820px,92vw);border-radius:18px;border:1px solid rgba(255,255,255,.35);background:rgba(250,252,255,.9);box-shadow:0 50px 120px rgba(0,0,0,.2);overflow:hidden;z-index:50;display:none}
+    .palette.visible{display:block}
+    .pal-head{padding:14px;border-bottom:1px solid #e9edf0;display:flex;align-items:center;gap:10px}
+    .pal-input{width:100%;border:0;outline:0;background:#fff;border:1px solid #e7ebef;border-radius:12px;padding:10px 12px}
+    .pal-input:focus{box-shadow:var(--ring)}
+    .pal-body{max-height:56vh;overflow:auto}
+    .row{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid #eef1f4}
+    .key{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:#ebfaff;color:#065e67;font-weight:800}
+    .btn-ghost{border:1px solid #dbe3e8;background:#f8fafc;border-radius:10px;padding:8px 10px;font-weight:700}
+    .hidden{display:none!important}
+
+    /* Home (grid) */
+    .home{display:none;margin-top:24px}
+    .home.visible{display:block}
+    .home-hero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .home-hero .trust{display:flex;gap:10px;color:#6b7280;font-size:12px}
+    .home-controls{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+    .home-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .home-card{background:#fff;border:1px solid #e9edf0;border-radius:16px;box-shadow:var(--shadow);padding:14px;display:grid;grid-template-columns:80px 1fr;gap:12px;cursor:pointer}
+    .home-card:hover{box-shadow:0 10px 22px rgba(0,0,0,.08)}
+    .home-card .meta{display:flex;flex-direction:column;gap:6px}
+    .home-card .title{font-weight:800;line-height:1.28;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.56em}
+    .home-card .sub{font-size:12px;color:#6b7280;line-height:1.5}
+    .home-card .price-add{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    /* Normalize Add button size in home grid to match search list */
+    .home-card .add{width:36px;height:36px;padding:0;display:grid;place-items:center;min-width:36px}
+    .badge-sale{display:inline-block;background:#fff3f3;border:1px solid #ffc9c9;color:#b91c1c;border-radius:999px;padding:2px 6px;font-size:11px;font-weight:800}
+    .home-load{display:grid;place-items:center;margin:14px 0}
+    @media (max-width:900px){ .home-grid{grid-template-columns:repeat(2,1fr)} .home-card .cta .add{width:100%} }
+
+    /* Flavor picker popover (appears when clicking Add) */
+    .pop{position:fixed;z-index:60;min-width:260px;background:#fff;border:1px solid #e3e8ef;border-radius:14px;box-shadow:var(--shadow);padding:12px;display:none}
+    .pop.visible{display:block}
+    .pop h5{margin:0 0 8px;font-size:14px}
+    .pop .flavors{margin:4px 0 6px}
+    .qty{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .qty button{width:28px;height:28px;border:1px solid #d8dee6;background:#f8fafc;border-radius:8px;font-weight:800;cursor:pointer}
+    .pop .confirm{margin-top:10px;width:100%;background:var(--fp-primary);color:#fff;border:0;border-radius:10px;padding:10px;font-weight:800}
+    .pop .close{position:absolute;top:6px;right:6px;border:0;background:transparent;font-size:16px;cursor:pointer}
+
+
+    @media (max-width:900px){
+      .panel-inner{grid-template-columns:1fr}
+      .pdp{grid-template-columns:1fr}
+      .alt-grid{grid-template-columns:1fr}
+      .more{grid-template-columns:repeat(3,1fr)}
+    }
+    :focus-visible{outline:none;box-shadow:var(--ring)}
+    .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden;white-space:nowrap}
+  </style>
+</head>
+<body>
+  <div class="ref-img" id="refImage" aria-hidden="true"></div>
+
+  <div class="app" role="application" aria-label="Supplements">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand" aria-label="logo">
+        <div class="brand-badge" aria-hidden="true"></div>
+        <div class="brand-title">
+          <span style="font-size:18px">SUPPLEMENTS<span style="color:var(--fp-primary)">.EE</span></span>
+          <small>Sports & Nutrition</small>
+        </div>
+      </div>
+
+      <!-- Search with bolt -->
+      <div class="search-wrap" aria-label="Global search">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M21 21l-4.3-4.3m1.8-5.1a7 7 0 11-14 0 7 7 0 0114 0z" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <label for="search" class="visually-hidden">Search</label>
+        <input id="search" class="search-input" placeholder="Search whey, creatine, goals…" autocomplete="off" />
+        <button class="bolt" id="boltBtn" aria-label="Open command palette"><span>⚡</span></button>
+        <span class="kbd" aria-hidden="true">⌘K</span>
+      </div>
+
+      <!-- Global sort removed by request (available in Popular section) -->
+
+      <div class="actions">
+        <div class="lang-wrap">
+          <button class="lang-flag" id="langFlag" aria-label="Language">🇬🇧</button>
+          <div id="langMenu" class="lang-menu" aria-label="Choose language"></div>
+        </div>
+        <div class="cart-icon" aria-label="Cart" aria-live="polite">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6 6h15l-1.5 9h-12L5 3H2" stroke="#1f2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="9" cy="20" r="1.75" fill="#1f2937"/>
+            <circle cx="18" cy="20" r="1.75" fill="#1f2937"/>
+          </svg>
+          <span id="cartCount" class="cart-count">2</span>
+        </div>
+      </div>
+
+      
+
+      <!-- Enhanced Search Panel -->
+      <div id="searchPanel" class="panel" role="dialog" aria-label="Enhanced search panel" aria-modal="false">
+        <!-- Applied Filters Bar -->
+        <div id="appliedBar" class="applied-bar"></div>
+        <div class="panel-inner">
+          <!-- Products column WITH Add -->
+          <div class="col" id="productsCol">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <h4 style="margin:0">Products</h4>
+              <select id="sortDropdown" class="sort-select">
+                <option value="relevance">Best match</option>
+                <option value="price_asc">Price ↑</option>
+                <option value="price_desc">Price ↓</option>
+                <option value="popular">Popular</option>
+                <option value="new">New</option>
+              </select>
+            </div>
+
+            <!-- Each product has data-* so the popover can show flavors -->
+            <div id="productsList">
+              <div class="product" role="listitem">
+                <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="72" height="72" style="border-radius:10px">
+                <div>
+                  <div class="title">Whey Protein Isolate — Vanilla</div>
+                  <div class="muted" style="font-size:12px">1kg • 26g protein <span class="badge">In stock</span> <span class="badge">2-day delivery</span></div>
+                </div>
+                <div style="display:grid;gap:6px;justify-items:end">
+                  <div class="price"><span class="cur">€</span><span class="maj">42</span><span class="min">,90</span></div>
+                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="product">
+                <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="72" height="72" style="border-radius:10px">
+                <div>
+                  <div class="title">Creatine Monohydrate — 300g</div>
+                  <div class="muted" style="font-size:12px">Top rated <span class="badge">In stock</span></div>
+                </div>
+                <div style="display:grid;gap:6px;justify-items:end">
+                  <div class="price"><span class="cur">€</span><span class="maj">19</span><span class="min">,50</span></div>
+                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Creatine Monohydrate" data-flavors='[]'>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="product">
+                <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="72" height="72" style="border-radius:10px">
+                <div>
+                  <div class="title">BCAA 2:1:1 — Tropical</div>
+                  <div class="muted" style="font-size:12px">Low sugar <span class="badge">In stock</span></div>
+                </div>
+                <div style="display:grid;gap:6px;justify-items:end">
+                  <div class="price"><span class="cur">€</span><span class="maj">15</span><span class="min">,90</span></div>
+                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="product">
+                <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="72" height="72" style="border-radius:10px">
+                <div>
+                  <div class="title">Omega-3 Softgels (120)</div>
+                  <div class="muted" style="font-size:12px">Heart <span class="badge">In stock</span></div>
+                </div>
+                <div style="display:grid;gap:6px;justify-items:end">
+                  <div class="price"><span class="cur">€</span><span class="maj">12</span><span class="min">,40</span></div>
+                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Omega-3 Softgels" data-flavors='[]'>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Goals / Filters -->
+          <div class="col">
+            <h4>Goals</h4>
+            <div class="preset-grid">
+              <button class="preset-card" data-filters='{"goal_tags":["strength"]}' data-preset="strength">
+                <span class="preset-icon">💪</span>
+                <span class="preset-label">Strength</span>
+              </button>
+              <button class="preset-card" data-filters='{"goal_tags":["preworkout"]}' data-preset="preworkout">
+                <span class="preset-icon">⚡</span>
+                <span class="preset-label">Pre-workout</span>
+              </button>
+              <button class="preset-card" data-filters='{"goal_tags":["wellness"]}' data-preset="wellness">
+                <span class="preset-icon">🛡️</span>
+                <span class="preset-label">Wellness</span>
+              </button>
+              <button class="preset-card" data-filters='{"goal_tags":["endurance"]}' data-preset="endurance">
+                <span class="preset-icon">🏃</span>
+                <span class="preset-label">Endurance</span>
+              </button>
+            </div>
+            <button class="btn-more-goals" id="moreGoalsBtn">More goals →</button>
+            
+            <div class="divider"></div>
+            
+            <h4>Quick Filters</h4>
+            <div class="chip-tray" id="quickFilters">
+              <button class="chip chip-stock" role="switch" aria-pressed="true" data-filter='{"in_stock":true}'>In stock</button>
+              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}' data-filter-group="form">Powder</button>
+              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}' data-filter-group="form">Capsules</button>
+              <button class="chip chip-diet" role="switch" aria-pressed="false" data-filter='{"diet_tags":["vegan"]}'>Vegan</button>
+              <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":2000}}' data-filter-group="price">≤€20</button>
+              <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":0.5}}' data-filter-group="pps">≤€0.50/serv</button>
+              <button class="chip chip-overflow" id="quickOverflow" style="display:none">+<span>0</span></button>
+            </div>
+            
+            <button class="btn-all-filters" id="allFiltersBtn">All filters →</button>
+          </div>
+
+          <!-- Content -->
+          <div class="col">
+            <h4>Content</h4>
+            <div class="content-card">
+              <div style="font-weight:800">How to time creatine?</div>
+              <div class="muted" style="font-size:12px">3-min read <span class="tag">Guide</span></div>
+            </div>
+            <div class="content-card">
+              <div style="font-weight:800">Whey vs Plant: which is better?</div>
+              <div class="muted" style="font-size:12px">5-min read <span class="tag">Article</span></div>
+            </div>
+            <div class="content-card">
+              <div style="font-weight:800">Electrolytes explained</div>
+              <div class="muted" style="font-size:12px">4-min read <span class="tag">Article</span></div>
+            </div>
+            <div class="content-card">
+              <div style="font-weight:800">Beginner stack checklist</div>
+              <div class="muted" style="font-size:12px">Printable <span class="tag">Checklist</span></div>
+            </div>
+            <button class="btn-ghost" style="width:100%;margin-top:6px">Open Coach</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Home (grid-first) -->
+    <section id="home" class="home" aria-label="Home product grid">
+      <div class="home-hero">
+        <div style="font-weight:800;font-size:18px">Browse products</div>
+        <div class="trust">
+          <span>Secure checkout</span>
+          <span>Transparent pricing</span>
+          <span>Human support</span>
+        </div>
+      </div>
+      <div class="home-controls">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="chip" data-home-preset="all">✨ All</span>
+          <span class="chip" data-home-preset="strength">💪 Strength</span>
+          <span class="chip" data-home-preset="endurance">🏃 Endurance</span>
+          <span class="chip" data-home-preset="wellness">🛡️ Wellness</span>
+          <span class="chip" data-home-preset="sale">🏷️ On sale</span>
+        </div>
+        <select id="homeSort" class="sort-select">
+          <option value="rank">Featured</option>
+          <option value="popular">Top Rated</option>
+          <option value="price_asc">Price ↑</option>
+          <option value="price_desc">Price ↓</option>
+        </select>
+      </div>
+      <div id="homeGrid" class="home-grid" role="list"></div>
+      <div class="home-load"><button id="homeMore" class="btn-ghost">Load more</button></div>
+      <div id="homeSuggestions" style="display:none;margin-top:12px">
+        <div style="font-weight:800;font-size:16px;margin:0 0 8px">Other products you might like</div>
+        <div id="homeSugGrid" class="home-grid" role="list"></div>
+      </div>
+    </section>
+
+    <!-- PDP Copilot -->
+    <section class="pdp" aria-label="Product detail with copilot">
+      <!-- Left -->
+      <div class="card">
+        <img id="pdpImage" src="https://picsum.photos/seed/hero/720/360" alt="Product image" style="max-width:100%;max-height:260px;width:auto;height:auto;object-fit:contain;border-radius:12px;display:block;margin:0 auto 8px;background:#fff">
+        <div class="title">
+          <h2 style="margin:0;font-size:20px"><span id="pdpProductName">Ultra Whey Protein 2kg</span> — <span id="pdpFlavorLabel"></span></h2>
+        </div>
+        <div id="pdpBenefitSnippet" class="muted" style="font-size:14px;line-height:1.5;margin:6px 0 4px"></div>
+        <div class="muted" style="font-size:14px"><span class="stars" id="pdpStars">★★★★★</span> (<span id="pdpReviewCount">238</span>) • <strong id="pdpPrice">€54.90</strong></div>
+
+        <!-- Flavor selector (PDP) -->
+        <div class="flavors" id="pdpFlavors" role="group" aria-label="Choose flavor"></div>
+
+        <!-- PDP primary CTA: quantity + Add to cart -->
+        <div class="pdp-cta">
+          <div class="qty-inline" aria-label="Choose quantity">
+            <button id="pdpQtyMinus" aria-label="Decrease">−</button>
+            <span id="pdpQtyVal" aria-live="polite">1</span>
+            <button id="pdpQtyPlus" aria-label="Increase">+</button>
+          </div>
+          <button
+            class="pdp-add js-add"
+            id="pdpAdd"
+            data-name="Ultra Whey Protein 2kg"
+            data-flavors='["Chocolate","Vanilla","Cookies & Cream"]'>
+            Add to cart
+          </button>
+        </div>
+
+        <div class="qa-chips" role="group" aria-label="Quick questions">
+          <button class="qa-chip" data-target="#ans1">Is this right for muscle gain?</button>
+          <button class="qa-chip" data-target="#ans2">Lactose friendly?</button>
+          <button class="qa-chip" data-target="#ans3">When to take?</button>
+        </div>
+
+        <div id="ans1" class="qa-ans"><strong>Reason.</strong> High protein per serving (24g), complete amino profile, and added BCAAs support recovery and growth.</div>
+        <div id="ans2" class="qa-ans">Contains whey (milk). If lactose-sensitive, consider <em>Whey Isolate</em> or a <em>Vegan Blend</em>.</div>
+        <div id="ans3" class="qa-ans">Take 1–2 scoops post-workout or as a snack between meals. Mix with water or milk.</div>
+
+        <div class="facts"></div>
+
+        <div class="mini">
+          <div class="box"></div>
+          <div class="box"></div>
+        </div>
+
+        <div class="bundle">
+          <img src="https://picsum.photos/seed/cr/60/60" alt="Creatine add-on" style="border-radius:10px">
+          <div><strong>Add Creatine Monohydrate</strong><div class="muted" style="font-size:12px">for better strength gains</div></div>
+          <button class="btn">Add bundle €18.90</button>
+        </div>
+
+        <!-- Tabs: Description / Composition / Reviews -->
+        <div class="tabs" aria-label="Product information">
+          <div class="tablist" role="tablist">
+            <button class="tab" role="tab" aria-selected="true" aria-controls="tab-desc" id="tab-desc-btn">Description</button>
+            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-comp" id="tab-comp-btn">Composition</button>
+            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-rev" id="tab-rev-btn">Reviews</button>
+          </div>
+
+          <div class="tabpanel active" id="tab-desc" role="tabpanel" aria-labelledby="tab-desc-btn">
+            <div id="pdpDescText"></div>
+          </div>
+
+          <div class="tabpanel" id="tab-comp" role="tabpanel" aria-labelledby="tab-comp-btn"></div>
+
+          <div class="tabpanel" id="tab-rev" role="tabpanel" aria-labelledby="tab-rev-btn"></div>
+        </div>
+      </div>
+
+      <!-- Right -->
+      <aside class="card">
+        <h3 style="margin:0 0 8px">Alternatives</h3>
+        <div class="alt-grid">
+          <div class="sku">
+            <img src="https://picsum.photos/seed/iso/240/140" alt="Whey Isolate Vanilla" style="border-radius:12px">
+            <div style="margin-top:6px;font-weight:800">Whey Isolate — Vanilla</div>
+            <div class="muted" style="font-size:12px">Lactose-reduced • 26g</div>
+            <div style="font-weight:800;margin-top:4px">€62.00</div>
+            <button class="btn">View</button>
+          </div>
+          <div class="sku">
+            <img src="https://picsum.photos/seed/veg/240/140" alt="Vegan Protein Blend" style="border-radius:12px">
+            <div style="margin-top:6px;font-weight:800">Vegan Protein Blend</div>
+            <div class="muted" style="font-size:12px">Pea + Rice • smooth</div>
+            <div style="font-weight:800;margin-top:4px">€49.90</div>
+            <button class="btn">View</button>
+          </div>
+        </div>
+
+        <h3 style="margin:16px 0 8px">More picks</h3>
+        <div class="more">
+          <div class="sku"><img src="https://picsum.photos/seed/c1/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Protein Cookies<br><strong>€3.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c2/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Protein Bars (12)<br><strong>€21.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c3/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">BCAA Powder<br><strong>€15.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c4/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Glutamine<br><strong>€12.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c5/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Omega-3<br><strong>€9.90</strong></div></div>
+          <div class="sku"><img src="https://picsum.photos/seed/c6/120/100" alt="" style="border-radius:10px"><div style="font-size:12px">Electrolytes<br><strong>€7.90</strong></div></div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <!-- Command palette -->
+  <div aria-live="polite" aria-atomic="true" id="liveRegion" class="visually-hidden"></div>
+  <div class="overlay" id="overlay" aria-hidden="true"></div>
+  <section class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="pal-head">
+      <input class="pal-input" id="palInput" placeholder="Find products, goals, content, actions…" aria-label="Command palette search">
+      <span class="kbd" aria-hidden="true">Esc</span>
+    </div>
+    <div class="pal-body" role="listbox" aria-label="Palette results">
+      <div class="row"><div class="key">KB</div><div><div style="font-weight:800">Adjustable Kettlebell</div><div style="font-size:12px;color:var(--fp-muted)">From €99 • Strength</div></div><button class="btn-ghost">Select</button></div>
+      <div class="row"><div class="key">PR</div><div><div style="font-weight:800">Whey Protein Isolate</div><div style="font-size:12px;color:var(--fp-muted)">1kg • Vanilla</div></div><button class="btn-ghost">Select</button></div>
+      <div class="row"><div class="key">%</div><div><div style="font-weight:800">Apply discount code</div><div style="font-size:12px;color:var(--fp-muted)">Enter coupon at checkout</div></div><button class="btn-ghost">Run</button></div>
+      <div class="row"><div class="key">?</div><div><div style="font-weight:800">Contact support</div><div style="font-size:12px;color:var(--fp-muted)">Chat or email</div></div><button class="btn-ghost">Open</button></div>
+    </div>
+  </section>
+
+  <!-- Flavor picker popover -->
+  <div class="pop" id="flavorPop" role="dialog" aria-modal="true" aria-labelledby="flavorTitle">
+    <button class="close" id="popClose" aria-label="Close">✕</button>
+    <h5 id="flavorTitle">Choose options</h5>
+    <div class="muted" id="flavorSubtitle" style="font-size:12px;margin-bottom:6px">Select flavor (required)</div>
+    <div class="flavors" id="flavorChips"></div>
+    <div class="qty">
+      <span class="muted" style="font-size:12px">Qty</span>
+      <button id="qtyMinus" aria-label="Decrease">−</button>
+      <span id="qtyVal" aria-live="polite">1</span>
+      <button id="qtyPlus" aria-label="Increase">+</button>
+    </div>
+    <button class="confirm" id="confirmAdd" disabled>Add to cart</button>
+  </div>
+  
+  <!-- More Goals Modal -->
+  <div class="modal-overlay" id="goalsOverlay" style="display:none"></div>
+  <div class="modal" id="goalsModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="goalsTitle">
+    <div class="modal-header">
+      <h3 id="goalsTitle">All Goals</h3>
+      <button class="modal-close" id="goalsClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="goal-group">
+        <h4>Build</h4>
+        <div class="preset-grid-modal">
+          <button class="preset-card" data-filters='{"goal_tags":["strength"]}'>
+            <span class="preset-icon">💪</span>
+            <span class="preset-label">Strength</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["lean_muscle"]}'>
+            <span class="preset-icon">🏋️</span>
+            <span class="preset-label">Build muscle</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["recovery"]}'>
+            <span class="preset-icon">🔄</span>
+            <span class="preset-label">Recovery</span>
+          </button>
+        </div>
+      </div>
+      <div class="goal-group">
+        <h4>Performance</h4>
+        <div class="preset-grid-modal">
+          <button class="preset-card" data-filters='{"goal_tags":["preworkout"]}'>
+            <span class="preset-icon">⚡</span>
+            <span class="preset-label">Pre-workout</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["endurance"]}'>
+            <span class="preset-icon">🏃</span>
+            <span class="preset-label">Endurance</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["preworkout"]}'>
+            <span class="preset-icon">🔥</span>
+            <span class="preset-label">Energy</span>
+          </button>
+        </div>
+      </div>
+      <div class="goal-group">
+        <h4>Wellness</h4>
+        <div class="preset-grid-modal">
+          <button class="preset-card" data-filters='{"goal_tags":["wellness"]}'>
+            <span class="preset-icon">🛡️</span>
+            <span class="preset-label">Wellness</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["weight_loss"]}'>
+            <span class="preset-icon">⚖️</span>
+            <span class="preset-label">Weight loss</span>
+          </button>
+          <button class="preset-card" data-filters='{"goal_tags":["wellness"]}'>
+            <span class="preset-icon">☀️</span>
+            <span class="preset-label">Daily essentials</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-reset" id="resetGoals">Reset</button>
+      <button class="btn-apply" id="applyGoals">Apply Goals</button>
+    </div>
+  </div>
+  
+  <!-- All Filters Modal -->
+  <div class="modal" id="filtersModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="filtersTitle">
+    <div class="modal-header">
+      <h3 id="filtersTitle">All Filters</h3>
+      <button class="modal-close" id="filtersClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="filter-section">
+        <h4>Availability</h4>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterInStock" checked>
+          <span>In stock only</span>
+        </label>
+      </div>
+      <div class="filter-section">
+        <h4>Form</h4>
+        <div class="chip-group">
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}'>Powder</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}'>Capsules</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"tabs"}'>Tabs</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"liquid"}'>Liquid</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"bar"}'>Bar</button>
+        </div>
+      </div>
+      <div class="filter-section">
+        <h4>Diet</h4>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterVegan">
+          <span>Vegan</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterGlutenFree">
+          <span>Gluten-free</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterSugarFree">
+          <span>Sugar-free</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="filterLactoseFree">
+          <span>Lactose-free</span>
+        </label>
+      </div>
+      <div class="filter-section">
+        <h4>Price</h4>
+        <div class="price-quick-chips">
+          <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":2000}}'>≤€20</button>
+          <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":4000}}'>≤€40</button>
+          <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":6000}}'>≤€60</button>
+        </div>
+        <input type="range" id="priceSlider" min="0" max="100" value="100" class="price-slider">
+        <div class="price-range">€0 - €<span id="priceValue">100+</span></div>
+      </div>
+      <div class="filter-section">
+        <h4>Serving cost</h4>
+        <div class="price-quick-chips">
+          <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":0.5}}'>≤€0.50/serv</button>
+          <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":1}}'>≤€1/serv</button>
+          <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":2}}'>≤€2/serv</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-reset" id="resetFilters">Reset</button>
+      <button class="btn-apply" id="applyFilters">Apply</button>
+    </div>
+  </div>
+
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
