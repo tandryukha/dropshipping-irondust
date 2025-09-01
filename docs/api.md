@@ -63,6 +63,7 @@ curl -X POST http://localhost:4000/ingest/products \
 ## Search
 
 - POST /search — Search products with filters and sorting
+- POST /search/hybrid — Hybrid search (BM25 + vectors via RRF)
 
 Example:
 
@@ -70,6 +71,14 @@ Example:
 curl -X POST http://localhost:4000/search \
   -H "Content-Type: application/json" \
   -d '{"q": "citrulline", "page": 1, "size": 5}'
+```
+
+Hybrid example:
+
+```bash
+curl -X POST http://localhost:4000/search/hybrid \
+  -H "Content-Type: application/json" \
+  -d '{"q": "vegan preworkout", "filters": {"in_stock": true}, "page": 1, "size": 6}'
 ```
 
 ### Filterable and sortable fields
@@ -137,3 +146,23 @@ Expected output (shape):
 
 - GET /health — Health check
 - GET /health/meili — Meilisearch health check
+- GET /health/qdrant — Qdrant health check (future)
+
+## Vectors (Admin)
+
+- POST /vectors/reindex/all — Build or refresh all product vectors in Qdrant
+- POST /vectors/reindex — Build or refresh vectors for specific product IDs
+
+Both require header `x-admin-key`. Defaults use `text-embedding-3-large` (3072) and `products_vec_lg`.
+
+Examples:
+
+```bash
+curl -X POST http://localhost:4000/vectors/reindex/all \
+  -H "x-admin-key: dev_admin_key"
+
+curl -X POST http://localhost:4000/vectors/reindex \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: dev_admin_key" \
+  -d '{"ids": ["wc_31476","wc_31477"]}'
+```

@@ -172,3 +172,4 @@ temp/
 
 # MkDocs build output
 site/
+qdrant_data/

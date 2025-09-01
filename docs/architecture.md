@@ -1,6 +1,6 @@
 # Indexing Architecture (WooCommerce → Meilisearch + Vector)
 
-**Status:** Phase 0 complete (basic Meilisearch). This document describes Phase 1 (Parsing + AI Enrichment, current) and Phase 2 (Vector & Hybrid Search, future). The goal is an accurate, explainable index with deterministic parsing first, an LLM pass *once per record*, and clean separations of concerns.
+**Status:** Phase 1 complete (Parsing + AI Enrichment). Phase 2 (Vector & Hybrid Search) is in progress: vector indexing to Qdrant and a hybrid search endpoint are available; PDP alternatives remain.
 
 ---
 

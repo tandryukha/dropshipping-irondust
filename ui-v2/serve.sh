@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Ensure we serve from the script's directory (ui-v2), regardless of where it's launched
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # Kill any process running on port 8011
 echo "Killing any process on port 8011..."
 lsof -ti:8011 | xargs kill -9 2>/dev/null || echo "No process found on port 8011"

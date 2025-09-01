@@ -7,12 +7,25 @@ services:
       - "7700:7700"
     volumes:
       - "./meili_data:/meili_data"
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_data:/qdrant/storage
   api:
     build: .
     environment:
       JAVA_OPTS: ""
       MEILI_HOST: http://meili:7700
       MEILI_KEY: local_dev_key
+      QDRANT_HOST: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      QDRANT_COLLECTION: products_vec_lg
+      EMBEDDING_MODEL: text-embedding-3-large
+      EMBEDDING_DIM: 3072
+      HYBRID_RRF_K: 60
+      HYBRID_VECTOR_K: 100
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       AI_ENRICH: ${AI_ENRICH:-true}
       AI_ALLOW_HIGH_CONF_CRITICAL: ${AI_ALLOW_HIGH_CONF_CRITICAL:-true}
@@ -23,6 +36,7 @@ services:
       - "4000:4000"
     depends_on:
       - meili
+      - qdrant
 
 
 

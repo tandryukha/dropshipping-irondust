@@ -55,6 +55,7 @@ Once running, you'll have access to:
 
 - **API**: http://localhost:4000
 - **Meilisearch**: http://localhost:7700  
+- **Qdrant**: http://localhost:6333 (default collection: `products_vec_lg`)
 - **UI** (if running): http://localhost:3000
 
 ## Testing the System
@@ -78,6 +79,32 @@ Search for products:
 curl -X POST http://localhost:4000/search \
   -H "Content-Type: application/json" \
   -d '{"q": "citrulline", "page": 1, "size": 5}'
+```
+
+### Test Hybrid Search
+
+```bash
+curl -X POST http://localhost:4000/search/hybrid \
+  -H "Content-Type: application/json" \
+  -d '{"q": "vegan protein", "filters": {"in_stock": true}, "page": 1, "size": 6}'
+```
+
+### Build or Refresh Vector Index (defaults: text-embedding-3-large, 3072-dim, products_vec_lg)
+
+Build all vectors (admin-only):
+
+```bash
+curl -X POST http://localhost:4000/vectors/reindex/all \
+  -H "x-admin-key: dev_admin_key"
+```
+
+Refresh specific products:
+
+```bash
+curl -X POST http://localhost:4000/vectors/reindex \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: dev_admin_key" \
+  -d '{"ids": ["wc_31476","wc_31477"]}'
 ```
 
 ### Check Indexed Data
@@ -113,6 +140,12 @@ Check if all services are running properly:
 
 ```bash
 docker-compose ps
+```
+
+Check Qdrant health:
+
+```bash
+curl -s http://localhost:6333/healthz | jq
 ```
 
 ## Stopping Services

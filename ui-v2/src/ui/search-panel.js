@@ -146,6 +146,214 @@ function renderProductHTML(item, query){
     </div>`;
 }
 
+// Lightweight helper/content interleaving
+const HELPER_DEFS = {
+  whey_vs_isolate: {
+    id: 'whey_vs_isolate',
+    icon: '📘',
+    title: 'Whey vs Isolate — 30-sec read',
+    subtitle: 'Understand the trade-offs fast',
+    match(query, _filters, _items){
+      try{
+        const q = String(query||'').toLowerCase();
+        return /(\bwhey\b|\biso\b|\bisolate\b)/.test(q);
+      }catch(_e){ return false; }
+    }
+  },
+  price_per_100g: {
+    id: 'price_per_100g',
+    icon: '💡',
+    title: 'Savings tip: Compare price per 100g',
+    subtitle: 'Avoid traps with serving sizes',
+    match(query, _filters, items){
+      try{
+        const q = String(query||'').toLowerCase();
+        if (/(\bprotein\b|\bwhey\b|\bcasein\b|\bgainer\b|\bcompare\b)/.test(q)) return true;
+        // Fallback: relevant if at least 3 items have computable €/100g or price_per_serving
+        let count = 0;
+        for(const it of (Array.isArray(items)?items:[])){
+          const p100 = derivePricePer100g(it);
+          if (typeof p100 === 'number' && p100 > 0) count++;
+          else if (typeof it?.price_per_serving === 'number') count++;
+          if (count >= 3) return true;
+        }
+        return false;
+      }catch(_e){ return false; }
+    }
+  }
+};
+
+function getLocalJSON(key, fallback){
+  try{ const s = localStorage.getItem(key); return s ? JSON.parse(s) : (fallback||{}); }catch(_e){ return (fallback||{}); }
+}
+function setLocalJSON(key, obj){
+  try{ localStorage.setItem(key, JSON.stringify(obj||{})); }catch(_e){}
+}
+function getSessionJSON(key, fallback){
+  try{ const s = sessionStorage.getItem(key); return s ? JSON.parse(s) : (fallback||{}); }catch(_e){ return (fallback||{}); }
+}
+function setSessionJSON(key, obj){
+  try{ sessionStorage.setItem(key, JSON.stringify(obj||{})); }catch(_e){}
+}
+
+function isMobileViewport(){
+  try{ return window.matchMedia && window.matchMedia('(max-width: 900px)').matches; }catch(_e){ return true; }
+}
+
+function renderHelperHTML(helper){
+  const h = HELPER_DEFS[helper];
+  if (!h) return '';
+  const title = escapeHtml(h.title);
+  const sub = escapeHtml(h.subtitle||'');
+  return `
+    <div class="helper-card" role="listitem" tabindex="0" data-helper-id="${h.id}">
+      <div class="icon" aria-hidden="true">${h.icon}</div>
+      <div class="meta">
+        <div class="title">${title}</div>
+        ${sub?`<div class="sub">${sub}</div>`:''}
+        <button class="dismiss" aria-label="Dismiss helper">×</button>
+      </div>
+      <button class="cta" aria-label="Open helper">Open</button>
+    </div>`;
+}
+
+function openHelperSheet(helperId){
+  try{
+    const def = HELPER_DEFS[helperId]; if (!def) return;
+    const sheet = document.getElementById('helperSheet'); if (!sheet) return;
+    const title = document.getElementById('helperSheetTitle');
+    const body = document.getElementById('helperSheetBody');
+    if (title) title.textContent = def.title.replace(/\s+—.*/,'');
+    if (body) {
+      if (helperId === 'whey_vs_isolate'){
+        body.innerHTML = `
+          <p><strong>Quick take:</strong> Whey isolate is more filtered (less lactose, fewer carbs), often costs more. Regular whey concentrate has more fats/carbs but similar protein for most goals.</p>
+          <ul>
+            <li><strong>Pick isolate</strong> if lactose sensitive, cutting carbs, or want faster absorption.</li>
+            <li><strong>Pick whey</strong> if on a budget or fine with small lactose.</li>
+          </ul>
+          <p>Tip: Compare <em>€ per 100g protein</em>, not per tub.</p>`;
+      } else if (helperId === 'price_per_100g'){
+        body.innerHTML = `
+          <p>Serving sizes vary a lot. To compare fairly, use <strong>price per 100g</strong> (or per gram of protein).</p>
+          <ol>
+            <li>Check nutrition: protein per 100g.</li>
+            <li>Divide price by grams to get €/100g.</li>
+            <li>Now compare across sizes/brands.</li>
+          </ol>`;
+      } else {
+        body.textContent = '';
+      }
+    }
+    sheet.style.display = 'flex';
+    sheet.classList.add('visible');
+  }catch(_e){}
+}
+
+function closeHelperSheet(){
+  try{
+    const sheet = document.getElementById('helperSheet');
+    if (!sheet) return;
+    sheet.classList.remove('visible');
+    // Allow transition end, then hide
+    setTimeout(()=>{ try{ sheet.style.display = 'none'; }catch(_e){} }, 200);
+  }catch(_e){}
+}
+
+function attachHelperHandlers(root){
+  const cards = root.querySelectorAll('.helper-card');
+  cards.forEach(card=>{
+    if (card.__helperBound) return; card.__helperBound = true;
+    const helperId = card.getAttribute('data-helper-id');
+    const cta = card.querySelector('.cta');
+    const dismiss = card.querySelector('.dismiss');
+    const open = ()=>{ openHelperSheet(helperId); };
+    card.addEventListener('click', (e)=>{
+      // Avoid if clicking dismiss
+      if ((e.target&&e.target.closest&&e.target.closest('.dismiss'))) return;
+      open();
+    });
+    card.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+    cta?.addEventListener('click', (e)=>{ e.stopPropagation(); open(); });
+    dismiss?.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      // Persist dismissal across sessions
+      const key = 'ui_helper_dismissed';
+      const cur = getLocalJSON(key, {});
+      cur[helperId] = true; setLocalJSON(key, cur);
+      // Also mark as seen in session to avoid reinsertion immediately
+      const skey = 'ui_helper_session_seen';
+      const s = getSessionJSON(skey, {}); s[`${helperId}:dismissed`] = true; setSessionJSON(skey, s);
+      card.remove();
+    });
+  });
+  // Close button on sheet
+  const sheetClose = document.getElementById('helperSheetClose');
+  if (sheetClose && !sheetClose.__bound){ sheetClose.__bound = true; sheetClose.addEventListener('click', closeHelperSheet); }
+}
+
+function maybeInterleaveHelpers({ append, page, total, items, query, filters, preProductCount }){
+  try{
+    const list = document.getElementById('productsList'); if (!list) return;
+    if (!isMobileViewport()) return; // mobile only
+    // Respect minimum result thresholds
+    const dismissed = getLocalJSON('ui_helper_dismissed', {});
+    const seen = getSessionJSON('ui_helper_session_seen', {});
+
+    // Decide helper eligibility
+    const showWhey = !dismissed.whey_vs_isolate && HELPER_DEFS.whey_vs_isolate.match(query, filters, items);
+    const showP100 = !dismissed.price_per_100g && HELPER_DEFS.price_per_100g.match(query, filters, items);
+
+    // Optional top card (strong match)
+    let topInserted = false;
+    if (!append && page === 1 && total >= 6 && showWhey && !seen['whey_vs_isolate:top']){
+      const firstChild = list.firstChild;
+      list.insertAdjacentHTML('afterbegin', renderHelperHTML('whey_vs_isolate'));
+      attachHelperHandlers(list);
+      seen['whey_vs_isolate:top'] = true; setSessionJSON('ui_helper_session_seen', seen);
+      topInserted = true;
+    }
+
+    // After 3rd product of the CURRENT page
+    // Determine new products range
+    const currentProducts = list.querySelectorAll('.product');
+    const pre = Number(preProductCount||0);
+    const newCount = Math.max(0, currentProducts.length - pre);
+    if (newCount >= 3 && total >= 6 && showWhey){
+      const seenKey = `whey_vs_isolate:after3:page${page}`;
+      // Avoid duplicating the same card on page 1 if top card already shown
+      if (!seen[seenKey] && !(page === 1 && topInserted)){
+        const target = currentProducts[pre + 3 - 1];
+        if (target && target.parentElement){
+          target.insertAdjacentHTML('afterend', renderHelperHTML('whey_vs_isolate'));
+          attachHelperHandlers(list);
+          seen[seenKey] = true; setSessionJSON('ui_helper_session_seen', seen);
+        }
+      }
+    }
+
+    // After every 10th product overall
+    if (showP100 && total >= 10){
+      const startIndex = pre + 1; // 1-based
+      const endIndex = pre + newCount;
+      for(let idx = startIndex; idx <= endIndex; idx++){
+        if (idx % 10 === 0){
+          const seenKey = `price_per_100g:after${idx}`;
+          if (seen[seenKey]) continue;
+          const target = currentProducts[idx - 1];
+          if (target){
+            target.insertAdjacentHTML('afterend', renderHelperHTML('price_per_100g'));
+            attachHelperHandlers(list);
+            seen[seenKey] = true; setSessionJSON('ui_helper_session_seen', seen);
+          }
+        }
+      }
+    }
+  }catch(_e){ /* ignore */ }
+}
+
 // Applied filters bar management
 function updateAppliedBar() {
   const appliedBar = $('#appliedBar');
@@ -565,6 +773,31 @@ export function mountSearchPanel() {
     }catch(_e){ return false; }
   }
   
+  // Seed a default query and trigger search when appropriate
+  function seedDefaultQueryIfAppropriate(){
+    try{
+      const input = overlayInput || headerInput;
+      if (!input) return false;
+      const hasVal = (input.value||'').trim().length>0;
+      const presetActive = !!(searchState.__presetFilters && Object.keys(searchState.__presetFilters||{}).length>0);
+      // Consider filters active only if there is an effective filter other than the default in_stock=true
+      const active = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
+      const hasEffectiveFilters = Object.keys(active).some(k=>{
+        if (k === 'in_stock') return false;
+        return true;
+      });
+      const hqs = parseHashQuery();
+      const hasQInHash = !!(hqs.get('q')||'').trim();
+      if (hasVal || hasEffectiveFilters || hasQInHash) return false;
+      let seed = '';
+      try{ const arr = JSON.parse(localStorage.getItem('ui_recent_searches')||'[]'); if (Array.isArray(arr) && arr.length) seed = arr[0]; }catch(_e){}
+      if (!seed) seed = 'creatine';
+      input.value = seed;
+      input.dispatchEvent(new Event('input'));
+      return true;
+    }catch(_e){ return false; }
+  }
+  
   // Setup chip overflow
   setupChipOverflow();
   
@@ -602,6 +835,34 @@ export function mountSearchPanel() {
       if (checkOverflow) checkOverflow();
     }, 10);
     (overlayInput||headerInput)?.focus();
+    // Ensure URL reflects search context to unify behavior
+    try{
+      const h = String(location.hash||'');
+      if (!h.startsWith('#/search') && !h.startsWith('#/p/')) {
+        navigate('/search');
+      }
+    }catch(_e){}
+    // Seed only when not in explicit /search or open=1 deep-link flows
+    try{
+      const openParam = new URLSearchParams(location.search||'').get('open');
+      const inHash = String(location.hash||'').startsWith('#/search');
+      if (openParam !== '1' && !inHash) {
+        seedDefaultQueryIfAppropriate();
+      }
+    }catch(_e){}
+    // Always trigger a search immediately to show results (empty q allowed)
+    try{ performSearch({ append:false }); }catch(_e){}
+    // If still no query and no effective filters, trigger a default empty search to show popular items
+    try{
+      setTimeout(()=>{
+        const qNow = (overlayInput?.value||headerInput?.value||'').trim();
+        const active = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
+        const hasEffectiveFilters = Object.keys(active).some(k=> k !== 'in_stock');
+        if (qNow.length === 0 && !hasEffectiveFilters) {
+          performSearch({ append:false });
+        }
+      }, 20);
+    }catch(_e){}
   }
   function closeOverlay() {
     if (!searchPanel) return;
@@ -1077,6 +1338,7 @@ export function mountSearchPanel() {
     if(!productsList || oState.loading) return;
     const query = (overlayInput?.value||headerInput?.value||'').trim();
     const filters = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
+    const preProductCount = append ? (productsList.querySelectorAll('.product').length) : 0;
     if (!append) {
       oState.page = 1; oState.reachedEnd = false; productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
     }
@@ -1102,10 +1364,26 @@ export function mountSearchPanel() {
       const items = Array.isArray(data?.items) ? data.items : [];
       const total = typeof data?.total === 'number' ? data.total : (items||[]).length;
       updateResultCount(total);
-      const html = items.length ? items.map(it=>renderProductHTML(it, query)).join('') : '<div class="muted" style="padding:8px">No results</div>';
+      let html = '';
+      if (items.length) {
+        html = items.map(it=>renderProductHTML(it, query)).join('');
+      } else {
+        // Friendly empty-state with relevant guide (not interleaved)
+        const showWhey = HELPER_DEFS.whey_vs_isolate.match(query, filters, []);
+        const showP100 = HELPER_DEFS.price_per_100g.match(query, filters, []);
+        const helperHtml = showWhey ? renderHelperHTML('whey_vs_isolate') : (showP100 ? renderHelperHTML('price_per_100g') : '');
+        html = `
+          <div class="content-card" role="region" aria-label="No results">
+            <div style="font-weight:800">No results</div>
+            <div class="muted" style="font-size:12px">Try fewer filters or a different term.</div>
+          </div>
+          ${helperHtml}`;
+      }
       if (append && items.length) productsList.insertAdjacentHTML('beforeend', html); else productsList.innerHTML = html;
       attachAddHandlers(productsList);
       attachOpenHandlers(productsList);
+      // Interleave helpers after render on mobile
+      maybeInterleaveHelpers({ append, page: oState.page, total, items, query, filters, preProductCount });
       if (items.length < oState.size) oState.reachedEnd = true;
       setupOverlayInfinite();
       // Update footer CTA label
@@ -1292,8 +1570,14 @@ export function mountSearchPanel() {
       const q = hqs.get('q') || '';
       if (overlayInput) { overlayInput.value = q; }
       applyFiltersFromParams(hqs);
-      const hasFilters = Object.keys(getActiveFilters()).length>0 || (searchState.__presetFilters && Object.keys(searchState.__presetFilters).length>0);
-      if (q || hasFilters) window.__runFilteredSearch?.(); else renderPreInputSuggestions();
+      const active = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
+      const hasEffectiveFilters = Object.keys(active).some(k=> k !== 'in_stock');
+      if (q || hasEffectiveFilters) {
+        window.__runFilteredSearch?.();
+      } else {
+        // No query and no effective filters -> seed a default to show results
+        if (!seedDefaultQueryIfAppropriate()) renderPreInputSuggestions();
+      }
     }
   }catch(_e){ /* ignore */ }
 
@@ -1306,8 +1590,13 @@ export function mountSearchPanel() {
       const q = hqs.get('q') || '';
       if (overlayInput) overlayInput.value = q;
       applyFiltersFromParams(hqs);
-      const hasFilters = Object.keys(getActiveFilters()).length>0 || (searchState.__presetFilters && Object.keys(searchState.__presetFilters).length>0);
-      if (q || hasFilters) window.__runFilteredSearch?.(); else renderPreInputSuggestions();
+      const active = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
+      const hasEffectiveFilters = Object.keys(active).some(k=> k !== 'in_stock');
+      if (q || hasEffectiveFilters) {
+        window.__runFilteredSearch?.();
+      } else {
+        if (!seedDefaultQueryIfAppropriate()) renderPreInputSuggestions();
+      }
     }
   });
 

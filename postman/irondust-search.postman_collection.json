@@ -18,6 +18,57 @@
       }
     },
     {
+      "name": "Hybrid Search",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"q\": \"vegan protein\",\n  \"filters\": {\n    \"in_stock\": true\n  },\n  \"page\": 1,\n  \"size\": 6\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/search/hybrid",
+          "host": ["{{baseUrl}}"],
+          "path": ["search","hybrid"]
+        }
+      }
+    },
+    {
+      "name": "Vector Reindex All",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-admin-key", "value": "{{adminKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/vectors/reindex/all",
+          "host": ["{{baseUrl}}"],
+          "path": ["vectors","reindex","all"]
+        }
+      }
+    },
+    {
+      "name": "Vector Reindex by IDs",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-admin-key", "value": "{{adminKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ids\": [\"wc_31476\", \"wc_31477\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/vectors/reindex",
+          "host": ["{{baseUrl}}"],
+          "path": ["vectors","reindex"]
+        }
+      }
+    },
+    {
       "name": "Ingest Full",
       "request": {
         "method": "POST",

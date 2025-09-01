@@ -15,6 +15,15 @@ meili:
   host: ${MEILI_HOST:http://127.0.0.1:7700}
   key: ${MEILI_KEY:local_dev_key}
 
+vector:
+  host: ${QDRANT_HOST:http://127.0.0.1:6333}
+  apiKey: ${QDRANT_API_KEY:}
+  collectionName: ${QDRANT_COLLECTION:products_vec_lg}
+  embeddingModel: ${EMBEDDING_MODEL:text-embedding-3-large}
+  embeddingDim: ${EMBEDDING_DIM:3072}
+  rrfK: ${HYBRID_RRF_K:60}
+  vectorSearchK: ${HYBRID_VECTOR_K:100}
+
 spring:
   main:
     web-application-type: reactive
