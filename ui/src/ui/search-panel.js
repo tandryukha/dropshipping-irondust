@@ -397,6 +397,14 @@ export function mountSearchPanel() {
   const sortDropdown = $('#sortDropdown');
   const sortDropdownHeader = $('#sortDropdownHeader');
   
+  // Detect if current route is PDP
+  function isOnPdp(){
+    try{
+      const h = (window.location && window.location.hash || '').slice(1) || '/';
+      return /^\/p\/[^/]+$/.test(h);
+    }catch(_e){ return false; }
+  }
+  
   // Setup chip overflow
   setupChipOverflow();
   
@@ -420,6 +428,13 @@ export function mountSearchPanel() {
       const checkOverflow = window.checkChipOverflow;
       if (checkOverflow) checkOverflow();
     }, 10);
+    // PDP: show results immediately on focus. Home: only after typing.
+    if (isOnPdp()) {
+      if (typeof runFilteredSearch === 'function') runFilteredSearch();
+    } else {
+      // On home, never pre-populate results on simple focus
+      if (productsList) productsList.innerHTML = '';
+    }
   });
   document.addEventListener('click', (e)=>{
     // Don't close if clicking inside modals
@@ -973,8 +988,8 @@ export function mountSearchPanel() {
   // Initial wiring for static Add buttons
   attachAddHandlers(document);
 
-  // If any chip is preselected, run search immediately
-  if(Array.from(allChips).some(c=>c.getAttribute('aria-pressed')==='true')){
+  // If any chip is preselected, run search immediately ONLY on PDP
+  if(isOnPdp() && Array.from(allChips).some(c=>c.getAttribute('aria-pressed')==='true')){
     // Initialize activeFilters for pre-selected chips
     allChips.forEach(chip => {
       if (chip.getAttribute('aria-pressed') === 'true') {

@@ -14,6 +14,9 @@ const state = {
   reachedEnd: false
 };
 
+let infiniteObserver = null;
+let resizeTimer = null;
+
 function sortToBackend(sortKey){
   switch (sortKey) {
     case 'price_asc': return ['price_cents:asc'];
@@ -139,6 +142,43 @@ async function fetchPage({ append=false }={}){
   }
 }
 
+function ensureViewportFilled({ bufferPx=600, maxPages=5 }={}){
+  const home = $('#home');
+  if (!home || !home.classList.contains('visible')) return;
+  let attempts = 0;
+  const needMore = ()=>{
+    const doc = document.documentElement;
+    const pageHeight = Math.max(doc.scrollHeight, doc.clientHeight);
+    return !state.reachedEnd && (pageHeight < window.innerHeight + bufferPx);
+  };
+  const loadUntilFilled = async ()=>{
+    while (needMore() && attempts < maxPages && !state.loading) {
+      state.page += 1;
+      attempts += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await fetchPage({ append:true });
+    }
+  };
+  loadUntilFilled();
+}
+
+function setupInfiniteScroll(){
+  const sentinelWrap = document.querySelector('.home-load');
+  const moreBtn = $('#homeMore');
+  if (moreBtn) moreBtn.style.display = 'none';
+  if (!sentinelWrap) return;
+  sentinelWrap.style.minHeight = '1px';
+  if (infiniteObserver) { try { infiniteObserver.disconnect(); } catch(_){} }
+  infiniteObserver = new IntersectionObserver((entries)=>{
+    const seen = entries.some(e=>e.isIntersecting);
+    if (!seen) return;
+    if (state.loading || state.reachedEnd) return;
+    state.page += 1;
+    fetchPage({ append:true });
+  }, { root: null, rootMargin: '800px 0px', threshold: 0 });
+  infiniteObserver.observe(sentinelWrap);
+}
+
 export function mountHome(){
   const section = $('#home');
   const sortSel = $('#homeSort');
@@ -152,7 +192,7 @@ export function mountHome(){
       ch.setAttribute('aria-pressed','true');
       state.preset = ch.getAttribute('data-home-preset');
       state.page = 1; state.reachedEnd = false;
-      fetchPage({ append:false });
+      fetchPage({ append:false }).then(()=> ensureViewportFilled());
     });
   });
 
@@ -164,23 +204,27 @@ export function mountHome(){
   sortSel?.addEventListener('change', (e)=>{
     state.sort = e.target.value;
     state.page = 1; state.reachedEnd = false;
-    fetchPage({ append:false });
+    fetchPage({ append:false }).then(()=> ensureViewportFilled());
   });
 
-  // Load more
-  moreBtn?.addEventListener('click', ()=>{
-    if (state.loading || state.reachedEnd) return;
-    state.page += 1;
-    fetchPage({ append:true });
-  });
+  // Infinite scroll sentinel
+  setupInfiniteScroll();
 
   // Initial load
-  if (section) fetchPage({ append:false });
+  if (section) fetchPage({ append:false }).then(()=> ensureViewportFilled());
 
   // Re-fetch current page when language changes
   bus.addEventListener('language:changed', () => {
     state.page = 1; state.reachedEnd = false;
-    fetchPage({ append:false });
+    fetchPage({ append:false }).then(()=> ensureViewportFilled());
+  });
+
+  // Re-check after resize (debounced)
+  window.addEventListener('resize', ()=>{
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(()=>{
+      ensureViewportFilled();
+    }, 200);
   });
 }
 
