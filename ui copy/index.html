@@ -62,10 +62,20 @@
     /* Global sort next to search */
     .header-sort{display:none}
 
-    /* Enhanced panel */
-    .panel{position:absolute;left:0;right:0;top:68px;z-index:20;background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:var(--shadow);display:none}
+    /* Enhanced Search Sheet (overlay) */
+    .panel{position:fixed;inset:0;z-index:50;display:none}
     .panel.visible{display:block}
-    .panel-inner{display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px}
+    .panel::before{content:"";position:absolute;inset:0;background:rgba(15,18,25,.35);backdrop-filter:saturate(120%) blur(8px);opacity:0;transition:opacity .18s ease}
+    .panel.visible::before{opacity:1}
+    .panel-inner{position:absolute;left:50%;top:8%;transform:translateX(-50%) scale(.98);opacity:0;width:min(1100px,94vw);background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:0 30px 80px rgba(0,0,0,.25);display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px;transition:transform .18s ease,opacity .18s ease}
+    .panel.visible .panel-inner{transform:translateX(-50%) scale(1);opacity:1}
+    .panel-head{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+    .panel-input{flex:1;border:1px solid #e7ebef;border-radius:12px;padding:10px 12px;font-size:14px}
+    .panel-actions{display:flex;gap:8px}
+    .btn{border:1px solid #e0e6ef;background:#f8fafc;border-radius:10px;padding:8px 10px;font-weight:700;cursor:pointer}
+    .btn-primary{background:var(--fp-primary);border-color:var(--fp-primary);color:#fff}
+    .panel-footer{position:sticky;bottom:-20px;margin:-10px -10px -10px -10px;padding:10px;border-top:1px solid #eef1f4;background:linear-gradient(180deg, rgba(255,255,255,.9), #fff);display:flex;justify-content:space-between;align-items:center}
+    .panel-footer .muted{font-size:12px}
     .col h4{margin:6px 0 10px;font-size:14px;color:#374151;font-weight:800;letter-spacing:.2px}
     .product{display:grid;grid-template-columns:72px 1fr auto;gap:18px;padding:16px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:16px;cursor:pointer;transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease}
     .product:hover{border-color:#dbe8f0;box-shadow:0 10px 22px rgba(0,0,0,.08);transform:translateY(-2px)}
@@ -254,6 +264,13 @@
     .home-load{display:grid;place-items:center;margin:14px 0}
     @media (max-width:900px){ .home-grid{grid-template-columns:repeat(2,1fr)} .home-card .cta .add{width:100%} }
 
+    /* Mobile: search sheet fullscreen */
+    @media (max-width:900px){
+      .panel-inner{left:0;right:0;top:0;transform:none;opacity:1;position:absolute;width:100vw;border-radius:0;grid-template-columns:1fr;padding:12px}
+      .panel.visible .panel-inner{transform:none}
+      .panel-footer{position:sticky;bottom:0}
+    }
+
     /* Flavor picker popover (appears when clicking Add) */
     .pop{position:fixed;z-index:60;min-width:260px;background:#fff;border:1px solid #e3e8ef;border-radius:14px;box-shadow:var(--shadow);padding:12px;display:none}
     .pop.visible{display:block}
@@ -297,6 +314,7 @@
         <label for="search" class="visually-hidden">Search</label>
         <input id="search" class="search-input" placeholder="Search whey, creatine, goals…" autocomplete="off" />
         <button class="bolt" id="boltBtn" aria-label="Open command palette"><span>⚡</span></button>
+        <span class="kbd" aria-hidden="true">/</span>
         <span class="kbd" aria-hidden="true">⌘K</span>
       </div>
 
@@ -319,11 +337,22 @@
 
       
 
-      <!-- Enhanced Search Panel -->
-      <div id="searchPanel" class="panel" role="dialog" aria-label="Enhanced search panel" aria-modal="false">
-        <!-- Applied Filters Bar -->
-        <div id="appliedBar" class="applied-bar"></div>
-        <div class="panel-inner">
+      <!-- Enhanced Search Panel (Overlay Sheet) -->
+      <div id="searchPanel" class="panel" role="dialog" aria-label="Search" aria-modal="true" aria-hidden="true">
+        <div class="panel-inner" role="document">
+          <div style="grid-column:1 / -1">
+            <div class="panel-head">
+              <input id="searchOverlayInput" class="panel-input" placeholder="Search whey, creatine, goals…" autocomplete="off" aria-label="Search" />
+              <div class="panel-actions">
+                <button class="btn" id="overlayClearBtn" aria-label="Clear all">Clear all</button>
+                <button class="btn" id="overlayFiltersBtn" aria-label="Open filters">Filters</button>
+              </div>
+            </div>
+            <div id="chipsDock" class="chip-tray" aria-label="Quick filters dock"></div>
+            <div id="preInputSuggestions" class="content-card" style="display:none;margin-top:8px"></div>
+          </div>
+          <!-- Applied Filters Bar (inline below head on desktop) -->
+          <div id="appliedBar" class="applied-bar" style="grid-column:1 / -1"></div>
           <!-- Products column WITH Add -->
           <div class="col" id="productsCol">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -398,7 +427,7 @@
           </div>
 
           <!-- Goals / Filters -->
-          <div class="col">
+          <div class="col" id="goalsCol">
             <h4>Goals</h4>
             <div class="preset-grid">
               <button class="preset-card" data-filters='{"goal_tags":["strength"]}' data-preset="strength">
@@ -422,7 +451,7 @@
             
             <div class="divider"></div>
             
-            <h4>Quick Filters</h4>
+            <h4 id="quickFiltersHeader">Quick Filters</h4>
             <div class="chip-tray" id="quickFilters">
               <button class="chip chip-stock" role="switch" aria-pressed="true" data-filter='{"in_stock":true}'>In stock</button>
               <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}' data-filter-group="form">Powder</button>
@@ -456,6 +485,13 @@
               <div class="muted" style="font-size:12px">Printable <span class="tag">Checklist</span></div>
             </div>
             <button class="btn-ghost" style="width:100%;margin-top:6px">Open Coach</button>
+          </div>
+          <div class="panel-footer" style="grid-column:1 / -1">
+            <span class="muted"><span id="resultCount">0</span> items</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn" id="closeOverlayBtn" aria-label="Close">Close</button>
+              <button class="btn btn-primary" id="applyFooterBtn" disabled>Apply filters</button>
+            </div>
           </div>
         </div>
       </div>

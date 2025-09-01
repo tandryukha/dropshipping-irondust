@@ -1,7 +1,7 @@
 import { $, $$ } from './core/dom.js';
 import { bus } from './core/bus.js';
 import { store } from './core/store.js';
-import { route, start } from './core/router.js';
+import { route, start, navigate } from './core/router.js';
 import { mountFlavorPopover } from './ui/flavor-popover.js';
 import { mountSearchPanel } from './ui/search-panel.js';
 import { mountPdp, openProduct } from './ui/pdp.js';
@@ -40,17 +40,23 @@ route('/', ()=>{
   showHome();
   const pdp = document.querySelector('.pdp');
   pdp?.classList.add('hidden');
-  // Ensure header extras visible on home
   const headerSort = document.querySelector('.header-sort');
   const goalChips = document.querySelector('#goalChips');
   if (headerSort) headerSort.style.display = '';
-  // Hide goal chips on home to avoid duplication with Featured chips
   if (goalChips) goalChips.style.display = 'none';
+  // Ensure overlay is closed on home unless explicitly opened
+  if (window.__closeSearchOverlay) window.__closeSearchOverlay();
+});
+route('/search', ()=>{
+  // Open overlay, keep home visible underneath
+  showHome();
+  const pdp = document.querySelector('.pdp');
+  pdp?.classList.add('hidden');
+  if (window.__openSearchOverlay) window.__openSearchOverlay();
 });
 route('/p/:id', (id)=>{ 
   // Ensure search panel is hidden when opening PDP via routing
-  const sp = $('#searchPanel');
-  sp?.classList.remove('visible');
+  if (window.__closeSearchOverlay) window.__closeSearchOverlay();
   const si = $('#search');
   si?.blur();
   // Hide home, show PDP

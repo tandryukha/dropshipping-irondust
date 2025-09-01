@@ -11,7 +11,8 @@ const searchState = {
   activePreset: null,
   sortOrder: 'relevance',
   goalsMultiSelect: false,
-  activeGoals: [] // labels of currently applied multi-goal selection
+  activeGoals: [], // labels of currently applied multi-goal selection
+  lastAppliedSignature: '' // for Apply button enablement (optional)
 };
 
 // Helpers to compare filters across duplicate chips
@@ -391,13 +392,118 @@ function setupChipOverflow() {
   });
 }
 
+// Exposed controls for overlay
+function setOverlayAria(open){
+  const panel = $('#searchPanel');
+  if (!panel) return;
+  panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+}
+
+function serializeFilters(obj){
+  try{
+    const parts = [];
+    Object.entries(obj||{}).forEach(([k,v])=>{
+      if (Array.isArray(v)) {
+        parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v.join(','))}`);
+      } else if (v && typeof v === 'object' && 'op' in v && 'value' in v) {
+        parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v.op+':'+v.value)}`);
+      } else if (typeof v !== 'undefined' && v !== null) {
+        parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
+      }
+    });
+    return parts.join('&');
+  }catch(_e){ return ''; }
+}
+
+function parseHashQuery(){
+  try{
+    const h = (window.location && window.location.hash || '');
+    const qIndex = h.indexOf('?');
+    if (qIndex === -1) return new URLSearchParams('');
+    const qs = h.slice(qIndex+1);
+    return new URLSearchParams(qs);
+  }catch(_e){ return new URLSearchParams(''); }
+}
+
+function updateResultCount(n){
+  const el = $('#resultCount');
+  if (el) el.textContent = String(n||0);
+}
+
+function markChangedSinceApply(){
+  const applyBtn = $('#applyFooterBtn');
+  if (!applyBtn) return;
+  // We run live updates, keep disabled; still toggle visual if needed
+  applyBtn.disabled = true;
+}
+
+function restorePersisted(){
+  try{
+    const raw = localStorage.getItem('ui_quick_filters');
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (!state || typeof state !== 'object') return;
+    $$('.chip[role="switch"]').forEach(chip=>{
+      const f = getChipFilterObject(chip);
+      const key = JSON.stringify(canonicalize(f));
+      if (state[key] === true) chip.setAttribute('aria-pressed','true');
+    });
+  }catch(_e){ /* ignore */ }
+}
+
+function persistQuickFilters(){
+  try{
+    const map = {};
+    $$('.chip[role="switch"]').forEach(chip=>{
+      const f = getChipFilterObject(chip);
+      const key = JSON.stringify(canonicalize(f));
+      map[key] = chip.getAttribute('aria-pressed') === 'true';
+    });
+    localStorage.setItem('ui_quick_filters', JSON.stringify(map));
+  }catch(_e){ /* ignore */ }
+}
+
+function persistRecentQuery(q){
+  try{
+    const key = 'ui_recent_searches';
+    const arr = JSON.parse(localStorage.getItem(key) || '[]');
+    const next = [q, ...arr.filter(x=>x && x!==q)].slice(0,5);
+    localStorage.setItem(key, JSON.stringify(next));
+  }catch(_e){ /* ignore */ }
+}
+
+function renderPreInputSuggestions(){
+  const box = $('#preInputSuggestions');
+  if (!box) return;
+  const key = 'ui_recent_searches';
+  let arr = [];
+  try{ arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch(_e){}
+  const tries = ['creatine', 'whey isolate', 'vegan protein', 'electrolytes'];
+  const items = (arr.length ? arr : tries).slice(0,5);
+  box.style.display = '';
+  box.innerHTML = `
+    <div style="font-weight:800;margin-bottom:6px">${arr.length? 'Recent':'Try:'}</div>
+    <div class="chip-group">${items.map(t=>`<button class="chip" data-try="${t}">${t}</button>`).join('')}</div>
+  `;
+  box.querySelectorAll('button[data-try]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const input = $('#searchOverlayInput');
+      if (input) { input.value = b.getAttribute('data-try'); input.dispatchEvent(new Event('input')); input.focus(); }
+    });
+  });
+}
+
 export function mountSearchPanel() {
-  const searchInput = $('#search');
+  const headerInput = $('#search');
+  const overlayInput = $('#searchOverlayInput');
   const searchPanel = $('#searchPanel');
   const productsList = $('#productsList');
   const allChips = $$('.chip[role="switch"]');
   const sortDropdown = $('#sortDropdown');
   const sortDropdownHeader = $('#sortDropdownHeader');
+  const overlayFiltersBtn = $('#overlayFiltersBtn');
+  const overlayClearBtn = $('#overlayClearBtn');
+  const closeOverlayBtn = $('#closeOverlayBtn');
   
   // Detect if current route is PDP
   function isOnPdp(){
@@ -422,27 +528,81 @@ export function mountSearchPanel() {
     runFilteredSearch();
   });
 
+  let lastOpenedAt = 0;
+  function openOverlay() {
+    if (!searchPanel) return;
+    searchPanel.classList.add('visible');
+    setOverlayAria(true);
+    lastOpenedAt = Date.now();
+    setTimeout(() => {
+      const checkOverflow = window.checkChipOverflow;
+      if (checkOverflow) checkOverflow();
+    }, 10);
+    (overlayInput||headerInput)?.focus();
+  }
+  function closeOverlay() {
+    if (!searchPanel) return;
+    searchPanel.classList.remove('visible');
+    setOverlayAria(false);
+  }
+  // expose for router
+  window.__openSearchOverlay = openOverlay;
+  window.__closeSearchOverlay = closeOverlay;
+
   // Focus show/hide
-  searchInput?.addEventListener('focus', ()=>{
-    // PDP: open immediately; Home: do not open on focus to avoid covering upsell
-    if (isOnPdp()) {
-      searchPanel?.classList.add('visible');
-      setTimeout(() => {
-        const checkOverflow = window.checkChipOverflow;
-        if (checkOverflow) checkOverflow();
-      }, 10);
-      if (typeof runFilteredSearch === 'function') runFilteredSearch();
-    } else {
-      // Ensure closed on Home when only focused
-      searchPanel?.classList.remove('visible');
-    }
+  headerInput?.addEventListener('focus', ()=>{
+    // Do not auto-open on load; open only when user interacts
+    openOverlay();
   });
   document.addEventListener('click', (e)=>{
     // Don't close if clicking inside modals
     if (e.target.closest('.modal') || e.target.closest('.modal-overlay')) return;
-    
-    const inside = e.target.closest('.search-wrap') || e.target.closest('#searchPanel');
-    if(!inside) searchPanel?.classList.remove('visible');
+    // Ignore the very first click that opened the overlay (mouseup after mousedown-focus)
+    if (searchPanel?.classList.contains('visible') && Date.now() - lastOpenedAt < 250) return;
+    const inside = e.target.closest('.panel-inner') || e.target.closest('.search-wrap');
+    if(!inside) closeOverlay();
+  });
+  // Close when clicking backdrop area of panel
+  searchPanel?.addEventListener('click', (e)=>{
+    if (e.target === searchPanel) closeOverlay();
+  });
+  closeOverlayBtn?.addEventListener('click', closeOverlay);
+  overlayFiltersBtn?.addEventListener('click', ()=>{
+    const allFiltersBtn = $('#allFiltersBtn');
+    if (allFiltersBtn) allFiltersBtn.click();
+  });
+  overlayClearBtn?.addEventListener('click', ()=>{
+    // Clear input and all filters
+    if (overlayInput) { overlayInput.value=''; }
+    if (headerInput) { headerInput.value=''; }
+    clearPreset();
+    searchState.activeFilters.clear();
+    $$('.chip[role="switch"]').forEach(chip => chip.setAttribute('aria-pressed', 'false'));
+    updateAppliedBar();
+    if (window.checkChipOverflow) window.checkChipOverflow();
+    productsList.innerHTML = '';
+    renderPreInputSuggestions();
+    markChangedSinceApply();
+    persistQuickFilters();
+    // Update URL
+    navigate('/search');
+  });
+  // Hotkeys: '/' to focus, Cmd/Ctrl+K toggles, Esc closes
+  document.addEventListener('keydown', (e)=>{
+    const key = e.key;
+    if (key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      openOverlay();
+      (overlayInput||headerInput)?.focus();
+    }
+    if ((e.metaKey||e.ctrlKey) && key.toLowerCase()==='k') {
+      e.preventDefault();
+      if (searchPanel?.classList.contains('visible')) closeOverlay(); else openOverlay();
+    }
+    if (key === 'Escape' && searchPanel?.classList.contains('visible')) {
+      e.preventDefault();
+      closeOverlay();
+    }
   });
   
   // Handle preset cards (both in panel and modal)
@@ -836,11 +996,13 @@ export function mountSearchPanel() {
     
     updateAppliedBar();
     if (window.checkChipOverflow) window.checkChipOverflow();
+    markChangedSinceApply();
+    persistQuickFilters();
   }
 
   async function runFilteredSearch(){
     if(!productsList) return;
-    const query = (searchInput?.value||'').trim();
+    const query = (overlayInput?.value||headerInput?.value||'').trim();
     const filters = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
     productsList.innerHTML = '<div class="muted" style="padding:8px">Searching…</div>';
     try{
@@ -862,10 +1024,19 @@ export function mountSearchPanel() {
       const data = await searchProducts(query, searchParams);
       let items = Array.isArray(data?.items) ? data.items : [];
       
+      updateResultCount(items.length);
       if(items.length === 0){ productsList.innerHTML = '<div class="muted" style="padding:8px">No results</div>'; return; }
       productsList.innerHTML = items.map(it=>renderProductHTML(it, query)).join('');
       attachAddHandlers(productsList);
       attachOpenHandlers(productsList);
+      // Update URL
+      const qsParts = [];
+      if (query) qsParts.push('q='+encodeURIComponent(query));
+      const fqs = serializeFilters(filters);
+      if (fqs) qsParts.push(fqs);
+      navigate('/search' + (qsParts.length? ('?'+qsParts.join('&')):''));
+      // Persist recent
+      if (query) persistRecentQuery(query);
     }catch(e){
       console.error('Search error:', e);
       productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
@@ -982,36 +1153,31 @@ export function mountSearchPanel() {
       productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
     }
   }
-  const debounced = debounce(runSearch, 350);
-  searchInput?.addEventListener('input', (e)=>{
+  const debounced = debounce(runSearch, 300);
+  overlayInput?.addEventListener('input', (e)=>{
     const val = e.target.value || '';
     const query = val.trim();
     const presetActive = !!(searchState.__presetFilters && Object.keys(searchState.__presetFilters||{}).length>0);
     const filtersActive = Object.keys(getActiveFilters()).length>0 || presetActive;
-    if (!isOnPdp()) {
-      if (query.length >= 2 || filtersActive) {
-        searchPanel?.classList.add('visible');
-        setTimeout(() => { const checkOverflow = window.checkChipOverflow; if (checkOverflow) checkOverflow(); }, 10);
-      } else {
-        searchPanel?.classList.remove('visible');
-      }
-    }
+    if (query.length === 0 && !filtersActive) { renderPreInputSuggestions(); }
     debounced(val);
   });
-  searchInput?.addEventListener('keydown', (e)=>{ 
+  overlayInput?.addEventListener('keydown', (e)=>{ 
     if(e.key==='Enter'){
       e.preventDefault();
-      const query = (searchInput?.value||'').trim();
+      const query = (overlayInput?.value||'').trim();
       const presetActive = !!(searchState.__presetFilters && Object.keys(searchState.__presetFilters||{}).length>0);
       const filtersActive = Object.keys(getActiveFilters()).length>0 || presetActive;
-      if (!isOnPdp()) {
-        if (query.length >= 2 || filtersActive) {
-          searchPanel?.classList.add('visible');
-          setTimeout(() => { const checkOverflow = window.checkChipOverflow; if (checkOverflow) checkOverflow(); }, 10);
-        }
-      }
-      runSearch(searchInput.value); 
+      if (query.length === 0 && !filtersActive) return;
+      runSearch(overlayInput.value); 
     } 
+  });
+
+  // Keep header input in sync: typing in header should open overlay and mirror value
+  headerInput?.addEventListener('input', ()=>{
+    if (!searchPanel?.classList.contains('visible')) openOverlay();
+    if (overlayInput) overlayInput.value = headerInput.value || '';
+    overlayInput?.dispatchEvent(new Event('input'));
   });
 
   // Initial wiring for static Add buttons
@@ -1043,6 +1209,22 @@ export function mountSearchPanel() {
     if (window.checkChipOverflow) window.checkChipOverflow();
     if (window.__runFilteredSearch) window.__runFilteredSearch();
   });
+
+  // Initial restore from persisted chips and show suggestions
+  restorePersisted();
+  renderPreInputSuggestions();
+
+  // Deep link: open overlay when hash is /search or URL has ?open=1
+  try{
+    const openParam = new URLSearchParams(location.search).get('open');
+    const inHash = (location.hash||'').startsWith('#/search');
+    if (openParam === '1' || inHash) {
+      openOverlay();
+      const hqs = parseHashQuery();
+      const q = hqs.get('q') || '';
+      if (overlayInput) { overlayInput.value = q; if (q) overlayInput.dispatchEvent(new Event('input')); }
+    }
+  }catch(_e){ /* ignore */ }
 }
 
 
