@@ -34,6 +34,8 @@ public class IngestDtos {
         private int indexed; // number of documents indexed
         private int warnings_total; // total warnings across all products
         private int conflicts_total; // total conflicts across all products
+        private int ignored_count; // number of products ignored (e.g., gift cards)
+        private java.util.List<String> ignored_ids; // list of ignored product IDs (wc_*)
         private List<ProductReport> products; // per-product details
 
         public int getIndexed() { return indexed; }
@@ -42,6 +44,10 @@ public class IngestDtos {
         public void setWarnings_total(int warnings_total) { this.warnings_total = warnings_total; }
         public int getConflicts_total() { return conflicts_total; }
         public void setConflicts_total(int conflicts_total) { this.conflicts_total = conflicts_total; }
+        public int getIgnored_count() { return ignored_count; }
+        public void setIgnored_count(int ignored_count) { this.ignored_count = ignored_count; }
+        public java.util.List<String> getIgnored_ids() { return ignored_ids; }
+        public void setIgnored_ids(java.util.List<String> ignored_ids) { this.ignored_ids = ignored_ids; }
         public List<ProductReport> getProducts() { return products; }
         public void setProducts(List<ProductReport> products) { this.products = products; }
     }

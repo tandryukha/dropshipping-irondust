@@ -282,11 +282,33 @@ public class UnitParser implements EnricherStep {
                 double value = Double.parseDouble(matcher.group(1).replace(",", "."));
                 String unit = matcher.group(2).toLowerCase();
                 
-                // Convert to grams
+                // Convert to grams selectively. Treat liters as grams only for drinks.
                 if (unit.equals("kg")) {
                     return value * 1000;
                 } else if (unit.equals("l")) {
-                    return value * 1000; // Assume 1:1 conversion for now
+                    // Only allow L→g when category suggests drink or attribute form is drink/vedelik
+                    boolean isDrink = false;
+                    if (raw.getDynamic_attrs() != null) {
+                        List<String> form = raw.getDynamic_attrs().get("attr_pa_valjalaske-vorm");
+                        if (form != null) {
+                            for (String f : form) {
+                                String fl = f != null ? f.toLowerCase() : "";
+                                if (fl.contains("vedelik") || fl.contains("jook") || fl.contains("drink")) { isDrink = true; break; }
+                            }
+                        }
+                    }
+                    if (!isDrink && raw.getCategories_slugs() != null) {
+                        for (String s : raw.getCategories_slugs()) {
+                            String sl = s != null ? s.toLowerCase() : "";
+                            if (sl.contains("joog") || sl.contains("spordijoog") || sl.contains("jook")) { isDrink = true; break; }
+                        }
+                    }
+                    if (isDrink) {
+                        return value * 1000; // assume ~1 g/ml for water-like drinks
+                    } else {
+                        // Not a drink → do not set net_weight_g from liters
+                        return null;
+                    }
                 } else {
                     return value; // Already in g or ml
                 }

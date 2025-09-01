@@ -22,7 +22,9 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-admin-key", "value": "{{adminKey}}" }
+          { "key": "x-admin-key", "value": "{{adminKey}}" },
+          { "key": "x-clear-ai-cache", "value": "true" },
+          { "key": "x-clear-translation-cache", "value": "true" }
         ],
         "url": {
           "raw": "{{baseUrl}}/ingest/full",

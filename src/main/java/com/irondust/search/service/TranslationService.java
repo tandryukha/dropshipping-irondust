@@ -140,6 +140,11 @@ public class TranslationService {
             String targetLang, 
             ProductTranslation source) {
         
+        // Skip same-language translations: return source as-is
+        if (Objects.equals(sourceLang, targetLang)) {
+            return Mono.just(source);
+        }
+
         // Check cache first
         String cacheKey = buildCacheKey(sourceLang, targetLang, source);
         TranslationCache cached = translationCache.get(cacheKey);

@@ -7,6 +7,25 @@ Base URL: http://localhost:4000
 - POST /ingest/full — Ingest all products
 - POST /ingest/products — Ingest specific products by ID
 
+### Ingest response shape (excerpt)
+
+Full ingest returns a JSON report with totals, per-product details, and ignored items metadata:
+
+```json
+{
+  "indexed": 1234,
+  "warnings_total": 12,
+  "conflicts_total": 3,
+  "ignored_count": 2,
+  "ignored_ids": ["wc_38369", "wc_38370"],
+  "products": [
+    { "id": "wc_30177", "warnings": [], "conflicts": [] }
+  ]
+}
+```
+
+Ignored items include non-supplement products (e.g., gift cards, vouchers). They are detected by name/slug/description tokens and category names/slugs.
+
 ### Ingest history
 
 - On successful completion of a full ingest, the API writes a JSON snapshot of the final report to disk for auditing.

@@ -80,10 +80,10 @@ public class PriceCalculator implements EnricherStep {
             sources.put("price_per_serving_max", "derived");
         }
 
-        // Calculate price per 100g for weight-based forms only (powder/drink/gel/bar)
+        // Calculate price per 100g for weight-based consumables only (powder/drink/gel/bar)
         if (localPrice != null) {
             String form = soFar.getForm();
-            boolean weightBased = "powder".equals(form) || "drink".equals(form) || "gel".equals(form) || "bar".equals(form) || form == null;
+            boolean weightBased = "powder".equals(form) || "drink".equals(form) || "gel".equals(form) || "bar".equals(form);
             if (weightBased) {
                 Double weight = soFar.getNet_weight_g();
                 Double ss = soFar.getServing_size_g();

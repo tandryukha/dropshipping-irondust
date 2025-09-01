@@ -244,7 +244,15 @@ public class EnrichmentPipeline {
         if (!(fillObj instanceof Map<?, ?> fill)) return fieldsFilled;
         // Log fill keys and thresholds for debugging
         log.info("AI fill summary: product={} keys={}", enriched.getId(), fill.keySet());
-        if (enriched.getForm() == null && fill.get("form") instanceof Map<?, ?> fm) {
+        // Block AI form fills for clear accessories or when Woo says "muu" (unknown) and no consumable evidence
+        boolean isAccessory = false;
+        if (enriched.getCategories_slugs() != null) {
+            for (String s : enriched.getCategories_slugs()) {
+                String sl = s != null ? s.toLowerCase() : "";
+                if (sl.contains("sporditarvik")) { isAccessory = true; break; }
+            }
+        }
+        if (!isAccessory && enriched.getForm() == null && fill.get("form") instanceof Map<?, ?> fm) {
             Object v = ((Map<String, Object>) fm).get("value");
             if (v instanceof String s) { enriched.setForm(s); fieldsFilled.add("form"); }
         }
@@ -274,7 +282,7 @@ public class EnrichmentPipeline {
         }
         log.info("AI thresholds: product={} aiCritThreshold={} servingsThreshold={} servingSizeThreshold={}",
             enriched.getId(), aiCritThreshold, servingsThreshold, servingSizeThreshold);
-        if (allowAiCrit && enriched.getServings() == null && fill.containsKey("servings")) {
+        if (!isAccessory && allowAiCrit && enriched.getServings() == null && fill.containsKey("servings")) {
             Object node = fill.get("servings");
             log.info("AI fill raw: product={} field=servings class={} value={}", enriched.getId(), node != null ? node.getClass().getName() : "null", node);
             boolean applied = false;
@@ -300,7 +308,7 @@ public class EnrichmentPipeline {
             log.info("AI fill attempt: product={} field=servings value={} confidence={} threshold={} applied={}",
                 enriched.getId(), v, conf, servingsThreshold, applied);
         }
-        if (allowAiCrit && enriched.getServings_min() == null && enriched.getServings() == null && fill.containsKey("servings_min")) {
+        if (!isAccessory && allowAiCrit && enriched.getServings_min() == null && enriched.getServings() == null && fill.containsKey("servings_min")) {
             Object node = fill.get("servings_min");
             log.info("AI fill raw: product={} field=servings_min class={} value={}", enriched.getId(), node != null ? node.getClass().getName() : "null", node);
             boolean applied = false;
@@ -321,7 +329,7 @@ public class EnrichmentPipeline {
             log.info("AI fill attempt: product={} field=servings_min value={} confidence={} threshold={} applied={}",
                 enriched.getId(), v, conf, servingsThreshold, applied);
         }
-        if (allowAiCrit && enriched.getServings_max() == null && enriched.getServings() == null && fill.containsKey("servings_max")) {
+        if (!isAccessory && allowAiCrit && enriched.getServings_max() == null && enriched.getServings() == null && fill.containsKey("servings_max")) {
             Object node = fill.get("servings_max");
             log.info("AI fill raw: product={} field=servings_max class={} value={}", enriched.getId(), node != null ? node.getClass().getName() : "null", node);
             boolean applied = false;
@@ -342,7 +350,7 @@ public class EnrichmentPipeline {
             log.info("AI fill attempt: product={} field=servings_max value={} confidence={} threshold={} applied={}",
                 enriched.getId(), v, conf, servingsThreshold, applied);
         }
-        if (allowAiCrit && enriched.getServing_size_g() == null && fill.containsKey("serving_size_g")) {
+        if (!isAccessory && allowAiCrit && enriched.getServing_size_g() == null && fill.containsKey("serving_size_g")) {
             Object node = fill.get("serving_size_g");
             log.info("AI fill raw: product={} field=serving_size_g class={} value={}", enriched.getId(), node != null ? node.getClass().getName() : "null", node);
             boolean applied = false;

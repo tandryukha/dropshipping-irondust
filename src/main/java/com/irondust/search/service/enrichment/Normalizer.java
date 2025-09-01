@@ -34,12 +34,18 @@ public class Normalizer implements EnricherStep {
         Map.entry("tablet", "tabs"),
         Map.entry("tablets", "tabs"),
         Map.entry("tabs", "tabs"),
+        // Drinks
+        Map.entry("vedelik", "drink"),
         Map.entry("jook", "drink"),
         Map.entry("drink", "drink"),
         Map.entry("geel", "gel"),
         Map.entry("gel", "gel"),
+        // Bars
         Map.entry("baar", "bar"),
-        Map.entry("bar", "bar")
+        Map.entry("bar", "bar"),
+        Map.entry("batoon", "bar"),
+        Map.entry("batoonid", "bar"),
+        Map.entry("valgubatoonid", "bar")
     );
 
     // Flavor mappings from Estonian slugs to canonical flavors
@@ -116,6 +122,8 @@ public class Normalizer implements EnricherStep {
 
         boolean categorySuggestsPowder = false;
         boolean categorySuggestsCapsules = false;
+        boolean categorySuggestsDrink = false;
+        boolean categorySuggestsBar = false;
         if (raw.getCategories_names() != null) {
             for (String c : raw.getCategories_names()) {
                 String cl = c.toLowerCase();
@@ -128,15 +136,26 @@ public class Normalizer implements EnricherStep {
                     || cl.contains("mineral") || cl.contains("rasvhape") || cl.contains("rasvhapped")) {
                     categorySuggestsCapsules = true;
                 }
+                if (cl.contains("joog") || cl.contains("jook") || cl.contains("spordijook")) {
+                    categorySuggestsDrink = true;
+                }
+                if (cl.contains("baar") || cl.contains("batoon")) {
+                    categorySuggestsBar = true;
+                }
             }
         }
         // Slug-based fallback as some stores rely more on slugs than names
-        if (!categorySuggestsCapsules && raw.getCategories_slugs() != null) {
+        if (raw.getCategories_slugs() != null) {
             for (String s : raw.getCategories_slugs()) {
                 String sl = s.toLowerCase();
                 if (sl.contains("omega") || sl.contains("oomega") || sl.contains("vitamin") || sl.contains("vitamiin")) {
                     categorySuggestsCapsules = true;
-                    break;
+                }
+                if (sl.contains("joog") || sl.contains("jook") || sl.contains("spordijoog")) {
+                    categorySuggestsDrink = true;
+                }
+                if (sl.contains("baar") || sl.contains("batoon")) {
+                    categorySuggestsBar = true;
                 }
             }
         }
@@ -153,6 +172,14 @@ public class Normalizer implements EnricherStep {
         // Evidence aggregation
         boolean capsEvidence = mentionsCaps;
         boolean powderEvidence = mentionsPulberWord || (categorySuggestsPowder && hasGramsInText) || (!capsEvidence && hasGramsInText);
+
+        // Strong category hints first
+        if (categorySuggestsDrink && !capsEvidence) {
+            return "drink";
+        }
+        if (categorySuggestsBar && !capsEvidence && !powderEvidence) {
+            return "bar";
+        }
 
         // Prefer capsule/tablet if explicitly mentioned
         if (capsEvidence && !powderEvidence) {

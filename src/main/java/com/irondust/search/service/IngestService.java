@@ -6,7 +6,6 @@ import com.irondust.search.model.ProductDoc;
 import com.irondust.search.model.RawProduct;
 import com.irondust.search.model.EnrichedProduct;
 import com.irondust.search.service.enrichment.EnrichmentPipeline;
-import com.irondust.search.service.TranslationService;
 import com.irondust.search.service.TranslationService.ProductTranslation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +39,17 @@ public class IngestService {
         java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
         int parallelism = Math.max(1, appProperties.getIngestParallelism());
 
+        java.util.List<String> ignoredIds = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
         return wooStoreService.paginateProducts()
-                .flatMap(json -> transformWithEnrichmentWithReport(json)
+                .flatMap(json -> {
+                        if (isBlacklisted(json)) {
+                            String ignoredId = "wc_" + json.path("id").asLong();
+                            log.info("Skipping blacklisted product {}", ignoredId);
+                            ignoredIds.add(ignoredId);
+                            return Mono.empty();
+                        }
+                        return transformWithEnrichmentWithReport(json)
                         .map(r -> {
                             int current = counter.incrementAndGet();
                             int warnCount = r.report.getWarnings() != null ? r.report.getWarnings().size() : 0;
@@ -50,7 +58,8 @@ public class IngestService {
                                     current, r.report.getId(), warnCount, confCount);
                             return r;
                         })
-                        .subscribeOn(Schedulers.boundedElastic()),
+                        .subscribeOn(Schedulers.boundedElastic());
+                    },
                         parallelism)
                 .collectList()
                 .flatMap(results -> {
@@ -102,6 +111,11 @@ public class IngestService {
                             .flatMap(meiliService::addOrReplaceDocuments, meiliConcurrency)
                             .then(meiliService.pruneDocumentsNotIn(keepIds))
                             .then(Mono.fromSupplier(() -> buildReport(allDocs.size(), reports)))
+                            .map(report -> {
+                                report.setIgnored_ids(new java.util.ArrayList<>(ignoredIds));
+                                report.setIgnored_count(ignoredIds.size());
+                                return report;
+                            })
                             .flatMap(report -> persistFullIngestReport(report).thenReturn(report));
                 });
     }
@@ -155,9 +169,10 @@ public class IngestService {
             String name = p.path("name").asText("").toLowerCase();
             String slug = p.path("slug").asText("").toLowerCase();
             String desc = p.path("description").asText("").toLowerCase();
-            java.util.Set<String> tokens = java.util.Set.of(
-                "gift card", "giftcard", "present card", "voucher", "kinkekaart", "kingitus", "presentkaart"
-            );
+            java.util.Set<String> tokens = new java.util.LinkedHashSet<>(java.util.List.of(
+                "gift card", "gift-card", "giftcard", "present card", "voucher", "store credit",
+                "kinkekaart", "kinke kaart", "kingitus", "presentkaart", "kingikaart", "kinkekaardid"
+            ));
             for (String t : tokens) {
                 if (name.contains(t) || slug.contains(t) || desc.contains(t)) {
                     return true;
@@ -167,10 +182,11 @@ public class IngestService {
                 for (com.fasterxml.jackson.databind.JsonNode c : p.path("categories")) {
                     String cs = c.path("slug").asText("").toLowerCase();
                     String cn = c.path("name").asText("").toLowerCase();
+                    // Direct category slug/name checks
+                    if (cs.contains("gift") || cs.contains("voucher") || cs.contains("kinkekaard")) return true;
+                    if (cn.contains("gift") || cn.contains("voucher") || cn.contains("kinkekaard")) return true;
                     for (String t : tokens) {
-                        if (cs.contains(t.replace(" ", "-")) || cn.contains(t)) {
-                            return true;
-                        }
+                        if (cs.contains(t.replace(" ", "-")) || cn.contains(t)) return true;
                     }
                 }
             }
