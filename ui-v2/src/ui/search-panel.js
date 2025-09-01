@@ -4,6 +4,7 @@ import { searchProducts } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
 import { derivePricePer100g, isCountBasedForm } from '../core/metrics.js';
 import { navigate } from '../core/router.js';
+import { store } from '../core/store.js';
 
 // State management
 const searchState = {
@@ -12,7 +13,8 @@ const searchState = {
   sortOrder: 'relevance',
   goalsMultiSelect: false,
   activeGoals: [], // labels of currently applied multi-goal selection
-  lastAppliedSignature: '' // for Apply button enablement (optional)
+  lastAppliedSignature: '', // for Apply button enablement (optional)
+  __suppressHomeNavigationOnClose: false // prevent navigating to home on specific closes
 };
 
 // Helpers to compare filters across duplicate chips
@@ -584,6 +586,8 @@ export function mountSearchPanel() {
     searchPanel.classList.add('visible');
     setOverlayAria(true);
     lastOpenedAt = Date.now();
+    // reset close behavior on each open
+    searchState.__suppressHomeNavigationOnClose = false;
     try{ document.body.classList.add('no-scroll'); }catch(_e){}
     // Compute sticky offset for side columns based on header height
     try{
@@ -604,6 +608,19 @@ export function mountSearchPanel() {
     searchPanel.classList.remove('visible');
     setOverlayAria(false);
     try{ document.body.classList.remove('no-scroll'); }catch(_e){}
+    // When closing from a /search route, navigate to home and keep applied filters
+    try{
+      const onSearchRoute = String(location.hash||'').startsWith('#/search');
+      if (onSearchRoute && !searchState.__suppressHomeNavigationOnClose) {
+        const query = (overlayInput?.value||headerInput?.value||'').trim();
+        const filters = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
+        store.set('homeQuery', query);
+        store.set('homeFilters', filters);
+        navigate('/');
+      }
+      // reset flag after handling
+      searchState.__suppressHomeNavigationOnClose = false;
+    }catch(_e){}
   }
   // expose for router
   window.__openSearchOverlay = openOverlay;
@@ -1301,6 +1318,8 @@ export function mountSearchPanel() {
     const path = buildSearchPath(query, filters);
     const current = location.hash.slice(1) || '';
     if (current !== path) navigate(path);
+    // Stay on /search when using the footer CTA
+    searchState.__suppressHomeNavigationOnClose = true;
     closeOverlay();
   });
 }

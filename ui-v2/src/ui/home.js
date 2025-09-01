@@ -1,6 +1,7 @@
 import { $, $$ } from '../core/dom.js';
 import { bus } from '../core/bus.js';
 import { navigate } from '../core/router.js';
+import { store } from '../core/store.js';
 import { searchProducts } from '../api/api.js';
 import { isCountBasedForm } from '../core/metrics.js';
 import { openFor } from './flavor-popover.js';
@@ -13,6 +14,10 @@ const state = {
   loading: false,
   reachedEnd: false
 };
+
+// When coming from the search overlay, we may carry external filters/query
+let externalFilters = null;
+let externalQuery = '';
 
 let infiniteObserver = null;
 let resizeTimer = null;
@@ -149,10 +154,12 @@ async function fetchPage({ append=false }={}){
   loader.textContent = 'Loading…';
   grid.parentElement.insertBefore(loader, grid.nextSibling);
   try{
-    const res = await searchProducts('', {
+    const activeFilters = externalFilters ? externalFilters : presetToFilters(state.preset);
+    const q = externalQuery || '';
+    const res = await searchProducts(q, {
       page: state.page,
       size: state.size,
-      filters: presetToFilters(state.preset),
+      filters: activeFilters,
       sort: sortToBackend(state.sort)
     });
     const items = Array.isArray(res?.items) ? res.items : [];
@@ -229,6 +236,8 @@ export function mountHome(){
   $$('#home .chip[data-home-preset]').forEach(ch=>{
     if (ch.__presetBound) return; ch.__presetBound = true;
     ch.addEventListener('click', ()=>{
+      // Clear any external search context when user selects a preset
+      externalFilters = null; externalQuery = '';
       $$('#home .chip[data-home-preset]').forEach(x=>x.setAttribute('aria-pressed','false'));
       ch.setAttribute('aria-pressed','true');
       state.preset = ch.getAttribute('data-home-preset');
@@ -243,6 +252,8 @@ export function mountHome(){
 
   // Sort
   sortSel?.addEventListener('change', (e)=>{
+    // Sorting also clears external search context
+    externalFilters = null; externalQuery = '';
     state.sort = e.target.value;
     state.page = 1; state.reachedEnd = false;
     // Hide suggestions on new sort
@@ -271,7 +282,24 @@ export function mountHome(){
   });
 }
 
-export function showHome(){ const s = $('#home'); if (s) s.classList.add('visible'); }
+export function showHome(){
+  const s = $('#home');
+  if (s) s.classList.add('visible');
+  // If there are filters/query passed from search overlay, apply them once
+  try{
+    const f = store.get('homeFilters');
+    const q = store.get('homeQuery');
+    if (f || q) {
+      externalFilters = f || null;
+      externalQuery = q || '';
+      state.page = 1; state.reachedEnd = false;
+      fetchPage({ append:false }).then(()=> ensureViewportFilled());
+      // Clear after consuming to prevent sticky filters on next visits
+      store.set('homeFilters', null);
+      store.set('homeQuery', '');
+    }
+  }catch(_e){}
+}
 export function hideHome(){ const s = $('#home'); if (s) s.classList.remove('visible'); }
 
 async function renderSuggestions({ exclude = new Set() } = {}){

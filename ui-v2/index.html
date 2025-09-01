@@ -384,65 +384,8 @@
           </div>
           <!-- Products column WITH Add (only scrollable column) -->
           <div class="col" id="productsCol" role="region" aria-label="Products results" style="max-height:calc(80vh - var(--panel-top-offset,110px));">
-
-            <!-- Each product has data-* so the popover can show flavors -->
-            <div id="productsList">
-              <div class="product" role="listitem">
-                <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="72" height="72" style="border-radius:10px">
-                <div>
-                  <div class="title">Whey Protein Isolate — Vanilla</div>
-                  <div class="muted" style="font-size:12px">1kg • 26g protein <span class="badge">In stock</span> <span class="badge">2-day delivery</span></div>
-                </div>
-                <div style="display:grid;gap:6px;justify-items:end">
-                  <div class="price"><span class="cur">€</span><span class="maj">42</span><span class="min">,90</span></div>
-                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
-                  </button>
-                </div>
-              </div>
-
-              <div class="product">
-                <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="72" height="72" style="border-radius:10px">
-                <div>
-                  <div class="title">Creatine Monohydrate — 300g</div>
-                  <div class="muted" style="font-size:12px">Top rated <span class="badge">In stock</span></div>
-                </div>
-                <div style="display:grid;gap:6px;justify-items:end">
-                  <div class="price"><span class="cur">€</span><span class="maj">19</span><span class="min">,50</span></div>
-                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Creatine Monohydrate" data-flavors='[]'>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
-                  </button>
-                </div>
-              </div>
-
-              <div class="product">
-                <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="72" height="72" style="border-radius:10px">
-                <div>
-                  <div class="title">BCAA 2:1:1 — Tropical</div>
-                  <div class="muted" style="font-size:12px">Low sugar <span class="badge">In stock</span></div>
-                </div>
-                <div style="display:grid;gap:6px;justify-items:end">
-                  <div class="price"><span class="cur">€</span><span class="maj">15</span><span class="min">,90</span></div>
-                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
-                  </button>
-                </div>
-              </div>
-
-              <div class="product">
-                <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="72" height="72" style="border-radius:10px">
-                <div>
-                  <div class="title">Omega-3 Softgels (120)</div>
-                  <div class="muted" style="font-size:12px">Heart <span class="badge">In stock</span></div>
-                </div>
-                <div style="display:grid;gap:6px;justify-items:end">
-                  <div class="price"><span class="cur">€</span><span class="maj">12</span><span class="min">,40</span></div>
-                  <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Omega-3 Softgels" data-flavors='[]'>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <!-- Real results are rendered dynamically -->
+            <div id="productsList"></div>
           </div>
 
           <!-- Goals / Filters -->
@@ -555,10 +498,10 @@
       <div class="card">
         <img id="pdpImage" src="https://picsum.photos/seed/hero/720/360" alt="Product image" style="max-width:100%;max-height:260px;width:auto;height:auto;object-fit:contain;border-radius:12px;display:block;margin:0 auto 8px;background:#fff">
         <div class="title">
-          <h2 style="margin:0;font-size:20px"><span id="pdpProductName">Ultra Whey Protein 2kg</span> — <span id="pdpFlavorLabel"></span></h2>
+          <h2 style="margin:0;font-size:20px"><span id="pdpProductName"></span> <span id="pdpFlavorLabel"></span></h2>
         </div>
         <div id="pdpBenefitSnippet" class="muted" style="font-size:14px;line-height:1.5;margin:6px 0 4px"></div>
-        <div class="muted" style="font-size:14px"><span class="stars" id="pdpStars">★★★★★</span> (<span id="pdpReviewCount">238</span>) • <strong id="pdpPrice">€54.90</strong></div>
+        <div class="muted" style="font-size:14px"><span class="stars" id="pdpStars"></span> <span id="pdpReviewCount"></span> <strong id="pdpPrice"></strong></div>
 
         <!-- Flavor selector (PDP) -->
         <div class="flavors" id="pdpFlavors" role="group" aria-label="Choose flavor"></div>
@@ -570,24 +513,14 @@
             <span id="pdpQtyVal" aria-live="polite">1</span>
             <button id="pdpQtyPlus" aria-label="Increase">+</button>
           </div>
-          <button
-            class="pdp-add js-add"
-            id="pdpAdd"
-            data-name="Ultra Whey Protein 2kg"
-            data-flavors='["Chocolate","Vanilla","Cookies & Cream"]'>
-            Add to cart
-          </button>
+          <button class="pdp-add js-add" id="pdpAdd" data-name="" data-flavors='[]'>Add to cart</button>
         </div>
 
-        <div class="qa-chips" role="group" aria-label="Quick questions">
-          <button class="qa-chip" data-target="#ans1">Is this right for muscle gain?</button>
-          <button class="qa-chip" data-target="#ans2">Lactose friendly?</button>
-          <button class="qa-chip" data-target="#ans3">When to take?</button>
-        </div>
+        <div class="qa-chips" role="group" aria-label="Quick questions"></div>
 
-        <div id="ans1" class="qa-ans"><strong>Reason.</strong> High protein per serving (24g), complete amino profile, and added BCAAs support recovery and growth.</div>
-        <div id="ans2" class="qa-ans">Contains whey (milk). If lactose-sensitive, consider <em>Whey Isolate</em> or a <em>Vegan Blend</em>.</div>
-        <div id="ans3" class="qa-ans">Take 1–2 scoops post-workout or as a snack between meals. Mix with water or milk.</div>
+        <div id="ans1" class="qa-ans"></div>
+        <div id="ans2" class="qa-ans"></div>
+        <div id="ans3" class="qa-ans"></div>
 
         <div class="facts"></div>
 
