@@ -551,7 +551,7 @@ export function mountSearchPanel() {
       if (!seen || oState.loading || oState.reachedEnd) return;
       oState.page += 1;
       performSearch({ append:true });
-    }, { root: panelInner, rootMargin: '800px 0px', threshold: 0 });
+    }, { root: document.getElementById('productsCol') || panelInner, rootMargin: '800px 0px', threshold: 0 });
     oState.observer.observe(sentinel);
   }
   

@@ -68,9 +68,11 @@
     .panel.visible{display:block}
     .panel::before{content:"";position:absolute;inset:0;background:rgba(15,18,25,.35);backdrop-filter:saturate(120%) blur(8px);opacity:0;transition:opacity .18s ease}
     .panel.visible::before{opacity:1}
-    .panel-inner{position:absolute;left:50%;top:8%;transform:translateX(-50%) scale(.98);opacity:0;width:min(1100px,94vw);background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:0 30px 80px rgba(0,0,0,.25);display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px;transition:transform .18s ease,opacity .18s ease;max-height:80vh;overflow:auto}
+    .panel-inner{position:absolute;left:50%;top:8%;transform:translateX(-50%) scale(.98);opacity:0;width:min(1100px,94vw);background:#fff;border-radius:20px;border:1px solid #e9edf0;box-shadow:0 30px 80px rgba(0,0,0,.25);display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px;transition:transform .18s ease,opacity .18s ease;max-height:80vh;overflow:hidden}
     .panel-top{position:sticky;top:0;background:#fff;z-index:2;padding-bottom:8px;border-bottom:1px solid #eef1f4}
     .sticky-col{position:sticky;top:var(--panel-top-offset,110px);align-self:start}
+    /* Make only the products column scrollable */
+    #productsCol{min-height:0;overflow:auto}
     .panel.visible .panel-inner{transform:translateX(-50%) scale(1);opacity:1}
     .panel-head{display:flex;gap:10px;align-items:center;margin-bottom:8px}
     .panel-input{flex:1;border:1px solid #e7ebef;border-radius:12px;padding:10px 12px;font-size:14px}
@@ -356,10 +358,8 @@
             <div id="preInputSuggestions" class="content-card" style="display:none;margin-top:8px"></div>
             <!-- Applied Filters Bar (sticky with header) -->
             <div id="appliedBar" class="applied-bar"></div>
-          </div>
-          <!-- Products column WITH Add -->
-          <div class="col" id="productsCol">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <!-- Products header and Sort moved here to stay sticky -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
               <h4 style="margin:0">Products</h4>
               <select id="sortDropdown" class="sort-select">
                 <option value="relevance">Best match</option>
@@ -369,6 +369,9 @@
                 <option value="new">New</option>
               </select>
             </div>
+          </div>
+          <!-- Products column WITH Add (only scrollable column) -->
+          <div class="col" id="productsCol" role="region" aria-label="Products results" style="max-height:calc(80vh - var(--panel-top-offset,110px));">
 
             <!-- Each product has data-* so the popover can show flavors -->
             <div id="productsList">
