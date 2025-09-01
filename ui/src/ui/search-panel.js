@@ -422,18 +422,17 @@ export function mountSearchPanel() {
 
   // Focus show/hide
   searchInput?.addEventListener('focus', ()=>{
-    searchPanel?.classList.add('visible');
-    // Re-check overflow when panel becomes visible
-    setTimeout(() => {
-      const checkOverflow = window.checkChipOverflow;
-      if (checkOverflow) checkOverflow();
-    }, 10);
-    // PDP: show results immediately on focus. Home: only after typing.
+    // PDP: open immediately; Home: do not open on focus to avoid covering upsell
     if (isOnPdp()) {
+      searchPanel?.classList.add('visible');
+      setTimeout(() => {
+        const checkOverflow = window.checkChipOverflow;
+        if (checkOverflow) checkOverflow();
+      }, 10);
       if (typeof runFilteredSearch === 'function') runFilteredSearch();
     } else {
-      // On home, never pre-populate results on simple focus
-      if (productsList) productsList.innerHTML = '';
+      // Ensure closed on Home when only focused
+      searchPanel?.classList.remove('visible');
     }
   });
   document.addEventListener('click', (e)=>{
@@ -982,8 +981,36 @@ export function mountSearchPanel() {
     }
   }
   const debounced = debounce(runSearch, 350);
-  searchInput?.addEventListener('input', (e)=>debounced(e.target.value));
-  searchInput?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); runSearch(searchInput.value); } });
+  searchInput?.addEventListener('input', (e)=>{
+    const val = e.target.value || '';
+    const query = val.trim();
+    const presetActive = !!(searchState.__presetFilters && Object.keys(searchState.__presetFilters||{}).length>0);
+    const filtersActive = Object.keys(getActiveFilters()).length>0 || presetActive;
+    if (!isOnPdp()) {
+      if (query.length >= 2 || filtersActive) {
+        searchPanel?.classList.add('visible');
+        setTimeout(() => { const checkOverflow = window.checkChipOverflow; if (checkOverflow) checkOverflow(); }, 10);
+      } else {
+        searchPanel?.classList.remove('visible');
+      }
+    }
+    debounced(val);
+  });
+  searchInput?.addEventListener('keydown', (e)=>{ 
+    if(e.key==='Enter'){
+      e.preventDefault();
+      const query = (searchInput?.value||'').trim();
+      const presetActive = !!(searchState.__presetFilters && Object.keys(searchState.__presetFilters||{}).length>0);
+      const filtersActive = Object.keys(getActiveFilters()).length>0 || presetActive;
+      if (!isOnPdp()) {
+        if (query.length >= 2 || filtersActive) {
+          searchPanel?.classList.add('visible');
+          setTimeout(() => { const checkOverflow = window.checkChipOverflow; if (checkOverflow) checkOverflow(); }, 10);
+        }
+      }
+      runSearch(searchInput.value); 
+    } 
+  });
 
   // Initial wiring for static Add buttons
   attachAddHandlers(document);
