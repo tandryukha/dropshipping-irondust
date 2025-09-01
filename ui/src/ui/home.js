@@ -17,6 +17,35 @@ const state = {
 let infiniteObserver = null;
 let resizeTimer = null;
 
+// Simple deterministic suggestion strategy until vectors:
+// - Prefer in-stock items
+// - Mix by goal_tags diversity and rating when available
+// - Exclude items already rendered in main grid
+async function fetchSuggestions({ excludeIds = new Set(), size = 8 } = {}){
+  try{
+    const base = await searchProducts('', {
+      page: 1,
+      size: size * 2,
+      filters: { in_stock: true },
+      sort: ['rating:desc', 'review_count:desc']
+    });
+    const items = Array.isArray(base?.items) ? base.items : [];
+    const filtered = items.filter(it => it && !excludeIds.has(it.id));
+    // Light diversification by goal tag
+    const seenGoals = new Set();
+    const diverse = [];
+    for (const it of filtered){
+      const g = Array.isArray(it.goal_tags) && it.goal_tags.length ? it.goal_tags[0] : '';
+      const key = g || 'other';
+      const countForGoal = diverse.filter(d => (Array.isArray(d.goal_tags) && d.goal_tags[0]) === g).length;
+      if (countForGoal < 3) diverse.push(it);
+      if (diverse.length >= size) break;
+      seenGoals.add(key);
+    }
+    return diverse.slice(0, size);
+  }catch(_e){ return []; }
+}
+
 function sortToBackend(sortKey){
   switch (sortKey) {
     case 'price_asc': return ['price_cents:asc'];
@@ -127,12 +156,20 @@ async function fetchPage({ append=false }={}){
     if (!append && items.length === 0) {
       grid.innerHTML = '<div class="muted" style="padding:8px">No items yet</div>';
       state.reachedEnd = true;
+      // Show fallback suggestions on empty state
+      renderSuggestions({ exclude: new Set() });
       return;
     }
     const html = items.map(renderCardHTML).join('');
     if (append) grid.insertAdjacentHTML('beforeend', html); else grid.innerHTML = html;
     bindHandlers(grid);
     if (items.length < state.size) state.reachedEnd = true;
+    // If reached end, surface suggestions after grid
+    if (state.reachedEnd) {
+      const ids = new Set();
+      $$('#homeGrid .home-card').forEach(card=>{ const id = card.getAttribute('data-id'); if (id) ids.add(id); });
+      renderSuggestions({ exclude: ids });
+    }
   } catch(err){
     console.warn('Home fetch failed', err);
     if (!append) grid.innerHTML = '<div class="muted" style="padding:8px">Failed to load. Check API.</div>';
@@ -183,6 +220,7 @@ export function mountHome(){
   const section = $('#home');
   const sortSel = $('#homeSort');
   const moreBtn = $('#homeMore');
+  const sugWrap = $('#homeSuggestions');
 
   // Preset chips
   $$('#home .chip[data-home-preset]').forEach(ch=>{
@@ -204,6 +242,8 @@ export function mountHome(){
   sortSel?.addEventListener('change', (e)=>{
     state.sort = e.target.value;
     state.page = 1; state.reachedEnd = false;
+    // Hide suggestions on new sort
+    if (sugWrap) { sugWrap.style.display = 'none'; $('#homeSugGrid').innerHTML = ''; }
     fetchPage({ append:false }).then(()=> ensureViewportFilled());
   });
 
@@ -230,5 +270,16 @@ export function mountHome(){
 
 export function showHome(){ const s = $('#home'); if (s) s.classList.add('visible'); }
 export function hideHome(){ const s = $('#home'); if (s) s.classList.remove('visible'); }
+
+async function renderSuggestions({ exclude = new Set() } = {}){
+  const wrap = $('#homeSuggestions');
+  const grid = $('#homeSugGrid');
+  if (!wrap || !grid) return;
+  const items = await fetchSuggestions({ excludeIds: exclude, size: 8 });
+  if (items.length === 0) { wrap.style.display = 'none'; grid.innerHTML = ''; return; }
+  grid.innerHTML = items.map(renderCardHTML).join('');
+  bindHandlers(grid);
+  wrap.style.display = '';
+}
 
 

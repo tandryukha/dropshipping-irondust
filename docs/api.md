@@ -72,6 +72,40 @@ curl -X POST http://localhost:4000/search \
   -d '{"q": "citrulline", "page": 1, "size": 5}'
 ```
 
+### Filterable and sortable fields
+
+Core facets:
+
+- `in_stock`, `categories_slugs`, `categories_ids`, `brand_slug`, `form`, `diet_tags`, `goal_tags`, `parent_id`, `is_on_sale`
+
+Price metrics (filterable and sortable):
+
+- `price` (euros)
+- `price_per_serving`
+- `price_per_serving_min`, `price_per_serving_max` (when servings are a range)
+- `price_per_100g`
+- `price_per_unit`
+
+Examples:
+
+```json
+{
+  "q": "",
+  "page": 1,
+  "size": 6,
+  "filters": {
+    "in_stock": true,
+    "price_per_serving": { "op": "<=", "value": 2 }
+  }
+}
+```
+
+When `price_per_serving` is null for items with serving ranges, use the range-bound fields:
+
+```json
+{ "filters": { "price_per_serving_max": { "op": "<=", "value": 2 } } }
+```
+
 ## Products
 
 - GET /products/{id} — Get specific product details

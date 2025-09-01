@@ -80,6 +80,8 @@ public class IngestService {
                     filterable.addAll(List.of(
                             "in_stock", "categories_slugs", "categories_ids", "brand_slug", "price_cents",
                             "form", "diet_tags", "goal_tags", "parent_id", "is_on_sale",
+                            // numeric price metrics
+                            "price", "price_per_serving", "price_per_serving_min", "price_per_serving_max", "price_per_100g", "price_per_unit",
                             // count-based packaging
                             "unit_count", "units_per_serving"
                     ));
