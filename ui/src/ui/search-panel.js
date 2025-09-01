@@ -116,10 +116,13 @@ function renderProductHTML(item, query){
   const sugarFree = Array.isArray(item?.diet_tags) && item.diet_tags.includes('sugar_free');
   const snippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
   const snippetLine = snippet ? `<div class="muted benefit-snippet" style="font-size:12px;line-height:1.5;margin-top:4px">${highlight(snippet.length > 160 ? (snippet.slice(0, 157).trim()+"…") : snippet)}</div>` : '';
+  // Split price for richer styling
+  const [maj, minPart] = String(price||'').split(',');
+  const min = typeof minPart === 'string' ? (','+minPart) : '';
   return `
     <div class="product" role="listitem" data-id="${item?.id||''}">
       <div class="media">
-        <img src="${img}" alt="${name}" width="64" height="64" style="border-radius:10px">
+        <img src="${img}" alt="${name}" width="72" height="72" style="border-radius:10px">
         <div class="badges">
           ${vegan?'<span class="pill-badge vegan">Vegan</span>':''}
           ${sugarFree?'<span class="pill-badge sugar">Sugar-free</span>':''}
@@ -132,7 +135,7 @@ function renderProductHTML(item, query){
         <div class="muted" style="font-size:12px">${subtitle || ''} ${inStock?'<span class="badge">In stock</span>':''}</div>
       </div>
       <div style="display:grid;gap:10px;justify-items:end">
-        <div class="price">${symbol}${price}</div>
+        <div class="price">${symbol?`<span class=\"cur\">${symbol}</span>`:''}${price?`<span class=\"maj\">${maj||''}</span><span class=\"min\">${min||''}</span>`:''}</div>
         <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
         </button>

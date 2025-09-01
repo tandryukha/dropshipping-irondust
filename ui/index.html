@@ -67,10 +67,15 @@
     .panel.visible{display:block}
     .panel-inner{display:grid;grid-template-columns:2fr 1.3fr 1.2fr;gap:16px;padding:20px}
     .col h4{margin:6px 0 10px;font-size:14px;color:#374151;font-weight:800;letter-spacing:.2px}
-    .product{display:grid;grid-template-columns:64px 1fr auto;gap:18px;padding:16px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:16px;cursor:pointer}
-    .product:hover{box-shadow:0 8px 16px rgba(0,0,0,.06)}
+    .product{display:grid;grid-template-columns:72px 1fr auto;gap:18px;padding:16px;border-radius:14px;border:1px solid #eef1f4;background:#fff;margin-bottom:16px;cursor:pointer;transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease}
+    .product:hover{border-color:#dbe8f0;box-shadow:0 10px 22px rgba(0,0,0,.08);transform:translateY(-2px)}
     .badge{font-size:11px;padding:2px 6px;border-radius:999px;background:#ecfeff;color:#036972;border:1px solid #bbeef5}
     .price{font-weight:800}
+    /* Scoped, richer price styling for search results only */
+    .panel .product .price{display:inline-flex;align-items:baseline;gap:2px;background:#f0fbff;border:1px solid #cfeef6;padding:4px 8px;border-radius:10px;color:#053d49}
+    .panel .product .price .cur{font-size:12px;opacity:.9}
+    .panel .product .price .maj{font-size:18px;letter-spacing:.2px}
+    .panel .product .price .min{font-size:12px;opacity:.85}
     /* Icon-only Add buttons for search/home */
     .add{border:0;border-radius:999px;width:36px;height:36px;padding:0;display:grid;place-items:center;background:linear-gradient(180deg,#1cb6d9,#1099b8);color:#fff;cursor:pointer;min-width:36px;box-shadow:0 8px 16px rgba(16,153,184,.25)}
     .add:hover{filter:brightness(1.02)}
@@ -80,6 +85,7 @@
     .hl{background:#fff4cc;border-radius:4px;padding:0 1px}
     /* Media column with tiny badges under image */
     .product .media{display:flex;flex-direction:column;align-items:center}
+    .product .media img{background:#fff;box-shadow:0 6px 14px rgba(0,0,0,.06)}
     .product .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;justify-content:center}
     /* Add breathing room between title and subtitle in search product cards */
     .product .title{margin-bottom:6px}
@@ -93,6 +99,11 @@
     .product .benefit-snippet{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
     /* Improve vertical rhythm for product subtitle */
     .product .muted{line-height:1.6}
+
+    /* Tighter, bolder title and reduced gaps inside search results list only */
+    .panel .product .title{font-weight:700;min-height:0;margin-bottom:2px}
+    .panel .product .benefit-snippet{margin-top:2px}
+    .panel .product .title + .muted{margin-top:4px}
     /* Compact chips */
     .chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:999px;background:#f6f8fb;border:1px solid #e0e6ef;margin:4px 4px 0 0;font-size:12px;cursor:pointer;color:#1f2937;height:28px;white-space:nowrap}
     .chip[aria-pressed="true"]{background:#dff6ff;border-color:#6bd3ee;color:#06485b;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
@@ -329,13 +340,13 @@
             <!-- Each product has data-* so the popover can show flavors -->
             <div id="productsList">
               <div class="product" role="listitem">
-                <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="64" height="64" style="border-radius:10px">
+                <img src="https://picsum.photos/seed/p1/120/120" alt="Whey Protein Isolate jar" width="72" height="72" style="border-radius:10px">
                 <div>
                   <div class="title">Whey Protein Isolate — Vanilla</div>
                   <div class="muted" style="font-size:12px">1kg • 26g protein <span class="badge">In stock</span> <span class="badge">2-day delivery</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
-                  <div class="price">€42.90</div>
+                  <div class="price"><span class="cur">€</span><span class="maj">42</span><span class="min">,90</span></div>
                   <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Whey Protein Isolate" data-flavors='["Vanilla","Chocolate","Cookies & Cream"]'>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
                   </button>
@@ -343,13 +354,13 @@
               </div>
 
               <div class="product">
-                <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="64" height="64" style="border-radius:10px">
+                <img src="https://picsum.photos/seed/p2/120/120" alt="Creatine Monohydrate" width="72" height="72" style="border-radius:10px">
                 <div>
                   <div class="title">Creatine Monohydrate — 300g</div>
                   <div class="muted" style="font-size:12px">Top rated <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
-                  <div class="price">€19.50</div>
+                  <div class="price"><span class="cur">€</span><span class="maj">19</span><span class="min">,50</span></div>
                   <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Creatine Monohydrate" data-flavors='[]'>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
                   </button>
@@ -357,13 +368,13 @@
               </div>
 
               <div class="product">
-                <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="64" height="64" style="border-radius:10px">
+                <img src="https://picsum.photos/seed/p3/120/120" alt="BCAA" width="72" height="72" style="border-radius:10px">
                 <div>
                   <div class="title">BCAA 2:1:1 — Tropical</div>
                   <div class="muted" style="font-size:12px">Low sugar <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
-                  <div class="price">€15.90</div>
+                  <div class="price"><span class="cur">€</span><span class="maj">15</span><span class="min">,90</span></div>
                   <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="BCAA 2:1:1" data-flavors='["Tropical","Berry"]'>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
                   </button>
@@ -371,13 +382,13 @@
               </div>
 
               <div class="product">
-                <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="64" height="64" style="border-radius:10px">
+                <img src="https://picsum.photos/seed/p4/120/120" alt="Omega-3" width="72" height="72" style="border-radius:10px">
                 <div>
                   <div class="title">Omega-3 Softgels (120)</div>
                   <div class="muted" style="font-size:12px">Heart <span class="badge">In stock</span></div>
                 </div>
                 <div style="display:grid;gap:6px;justify-items:end">
-                  <div class="price">€12.40</div>
+                  <div class="price"><span class="cur">€</span><span class="maj">12</span><span class="min">,40</span></div>
                   <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="Omega-3 Softgels" data-flavors='[]'>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/></svg>
                   </button>
