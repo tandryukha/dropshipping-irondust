@@ -98,6 +98,9 @@ public class QdrantService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("vector", queryVector);
         payload.put("limit", limit);
+        // Ensure payloads are returned so we can map back to document ids
+        payload.put("with_payload", true);
+        payload.put("with_vectors", false);
         if (filter != null && !filter.isEmpty()) payload.put("filter", filter);
         return qdrantClient.post().uri("/collections/{name}/points/search", name)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -131,6 +134,9 @@ public class QdrantService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("positive", java.util.List.of(pointId));
         payload.put("limit", limit);
+        // Ensure payloads are returned so we can map back to document ids
+        payload.put("with_payload", true);
+        payload.put("with_vectors", false);
         if (filter != null && !filter.isEmpty()) payload.put("filter", filter);
         return qdrantClient.post().uri("/collections/{name}/points/recommend", name)
                 .contentType(MediaType.APPLICATION_JSON)

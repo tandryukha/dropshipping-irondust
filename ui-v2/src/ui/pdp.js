@@ -435,12 +435,12 @@ function buildAltCardHTML(item){
   const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
   const details = altDetailsLine(item);
   return `
-    <div class="sku" data-id="${item?.id||''}">
-      <img src="${img}" alt="${name}" style="border-radius:12px">
-      <div style="margin-top:6px;font-weight:800">${name}</div>
-      <div class="muted" style="font-size:12px">${details}</div>
-      <div style="font-weight:800;margin-top:4px">${symbol}${price}</div>
-      <button class="btn" data-id="${item?.id||''}">View</button>
+    <div class="sku alt-card" data-id="${item?.id||''}">
+      <div class="alt-image"><img src="${img}" alt="${name}"></div>
+      <div class="alt-title">${name}</div>
+      <div class="alt-details muted">${details}</div>
+      <div class="alt-price">${symbol}${price}</div>
+      <button class="btn alt-cta" data-id="${item?.id||''}">View</button>
     </div>`;
 }
 
@@ -450,9 +450,10 @@ function buildMoreCardHTML(item){
   const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2) : '';
   const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
   return `
-    <div class="sku" data-id="${item?.id||''}">
-      <img src="${img}" alt="" style="border-radius:10px">
-      <div style="font-size:12px">${name}<br><strong>${symbol}${price}</strong></div>
+    <div class="sku alt-card" data-id="${item?.id||''}">
+      <div class="alt-image"><img src="${img}" alt="${name}" width="120" height="120" loading="lazy" decoding="async"></div>
+      <div class="alt-title">${name}</div>
+      <div class="alt-price">${symbol}${price}</div>
     </div>`;
 }
 

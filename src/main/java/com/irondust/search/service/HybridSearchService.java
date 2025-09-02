@@ -50,11 +50,17 @@ public class HybridSearchService {
             rrf.merge(id, score, Double::sum);
         }
 
-        // Add Vector ranks
+        // Add Vector ranks (map Qdrant point -> original document id via payload)
         for (int i = 0; i < vecResults.size(); i++) {
             QdrantService.SearchResult r = vecResults.get(i);
+            String targetId = r.id;
+            if (r.payload != null) {
+                Object did = r.payload.get("doc_id");
+                if (did == null) did = r.payload.get("id");
+                if (did != null) targetId = String.valueOf(did);
+            }
             double score = 1.0 / (k + i + 1);
-            rrf.merge(r.id, score, Double::sum);
+            rrf.merge(targetId, score, Double::sum);
         }
 
         // Rank by RRF, then materialize top-N docs from Meili results (fallback)

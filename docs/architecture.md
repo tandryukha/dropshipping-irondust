@@ -1,6 +1,6 @@
 # Indexing Architecture (WooCommerce → Meilisearch + Vector)
 
-**Status:** Phase 1 complete (Parsing + AI Enrichment). Phase 2 (Vector & Hybrid Search) is in progress: vector indexing to Qdrant and a hybrid search endpoint are available; PDP alternatives remain.
+**Status:** Phase 1 complete (Parsing + AI Enrichment). Phase 2 (Vector & Hybrid Search) available: vector indexing to Qdrant and a hybrid search endpoint are live. PDP Alternatives use Qdrant recommend with Meili joins.
 
 ---
 
@@ -39,7 +39,7 @@ WooCommerce → RawProduct (JSON) ──▶ Normalizer ──▶ ParsedProduct
 ### Artifacts
 
 * **`products_enriched` (Meilisearch)**: canonical searchable docs driving storefront & facets.
-* **`products_vec` (Qdrant/pgvector)**: vectors + metadata for semantic alternatives.
+* **`products_vec` (Qdrant/pgvector)**: vectors + metadata for semantic alternatives and recommendations.
 * **`alternatives` (optional side index)**: precomputed nearest neighbors + reason codes for fast PDP render.
 * **`synonyms_multi`**: generated multilingual synonyms registered into Meilisearch synonyms.
 * **Logs**: structured WARN logs for conflicts/inconsistencies.
@@ -89,7 +89,7 @@ Adds/validates:
 
 ### 2.4 VectorRecord (products_vec)
 
-* `id`
+* `id` (Qdrant point id is a UUID derived from Meili `id`; payload includes `doc_id` for joining back)
 * `embedding` (float[])
 * `category_top` (for pre-filter), `price_band` (bucketed), `diet_parity` (e.g., `vegan`), `form`
 * `brand`, `ingredients_key[]`, `goal_tags[]`

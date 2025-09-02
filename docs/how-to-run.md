@@ -55,7 +55,7 @@ Once running, you'll have access to:
 
 - **API**: http://localhost:4000
 - **Meilisearch**: http://localhost:7700  
-- **Qdrant**: http://localhost:6333 (default collection: `products_vec_lg`)
+- **Qdrant**: http://localhost:6333 (default collection: `products_vec`)
 - **UI** (if running): http://localhost:3000
 
 ## Testing the System
@@ -90,6 +90,7 @@ curl -X POST http://localhost:4000/search/hybrid \
 ```
 
 ### Build or Refresh Vector Index (defaults: text-embedding-3-large, 3072-dim, products_vec_lg)
+Note: The default configuration uses `text-embedding-3-small` (1536-dim) and collection `products_vec` unless overridden in `application.yml`.
 
 Build all vectors (admin-only):
 
@@ -146,6 +147,12 @@ Check Qdrant health:
 
 ```bash
 curl -s http://localhost:6333/healthz | jq
+```
+
+### Test Alternatives API
+
+```bash
+curl -s "http://localhost:4000/products/wc_30177/alternatives?limit=8&lang=en" | jq '.items | length'
 ```
 
 ## Stopping Services
