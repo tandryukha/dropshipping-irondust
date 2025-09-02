@@ -481,11 +481,16 @@ function buildAltCardHTML(item, index=0){
     }catch(_){ return ''; }
   })();
 
+  // Optional benefit snippet to promote product value (clamped in CSS)
+  const benefitSnippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
+  const benefitHtml = benefitSnippet ? `<div class="alt-snippet">${benefitSnippet.length > 140 ? (benefitSnippet.slice(0,137).trim()+"…") : benefitSnippet}</div>` : '';
+
   return `
     <div class="sku alt-card" data-id="${item?.id||''}" role="button" tabindex="0" aria-label="Open ${name}">
       <div class="alt-image skeleton"><img src="${img}" alt="${name}" loading="${loading}" decoding="async" fetchpriority="${fetchpriority}" width="240" height="180"></div>
       ${reason ? `<div class="alt-reason">${reason}</div>` : ''}
       <div class="alt-title">${name}</div>
+      ${benefitHtml}
       <div class="alt-details muted">${details}</div>
       <div class="alt-price-row">
         <div class="alt-price">${priceText}</div>
@@ -499,10 +504,13 @@ function buildMoreCardHTML(item){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/more/120/120';
   const name = item?.name || '';
   const priceText = typeof item?.price_cents === 'number' ? formatPrice(item.price_cents, item?.currency||'EUR') : '';
+  const benefitSnippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
+  const benefitHtml = benefitSnippet ? `<div class="alt-snippet">${benefitSnippet.length > 90 ? (benefitSnippet.slice(0,87).trim()+"…") : benefitSnippet}</div>` : '';
   return `
     <div class="sku alt-card" data-id="${item?.id||''}" role="button" tabindex="0" aria-label="Open ${name}">
       <div class="alt-image skeleton"><img src="${img}" alt="${name}" width="84" height="84" loading="lazy" decoding="async"></div>
       <div class="alt-title">${name}</div>
+      ${benefitHtml}
       <div class="alt-price">${priceText}</div>
     </div>`;
 }
