@@ -394,6 +394,23 @@ export function mountPdp() {
       // Load alternatives and complements separately
       const altIds = await fetchAndRenderAlternatives(prod);
       await fetchAndRenderComplements(prod, new Set(Array.isArray(altIds)?altIds:[]));
+
+      // After content is in the DOM, update scroll affordance states
+      requestAnimationFrame(()=>{
+        [els.pdpAltGrid, els.pdpMoreGrid].forEach(track=>{
+          if (!track) return;
+          const atStart = track.scrollLeft <= 1;
+          const canScroll = track.scrollWidth - track.clientWidth - track.scrollLeft > 1;
+          track.classList.toggle('can-scroll-left', !atStart);
+          track.classList.toggle('can-scroll-right', canScroll);
+          track.addEventListener('scroll', ()=>{
+            const atStart2 = track.scrollLeft <= 1;
+            const canScroll2 = track.scrollWidth - track.clientWidth - track.scrollLeft > 1;
+            track.classList.toggle('can-scroll-left', !atStart2);
+            track.classList.toggle('can-scroll-right', canScroll2);
+          }, { passive:true });
+        });
+      });
     } catch(err) {
       console.warn('Failed to open product', err);
     }

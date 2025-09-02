@@ -207,26 +207,30 @@
     .bundle{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:12px;border:1px dashed #cfeef6;background:#f7feff;border-radius:14px;padding:12px}
     .bundle .btn{background:var(--fp-accent);border:0;border-radius:10px;padding:8px 10px;font-weight:800}
 
-    /* Alternatives carousel (horizontal, show ~2 per view) */
-    .alt-grid{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;max-width:100%;scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
-    .alt-grid .sku{flex:0 0 calc(50% - 12px);min-width:260px;max-width:360px;scroll-snap-align:start}
+    /* Alternatives carousel (horizontal, show 2 per view) */
+    .alt-grid{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;max-width:100%;scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;position:relative}
+    .alt-grid .sku{flex:0 0 calc((100% - 10px)/2);min-width:260px;max-width:none;scroll-snap-align:start}
     .sku{border:1px solid #edf1f4;border-radius:14px;padding:10px;background:#fff}
     .sku .btn{margin-top:8px;background:var(--fp-primary);border:0;border-radius:10px;padding:8px 10px;color:#fff;font-weight:800;width:100%}
     /* More picks carousel (denser) */
-    .more{display:flex;gap:8px;margin-top:10px;align-items:stretch;overflow-x:auto;overflow-y:hidden;max-width:100%;scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
-    .more .sku{flex:0 0 120px;scroll-snap-align:start}
+    .more{display:flex;gap:8px;margin-top:10px;align-items:stretch;overflow-x:auto;overflow-y:hidden;max-width:100%;scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;position:relative}
+    .more .sku{flex:0 0 96px;scroll-snap-align:start}
     .more .sku{padding:8px;display:flex;flex-direction:column;min-height:180px}
     /* Stabilize Alternatives layout (prevent CLS) */
     .alt-card{display:flex;flex-direction:column;height:100%}
-    .alt-image{aspect-ratio:1/1;width:100%;max-height:150px;background:#fff;border:1px solid #eef1f4;border-radius:12px;display:grid;place-items:center;overflow:hidden}
-    .alt-image img{width:100%;height:100%;object-fit:contain;border-radius:12px}
+    .alt-image{aspect-ratio:4/3;width:100%;max-height:150px;background:#fff;border:1px solid #eef1f4;border-radius:12px;display:grid;place-items:center;overflow:hidden;padding:8px}
+    .alt-image img{width:100%;height:100%;object-fit:contain;object-position:center;border-radius:8px}
+    /* Scroll affordance fades */
+    .alt-grid::before,.alt-grid::after,.more::before,.more::after{content:"";position:absolute;top:0;bottom:0;width:22px;pointer-events:none;z-index:2;opacity:0;transition:opacity .18s ease}
+    .alt-grid.can-scroll-left::before,.more.can-scroll-left::before{left:0;opacity:1;background:linear-gradient(90deg, rgba(255,255,255,1), rgba(255,255,255,0))}
+    .alt-grid.can-scroll-right::after,.more.can-scroll-right::after{right:0;opacity:1;background:linear-gradient(270deg, rgba(255,255,255,1), rgba(255,255,255,0))}
     .alt-title{margin-top:6px;font-weight:800;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
     .alt-details{font-size:12px;color:var(--fp-muted);min-height:1.6em}
     .alt-price{font-weight:800;margin-top:4px;min-height:24px;font-variant-numeric:tabular-nums}
     .alt-cta{margin-top:auto}
     /* Smaller cards in More picks */
-    .more .alt-title{font-size:12px;min-height:3.2em}
-    .more .alt-price{font-size:12px;margin-top:auto}
+    .more .alt-title{font-size:11px;min-height:1.6em;line-height:1.4;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+    .more .alt-price{font-size:12px;margin-top:4px}
     .alt-card{scroll-snap-align:start}
 
     /* Tabs (desc/composition/reviews) */
@@ -529,7 +533,7 @@
     <section class="pdp" aria-label="Product detail with copilot">
       <!-- Left -->
       <div class="card">
-        <img id="pdpImage" src="https://picsum.photos/seed/hero/720/360" alt="Product image" style="max-width:100%;max-height:280px;width:auto;height:auto;object-fit:contain;border-radius:12px;display:block;margin:0 auto 8px;background:#fff">
+        <img id="pdpImage" src="https://picsum.photos/seed/hero/720/360" alt="Product image" style="max-width:100%;max-height:280px;width:auto;height:auto;object-fit:contain;object-position:center;border-radius:12px;display:block;margin:0 auto 8px;background:#fff">
         <div class="title">
           <h2 style="margin:0;font-size:20px"><span id="pdpProductName"></span> <span id="pdpFlavorLabel"></span></h2>
         </div>
