@@ -117,6 +117,44 @@ public class QdrantService {
                 });
     }
 
+    public static String toPointIdForDocId(String docId) {
+        try {
+            java.util.UUID uuid = java.util.UUID.nameUUIDFromBytes(docId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return uuid.toString();
+        } catch (Exception e) {
+            return docId; // fallback
+        }
+    }
+
+    public Mono<List<SearchResult>> recommendByPointId(String pointId, Map<String, Object> filter, int limit) {
+        String name = vectorProperties.getCollectionName();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("positive", java.util.List.of(pointId));
+        payload.put("limit", limit);
+        if (filter != null && !filter.isEmpty()) payload.put("filter", filter);
+        return qdrantClient.post().uri("/collections/{name}/points/recommend", name)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(payload)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .map(resp -> {
+                    List<Map<String, Object>> results = (List<Map<String, Object>>) resp.getOrDefault("result", List.of());
+                    List<SearchResult> out = new ArrayList<>();
+                    for (Map<String, Object> r : results) {
+                        String id = String.valueOf(r.get("id"));
+                        double score = r.get("score") instanceof Number n ? n.doubleValue() : 0.0;
+                        Map<String, Object> payloadMap = (Map<String, Object>) r.get("payload");
+                        out.add(new SearchResult(id, score, payloadMap));
+                    }
+                    return out;
+                });
+    }
+
+    public Mono<List<SearchResult>> recommendByDocId(String docId, Map<String, Object> filter, int limit) {
+        String pointId = toPointIdForDocId(docId);
+        return recommendByPointId(pointId, filter, limit);
+    }
+
     public static class QdrantPoint {
         public String id;
         public float[] vector;

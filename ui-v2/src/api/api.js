@@ -27,4 +27,12 @@ export async function getProduct(id) {
   return res.json();
 }
 
+export async function getAlternatives(id, { limit=8 } = {}) {
+  const lang = language.getLanguage();
+  const url = `${API_BASE}/products/${encodeURIComponent(id)}/alternatives?limit=${encodeURIComponent(limit)}&lang=${lang}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json(); // { items: [...], total }
+}
+
 

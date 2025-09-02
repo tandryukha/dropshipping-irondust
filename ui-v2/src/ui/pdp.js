@@ -1,7 +1,7 @@
 import { $, $$, sanitizeHtml } from '../core/dom.js';
 import { bus } from '../core/bus.js';
 import { store } from '../core/store.js';
-import { getProduct, searchProducts } from '../api/api.js';
+import { getProduct, searchProducts, getAlternatives } from '../api/api.js';
 import { navigate } from '../core/router.js';
 import { openFor } from './flavor-popover.js';
 import { t } from '../core/language.js';
@@ -472,30 +472,84 @@ function attachAltHandlers(container){
 
 async function fetchAndRenderAlternatives(prod){
   try{
-    const catSlug = Array.isArray(prod?.categories_slugs) && prod.categories_slugs.length ? prod.categories_slugs[0] : null;
-    const baseFilters = { in_stock: true };
-    if (catSlug) baseFilters.categories_slugs = [catSlug];
-    if (typeof prod?.form === 'string' && prod.form) baseFilters.form = prod.form;
-    if (typeof prod?.id === 'string' && prod.id) baseFilters.id = { op: '!=', value: prod.id };
-    if (typeof prod?.parent_id === 'string' && prod.parent_id) baseFilters.parent_id = { op: '!=', value: prod.parent_id };
-
-    // Primary: category + form
-    let resp = await searchProducts('', { page: 1, size: 8, filters: baseFilters, sort: ['rating:desc','review_count:desc'] });
-    let items = Array.isArray(resp?.items) ? resp.items : [];
-
-    // Fallbacks to broaden results if too few
-    if (items.length < 4) {
-      const f2 = { ...baseFilters };
-      delete f2.form;
-      resp = await searchProducts('', { page: 1, size: 8, filters: f2, sort: ['rating:desc','review_count:desc'] });
-      items = Array.isArray(resp?.items) ? resp.items : items;
+    // Prefer backend recommendations if available
+    try {
+      const rec = await getAlternatives(String(prod?.id||''), { limit: 8 });
+      const items = Array.isArray(rec?.items) ? rec.items : [];
+      if (items.length >= 2) {
+        const alt = items.slice(0, 2);
+        const more = items.slice(2, 8);
+        if (els.pdpAltGrid) { els.pdpAltGrid.innerHTML = alt.map(buildAltCardHTML).join(''); attachAltHandlers(els.pdpAltGrid); }
+        if (els.pdpMoreGrid) { els.pdpMoreGrid.innerHTML = more.map(buildMoreCardHTML).join(''); attachAltHandlers(els.pdpMoreGrid); }
+        return; // Done
+      }
+    } catch(_e) {
+      // Fallback to client-side strategy below
     }
+
+    // 1) Try semantic (hybrid) alternatives using product context
+    const qParts = [];
+    if (typeof prod?.name === 'string' && prod.name) qParts.push(prod.name);
+    if (typeof prod?.form === 'string' && prod.form) qParts.push(prod.form);
+    if (Array.isArray(prod?.categories_names) && prod.categories_names.length) qParts.push(prod.categories_names[0]);
+    const q = qParts.join(' ');
+
+    let resp = await searchProducts(q, { page: 1, size: 12, filters: { in_stock: true } });
+    let items = Array.isArray(resp?.items) ? resp.items : [];
+    // Exclude current product and same-variation siblings client-side
+    items = items.filter(it => {
+      if (!it) return false;
+      if (prod?.id && it.id === prod.id) return false;
+      if (prod?.parent_id && it.parent_id === prod.parent_id) return false;
+      return true;
+    });
+
+    // 2) Fallback: category + form browse (rating sort)
+    if (items.length < 4) {
+      const catSlug = Array.isArray(prod?.categories_slugs) && prod.categories_slugs.length ? prod.categories_slugs[0] : null;
+      const baseFilters = { in_stock: true };
+      if (catSlug) baseFilters.categories_slugs = [catSlug];
+      if (typeof prod?.form === 'string' && prod.form) baseFilters.form = prod.form;
+      const r2 = await searchProducts('', { page: 1, size: 12, filters: baseFilters, sort: ['rating:desc','review_count:desc'] });
+      let b = Array.isArray(r2?.items) ? r2.items : [];
+      b = b.filter(it => {
+        if (!it) return false;
+        if (prod?.id && it.id === prod.id) return false;
+        if (prod?.parent_id && it.parent_id === prod.parent_id) return false;
+        return true;
+      });
+      // Merge unique by id, keeping existing order preference
+      const seen = new Set(items.map(x=>x.id));
+      for (const it of b) { if (!seen.has(it.id)) { items.push(it); seen.add(it.id); } }
+    }
+
+    // 3) Second fallback: brand-based
     if (items.length < 4 && typeof prod?.brand_slug === 'string' && prod.brand_slug) {
       const f3 = { in_stock: true, brand_slug: prod.brand_slug };
-      if (typeof prod?.id === 'string') f3.id = { op: '!=', value: prod.id };
-      if (typeof prod?.parent_id === 'string') f3.parent_id = { op: '!=', value: prod.parent_id };
-      resp = await searchProducts('', { page: 1, size: 8, filters: f3, sort: ['rating:desc','review_count:desc'] });
-      items = Array.isArray(resp?.items) ? resp.items : items;
+      const r3 = await searchProducts('', { page: 1, size: 12, filters: f3, sort: ['rating:desc','review_count:desc'] });
+      let b = Array.isArray(r3?.items) ? r3.items : [];
+      b = b.filter(it => {
+        if (!it) return false;
+        if (prod?.id && it.id === prod.id) return false;
+        if (prod?.parent_id && it.parent_id === prod.parent_id) return false;
+        return true;
+      });
+      const seen = new Set(items.map(x=>x.id));
+      for (const it of b) { if (!seen.has(it.id)) { items.push(it); seen.add(it.id); } }
+    }
+
+    // 4) Final fallback: popular in-stock
+    if (items.length < 4) {
+      const r4 = await searchProducts('', { page: 1, size: 12, filters: { in_stock: true }, sort: ['rating:desc','review_count:desc'] });
+      let b = Array.isArray(r4?.items) ? r4.items : [];
+      b = b.filter(it => {
+        if (!it) return false;
+        if (prod?.id && it.id === prod.id) return false;
+        if (prod?.parent_id && it.parent_id === prod.parent_id) return false;
+        return true;
+      });
+      const seen = new Set(items.map(x=>x.id));
+      for (const it of b) { if (!seen.has(it.id)) { items.push(it); seen.add(it.id); } }
     }
 
     const alt = items.slice(0, 2);

@@ -133,6 +133,23 @@
         }
       }
     }
+    ,
+    {
+      "name": "Product alternatives",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/{{productId}}/alternatives?limit=8&lang=en",
+          "host": ["{{baseUrl}}"],
+          "path": ["products","{{productId}}","alternatives"],
+          "query": [
+            { "key": "limit", "value": "8" },
+            { "key": "lang", "value": "en" }
+          ]
+        }
+      }
+    }
   ]
 }
 

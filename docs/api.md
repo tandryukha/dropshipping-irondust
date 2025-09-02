@@ -118,6 +118,26 @@ When `price_per_serving` is null for items with serving ranges, use the range-bo
 ## Products
 
 - GET /products/{id} — Get specific product details
+- GET /products/{id}/alternatives — Recommended alternatives for a product
+
+### Alternatives
+
+Returns products similar to the target product. Backed by Qdrant recommend API and enriched with Meilisearch documents. Always filters `in_stock = true`, and excludes the same product and products from the same variation group (`parent_id`). Respects `?lang` where applicable for localized fields.
+
+Request:
+
+```bash
+curl -s "http://localhost:4000/products/wc_30177/alternatives?limit=8&lang=en" | jq '.items | length'
+```
+
+Response shape (excerpt):
+
+```json
+{
+  "items": [ { "id": "wc_123", "name": "...", "price_cents": 1990 } ],
+  "total": 8
+}
+```
 
 ### Fields (excerpt)
 

@@ -1,6 +1,9 @@
 package com.irondust.search.controller;
 
+import com.irondust.search.dto.SearchDtos;
+import com.irondust.search.model.ProductDoc;
 import com.irondust.search.service.MeiliService;
+import com.irondust.search.service.RecommendationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,8 +17,12 @@ import java.util.Map;
 @RestController
 public class ProductController {
     private final MeiliService meiliService;
+    private final RecommendationService recommendationService;
 
-    public ProductController(MeiliService meiliService) { this.meiliService = meiliService; }
+    public ProductController(MeiliService meiliService, RecommendationService recommendationService) {
+        this.meiliService = meiliService;
+        this.recommendationService = recommendationService;
+    }
 
     @GetMapping("/products/{id}")
     public Mono<ResponseEntity<Map<String, Object>>> getById(
@@ -30,6 +37,15 @@ public class ProductController {
                     return ResponseEntity.ok(doc);
                 })
                 .onErrorResume(e -> Mono.just(ResponseEntity.notFound().build()));
+    }
+
+    @GetMapping("/products/{id}/alternatives")
+    public Mono<SearchDtos.SearchResponseBody<ProductDoc>> getAlternatives(
+            @PathVariable("id") String id,
+            @RequestParam(value = "lang", required = false) String lang,
+            @RequestParam(value = "limit", required = false, defaultValue = "8") int limit
+    ) {
+        return recommendationService.alternativesForProduct(id, lang, Math.max(2, Math.min(24, limit)));
     }
     
     private void applyLanguageFieldsToRaw(Map<String, Object> doc, String lang) {
