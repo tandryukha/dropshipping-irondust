@@ -449,32 +449,61 @@ function altDetailsLine(item){
 function buildAltCardHTML(item, index=0){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/alt/240/140';
   const name = item?.name || '';
-  const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2).replace('.', ',') : '';
-  const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
+  const priceText = typeof item?.price_cents === 'number' ? formatPrice(item.price_cents, item?.currency||'EUR') : '';
   const details = altDetailsLine(item);
   const eager = index === 0;
   const loading = eager ? 'eager' : 'lazy';
   const fetchpriority = eager ? 'high' : 'auto';
+
+  // Optional reason chip to explain recommendation
+  const current = store.get('currentProduct');
+  const reason = (()=>{
+    try{
+      if (typeof item?.reason === 'string' && item.reason) return item.reason;
+      const reasons = [];
+      if (current && item?.brand_slug && current?.brand_slug && item.brand_slug === current.brand_slug) reasons.push('Same brand');
+      if (current && item?.form && current?.form && item.form === current.form) reasons.push('Same form');
+      if (current && typeof item?.rating === 'number' && typeof current?.rating === 'number' && item.rating >= current.rating + 0.3) reasons.push('Higher rated');
+      if (current && typeof item?.price_per_serving === 'number' && typeof current?.price_per_serving === 'number' && item.price_per_serving < current.price_per_serving) reasons.push('Better €/serv');
+      return reasons[0] || '';
+    }catch(_){ return ''; }
+  })();
+
+  // Savings and per-serving
+  const pricePerServing = typeof item?.price_per_serving === 'number' ? formatEuro(item.price_per_serving, item?.currency||'EUR') : '';
+  const savings = (()=>{
+    try{
+      if (typeof item?.compare_at_cents === 'number' && typeof item?.price_cents === 'number' && item.compare_at_cents > item.price_cents) {
+        const diff = (item.compare_at_cents - item.price_cents)/100;
+        if (diff >= 0.5) return `Save €${diff.toFixed(0)}`;
+      }
+      return '';
+    }catch(_){ return ''; }
+  })();
+
   return `
-    <div class="sku alt-card" data-id="${item?.id||''}">
+    <div class="sku alt-card" data-id="${item?.id||''}" role="button" tabindex="0" aria-label="Open ${name}">
       <div class="alt-image skeleton"><img src="${img}" alt="${name}" loading="${loading}" decoding="async" fetchpriority="${fetchpriority}" width="240" height="180"></div>
+      ${reason ? `<div class="alt-reason">${reason}</div>` : ''}
       <div class="alt-title">${name}</div>
       <div class="alt-details muted">${details}</div>
-      <div class="alt-price">${symbol}${price}</div>
-      <button class="btn alt-cta" data-id="${item?.id||''}">View</button>
+      <div class="alt-price-row">
+        <div class="alt-price">${priceText}</div>
+        ${savings ? `<span class="alt-save">${savings}</span>` : ''}
+      </div>
+      ${pricePerServing ? `<div class="alt-subprice">${pricePerServing} / serv</div>` : ''}
     </div>`;
 }
 
 function buildMoreCardHTML(item){
-  const img = (item?.images?.[0]) || 'https://picsum.photos/seed/more/120/100';
+  const img = (item?.images?.[0]) || 'https://picsum.photos/seed/more/120/120';
   const name = item?.name || '';
-  const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2) : '';
-  const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
+  const priceText = typeof item?.price_cents === 'number' ? formatPrice(item.price_cents, item?.currency||'EUR') : '';
   return `
-    <div class="sku alt-card" data-id="${item?.id||''}">
-      <div class="alt-image skeleton"><img src="${img}" alt="${name}" width="120" height="90" loading="lazy" decoding="async"></div>
+    <div class="sku alt-card" data-id="${item?.id||''}" role="button" tabindex="0" aria-label="Open ${name}">
+      <div class="alt-image skeleton"><img src="${img}" alt="${name}" width="84" height="84" loading="lazy" decoding="async"></div>
       <div class="alt-title">${name}</div>
-      <div class="alt-price">${symbol}${price}</div>
+      <div class="alt-price">${priceText}</div>
     </div>`;
 }
 
@@ -488,6 +517,16 @@ function attachAltHandlers(container){
       navigate('/p/'+id);
       // Ensure PDP opens via bus
       bus.dispatchEvent(new CustomEvent('open-product', { detail: { id } }));
+    });
+    // Keyboard access
+    card.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const id = card.getAttribute('data-id');
+        if (!id) return;
+        navigate('/p/'+id);
+        bus.dispatchEvent(new CustomEvent('open-product', { detail: { id } }));
+      }
     });
   });
 
