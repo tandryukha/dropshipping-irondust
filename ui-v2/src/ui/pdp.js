@@ -496,7 +496,7 @@ function buildAltCardHTML(item, index=0){
   const name = item?.name || '';
   const priceText = typeof item?.price_cents === 'number' ? formatPrice(item.price_cents, item?.currency||'EUR') : '';
   const details = altDetailsLine(item);
-  const eager = index === 0;
+  const eager = index < 3; // load a few eagerly to avoid lazy-load stalls in sidecar
   const loading = eager ? 'eager' : 'lazy';
   const fetchpriority = eager ? 'high' : 'auto';
 
@@ -547,16 +547,18 @@ function buildAltCardHTML(item, index=0){
     </div>`;
 }
 
-function buildMoreCardHTML(item){
+function buildMoreCardHTML(item, index=0){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/more/120/120';
   const name = item?.name || '';
   const priceText = typeof item?.price_cents === 'number' ? formatPrice(item.price_cents, item?.currency||'EUR') : '';
   const benefitSnippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
   const benefitHtml = benefitSnippet ? `<div class="alt-snippet">${benefitSnippet.length > 90 ? (benefitSnippet.slice(0,87).trim()+"…") : benefitSnippet}</div>` : '';
   const pricePerServing = typeof item?.price_per_serving === 'number' ? formatEuro(item.price_per_serving, item?.currency||'EUR') : '';
+  const eager = index < 2;
+  const loading = eager ? 'eager' : 'lazy';
   return `
     <div class="sku alt-card" data-id="${item?.id||''}" role="button" tabindex="0" aria-label="Open ${name}">
-      <div class="alt-image skeleton"><img src="${img}" alt="${name}" width="84" height="84" loading="lazy" decoding="async"></div>
+      <div class="alt-image skeleton"><img src="${img}" alt="${name}" width="84" height="84" loading="${loading}" decoding="async"></div>
       <div class="alt-title">${name}</div>
       ${benefitHtml}
       <div class="alt-price">${priceText}</div>
@@ -592,16 +594,27 @@ function attachAltHandlers(container){
     if (img.__boundLoad) return; img.__boundLoad = true;
     const box = img.closest('.alt-image');
     const removeSkeleton = () => { if (box) box.classList.remove('skeleton'); };
-    if (img.complete && img.naturalWidth > 0) {
-      removeSkeleton();
-    } else {
-      img.addEventListener('load', removeSkeleton, { once: true });
-      img.addEventListener('error', () => {
-        const w = Number(img.getAttribute('width')) || 240;
-        const h = Number(img.getAttribute('height')) || 180;
+    const setFallback = () => {
+      const w = Number(img.getAttribute('width')) || 240;
+      const h = Number(img.getAttribute('height')) || 180;
+      // Avoid infinite loop: only replace once
+      if (!img.__fallbackSet) {
+        img.__fallbackSet = true;
         img.src = `https://picsum.photos/seed/fallback/${w}/${h}`;
-        removeSkeleton();
-      }, { once: true });
+      }
+    };
+    const validate = () => {
+      // Some hosts return anti-hotlink tiny placeholders; treat them as failure
+      if (img.naturalWidth <= 40 || img.naturalHeight <= 40) {
+        setFallback();
+      }
+      removeSkeleton();
+    };
+    if (img.complete && img.naturalWidth > 0) {
+      validate();
+    } else {
+      img.addEventListener('load', validate, { once: true });
+      img.addEventListener('error', () => { setFallback(); removeSkeleton(); }, { once: true });
     }
   });
 
@@ -725,7 +738,7 @@ async function fetchAndRenderComplements(prod, excludeIds=new Set()){
       let items = Array.isArray(rec?.items) ? rec.items : [];
       if (excludeIds && excludeIds.size) items = items.filter(it => !excludeIds.has(it.id));
       if (items.length) {
-        if (els.pdpMoreGrid) { els.pdpMoreGrid.innerHTML = items.map(buildMoreCardHTML).join(''); attachAltHandlers(els.pdpMoreGrid); }
+        if (els.pdpMoreGrid) { els.pdpMoreGrid.innerHTML = items.map((it, idx)=>buildMoreCardHTML(it, idx)).join(''); attachAltHandlers(els.pdpMoreGrid); }
         return;
       }
     } catch(_e) { /* fall through */ }
@@ -734,7 +747,7 @@ async function fetchAndRenderComplements(prod, excludeIds=new Set()){
     const r = await searchProducts('', { page: 1, size: 12, filters: { in_stock: true }, sort: ['rating:desc','review_count:desc'] });
     let items = Array.isArray(r?.items) ? r.items : [];
     items = items.filter(it => it && it.id !== prod?.id && it.parent_id !== prod?.parent_id && !excludeIds.has(it.id));
-    if (els.pdpMoreGrid) { els.pdpMoreGrid.innerHTML = items.slice(0,8).map(buildMoreCardHTML).join(''); attachAltHandlers(els.pdpMoreGrid); }
+    if (els.pdpMoreGrid) { els.pdpMoreGrid.innerHTML = items.slice(0,8).map((it, idx)=>buildMoreCardHTML(it, idx)).join(''); attachAltHandlers(els.pdpMoreGrid); }
   }catch(_e){
     try{ if (els.pdpMoreGrid) els.pdpMoreGrid.innerHTML = ''; }catch(_ignored){}
   }

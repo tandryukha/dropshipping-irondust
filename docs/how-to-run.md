@@ -56,7 +56,7 @@ Once running, you'll have access to:
 - **API**: http://localhost:4000
 - **Meilisearch**: http://localhost:7700  
 - **Qdrant**: http://localhost:6333 (default collection: `products_vec`)
-- **UI** (if running): http://localhost:3000
+- **UI (ui-v2 static)**: http://localhost:8011 (start with `./ui-v2/serve.sh` — single instance; reuse if already running)
 
 ## Testing the System
 

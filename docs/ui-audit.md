@@ -7,13 +7,15 @@ Use this to quickly evaluate `ui-v2` after frontend changes. It serves the UI lo
 - Python 3 (for the static server)
 
 ### 1) Start the local UI server
-Run this in a separate terminal:
+Run this in a separate terminal (single instance):
 
 ```bash
 ./ui-v2/serve.sh
 ```
 
 This serves `http://localhost:8011/index.html`.
+
+Note: `serve.sh` starts a single Python HTTP server and attempts to open the browser. If the server is already running, do not launch it again. Reuse the existing instance at `http://localhost:8011`. If you must restart it, kill the process on port 8011 manually first.
 
 ### 2) One-time setup for the audit workspace
 

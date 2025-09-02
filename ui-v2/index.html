@@ -226,9 +226,9 @@
     /* Preserve image without awkward cropping; tighter height */
     .alt-image{aspect-ratio:4/3;width:100%;max-height:120px;background:#fff;border:1px solid #eef1f4;border-radius:12px;display:grid;place-items:center;overflow:hidden;padding:4px}
     .alt-image img{width:100%;height:100%;object-fit:contain;object-position:center;border-radius:8px}
-    /* Alternatives-specific image sizing: shorter box and true contain */
-    .alt-grid .alt-image{aspect-ratio:auto;height:96px;max-height:none}
-    .alt-grid .alt-image img{width:auto;height:100%}
+    /* Alternatives-specific image sizing: shorter box and strict clamp */
+    .alt-grid .alt-image{aspect-ratio:auto;height:96px;min-height:96px;max-height:96px}
+    .alt-grid .alt-image img{width:auto;max-width:100%;height:auto;max-height:100%}
     .alt-image.skeleton{position:relative}
     .alt-image.skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg, rgba(240,244,248,0.9) 25%, rgba(255,255,255,0.9) 37%, rgba(240,244,248,0.9) 63%);background-size:400% 100%;animation:shimmer 1.2s ease-in-out infinite}
     @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
@@ -252,7 +252,7 @@
     .more .alt-snippet{-webkit-line-clamp:2;line-clamp:2;font-size:10px}
     .more .alt-price{font-size:12px;margin-top:4px}
     /* Tighten small-card image box for More picks to reduce whitespace */
-    .more .alt-image{aspect-ratio:1/1;max-height:84px;padding:4px}
+    .more .alt-image{aspect-ratio:1/1;height:84px;min-height:84px;max-height:84px;padding:4px}
     .alt-card{scroll-snap-align:start}
 
     /* Tabs (desc/composition/reviews) */
