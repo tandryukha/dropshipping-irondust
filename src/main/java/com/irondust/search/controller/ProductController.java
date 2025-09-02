@@ -47,6 +47,15 @@ public class ProductController {
     ) {
         return recommendationService.alternativesForProduct(id, lang, Math.max(2, Math.min(24, limit)));
     }
+
+    @GetMapping("/products/{id}/complements")
+    public Mono<SearchDtos.SearchResponseBody<ProductDoc>> getComplements(
+            @PathVariable("id") String id,
+            @RequestParam(value = "lang", required = false) String lang,
+            @RequestParam(value = "limit", required = false, defaultValue = "8") int limit
+    ) {
+        return recommendationService.complementsForProduct(id, lang, Math.max(2, Math.min(24, limit)));
+    }
     
     private void applyLanguageFieldsToRaw(Map<String, Object> doc, String lang) {
         // Apply language-specific name

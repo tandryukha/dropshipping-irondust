@@ -150,6 +150,23 @@
         }
       }
     }
+    ,
+    {
+      "name": "Product complements",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/{{productId}}/complements?limit=8&lang=en",
+          "host": ["{{baseUrl}}"],
+          "path": ["products","{{productId}}","complements"],
+          "query": [
+            { "key": "limit", "value": "8" },
+            { "key": "lang", "value": "en" }
+          ]
+        }
+      }
+    }
   ]
 }
 

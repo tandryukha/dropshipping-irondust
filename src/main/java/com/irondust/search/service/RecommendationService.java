@@ -79,6 +79,87 @@ public class RecommendationService {
                         })
                 );
     }
+
+    /**
+     * Complements are items that pair well with the origin product but are not direct substitutes.
+     * Heuristics:
+     *  - Always in stock
+     *  - Exclude same product and same variation group
+     *  - Prefer different form OR different primary category from the origin
+     *  - Prefer items sharing at least one goal tag with the origin
+     *  - Sorted by rating and review_count for quality
+     */
+    @SuppressWarnings("unchecked")
+    public Mono<SearchDtos.SearchResponseBody<ProductDoc>> complementsForProduct(String productId, String lang, int limit) {
+        int fetchSize = Math.max(limit * 5, Math.max(24, limit));
+
+        return meiliService.getDocumentRaw(productId)
+                .defaultIfEmpty(Map.of())
+                .flatMap(origin -> {
+                    String originId = String.valueOf(origin.getOrDefault("id", productId));
+                    String originParent = origin.get("parent_id") instanceof String s ? s : null;
+                    String originForm = origin.get("form") instanceof String s ? s : null;
+                    List<String> originCats = origin.get("categories_slugs") instanceof List<?> l ? (List<String>) (List<?>) l : List.of();
+                    List<String> originGoals = origin.get("goal_tags") instanceof List<?> l ? (List<String>) (List<?>) l : List.of();
+
+                    Map<String, Object> filters = new LinkedHashMap<>();
+                    filters.put("in_stock", true);
+                    // Do not constrain by category to allow cross-category pairings
+
+                    // Pull a larger sample of popular items, then refine in-process
+                    return meiliService.searchRaw("", FilterStringBuilder.build(filters), List.of("rating:desc", "review_count:desc"), 1, fetchSize, null)
+                            .map(raw -> {
+                                Object hitsObj = raw.get("hits");
+                                List<Map<String, Object>> hits = new ArrayList<>();
+                                if (hitsObj instanceof List<?> list) {
+                                    for (Object h : list) {
+                                        if (h instanceof Map<?, ?> m) hits.add((Map<String, Object>) m);
+                                    }
+                                }
+
+                                // Filter to ensure complementarity
+                                List<Map<String, Object>> filtered = new ArrayList<>();
+                                for (Map<String, Object> doc : hits) {
+                                    if (doc == null) continue;
+                                    String id = String.valueOf(doc.get("id"));
+                                    if (originId.equals(id)) continue;
+                                    String pid = doc.get("parent_id") instanceof String s ? s : null;
+                                    if (originParent != null && originParent.equals(pid)) continue;
+
+                                    // Different form OR different category required
+                                    String form = doc.get("form") instanceof String fs ? fs : null;
+                                    List<String> cats = doc.get("categories_slugs") instanceof List<?> l2 ? (List<String>) (List<?>) l2 : List.of();
+                                    boolean differentForm = originForm == null || form == null || !originForm.equals(form);
+                                    boolean differentCategory = originCats.isEmpty() || cats.isEmpty() || Collections.disjoint(originCats, cats);
+                                    if (!(differentForm || differentCategory)) continue;
+
+                                    filtered.add(doc);
+                                }
+
+                                // Re-rank: boost items sharing goal tags
+                                if (!originGoals.isEmpty()) {
+                                    filtered.sort((a, b) -> {
+                                        List<String> ga = a.get("goal_tags") instanceof List<?> la ? (List<String>) (List<?>) la : List.of();
+                                        List<String> gb = b.get("goal_tags") instanceof List<?> lb ? (List<String>) (List<?>) lb : List.of();
+                                        boolean sa = !Collections.disjoint(originGoals, ga);
+                                        boolean sb = !Collections.disjoint(originGoals, gb);
+                                        if (sa == sb) return 0; // keep original order otherwise
+                                        return sa ? -1 : 1; // items sharing goals first
+                                    });
+                                }
+
+                                // Truncate
+                                if (filtered.size() > limit) {
+                                    filtered = filtered.subList(0, limit);
+                                }
+
+                                Map<String, Object> respRaw = new LinkedHashMap<>();
+                                respRaw.put("hits", filtered);
+                                respRaw.put("estimatedTotalHits", filtered.size());
+                                return SearchControllerMapper.mapToResponse(respRaw, lang);
+                            });
+                });
+    }
 }
 
 

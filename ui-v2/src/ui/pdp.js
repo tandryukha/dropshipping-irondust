@@ -1,7 +1,7 @@
 import { $, $$, sanitizeHtml } from '../core/dom.js';
 import { bus } from '../core/bus.js';
 import { store } from '../core/store.js';
-import { getProduct, searchProducts, getAlternatives } from '../api/api.js';
+import { getProduct, searchProducts, getAlternatives, getComplements } from '../api/api.js';
 import { navigate } from '../core/router.js';
 import { openFor } from './flavor-popover.js';
 import { t } from '../core/language.js';
@@ -391,8 +391,9 @@ export function mountPdp() {
       }
       els.pdpAdd?.setAttribute('data-name', prod?.name || 'Product');
 
-      // Load alternatives and more picks
-      await fetchAndRenderAlternatives(prod);
+      // Load alternatives and complements separately
+      const altIds = await fetchAndRenderAlternatives(prod);
+      await fetchAndRenderComplements(prod, new Set(Array.isArray(altIds)?altIds:[]));
     } catch(err) {
       console.warn('Failed to open product', err);
     }
@@ -477,12 +478,10 @@ async function fetchAndRenderAlternatives(prod){
     try {
       const rec = await getAlternatives(String(prod?.id||''), { limit: 8 });
       const items = Array.isArray(rec?.items) ? rec.items : [];
-      if (items.length >= 2) {
-        const alt = items.slice(0, 2);
-        const more = items.slice(2, 8);
+      if (items.length) {
+        const alt = items.slice(0, 8);
         if (els.pdpAltGrid) { els.pdpAltGrid.innerHTML = alt.map(buildAltCardHTML).join(''); attachAltHandlers(els.pdpAltGrid); }
-        if (els.pdpMoreGrid) { els.pdpMoreGrid.innerHTML = more.map(buildMoreCardHTML).join(''); attachAltHandlers(els.pdpMoreGrid); }
-        return; // Done
+        return alt.map(x=>x.id);
       }
     } catch(_e) {
       // Fallback to client-side strategy below
@@ -553,22 +552,39 @@ async function fetchAndRenderAlternatives(prod){
       for (const it of b) { if (!seen.has(it.id)) { items.push(it); seen.add(it.id); } }
     }
 
-    const alt = items.slice(0, 2);
-    const more = items.slice(2, 8);
-
+    const alt = items.slice(0, 8);
     if (els.pdpAltGrid) {
       els.pdpAltGrid.innerHTML = alt.map(buildAltCardHTML).join('');
       attachAltHandlers(els.pdpAltGrid);
     }
-    if (els.pdpMoreGrid) {
-      els.pdpMoreGrid.innerHTML = more.map(buildMoreCardHTML).join('');
-      attachAltHandlers(els.pdpMoreGrid);
-    }
+    return alt.map(x=>x.id);
   }catch(_e){
     try{
       if (els.pdpAltGrid) els.pdpAltGrid.innerHTML = '';
-      if (els.pdpMoreGrid) els.pdpMoreGrid.innerHTML = '';
     }catch(_ignored){}
+  }
+}
+
+async function fetchAndRenderComplements(prod, excludeIds=new Set()){
+  try{
+    // Prefer backend complements
+    try {
+      const rec = await getComplements(String(prod?.id||''), { limit: 8 });
+      let items = Array.isArray(rec?.items) ? rec.items : [];
+      if (excludeIds && excludeIds.size) items = items.filter(it => !excludeIds.has(it.id));
+      if (items.length) {
+        if (els.pdpMoreGrid) { els.pdpMoreGrid.innerHTML = items.map(buildMoreCardHTML).join(''); attachAltHandlers(els.pdpMoreGrid); }
+        return;
+      }
+    } catch(_e) { /* fall through */ }
+
+    // Fallback: popular in-stock, excluding current and siblings
+    const r = await searchProducts('', { page: 1, size: 12, filters: { in_stock: true }, sort: ['rating:desc','review_count:desc'] });
+    let items = Array.isArray(r?.items) ? r.items : [];
+    items = items.filter(it => it && it.id !== prod?.id && it.parent_id !== prod?.parent_id && !excludeIds.has(it.id));
+    if (els.pdpMoreGrid) { els.pdpMoreGrid.innerHTML = items.slice(0,8).map(buildMoreCardHTML).join(''); attachAltHandlers(els.pdpMoreGrid); }
+  }catch(_e){
+    try{ if (els.pdpMoreGrid) els.pdpMoreGrid.innerHTML = ''; }catch(_ignored){}
   }
 }
 

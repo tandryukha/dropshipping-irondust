@@ -35,4 +35,12 @@ export async function getAlternatives(id, { limit=8 } = {}) {
   return res.json(); // { items: [...], total }
 }
 
+export async function getComplements(id, { limit=8 } = {}) {
+  const lang = language.getLanguage();
+  const url = `${API_BASE}/products/${encodeURIComponent(id)}/complements?limit=${encodeURIComponent(limit)}&lang=${lang}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
 

@@ -119,6 +119,7 @@ When `price_per_serving` is null for items with serving ranges, use the range-bo
 
 - GET /products/{id} — Get specific product details
 - GET /products/{id}/alternatives — Recommended alternatives for a product
+ - GET /products/{id}/complements — Complementary items (often bought together)
 
 ### Alternatives
 
@@ -138,6 +139,18 @@ Response shape (excerpt):
   "total": 8
 }
 ```
+
+### Complements
+
+Returns items that pair well with the target product but are not direct substitutes. Always in-stock and excludes the same product and variation siblings. Heuristics prefer different form/category and boost items sharing goal tags. Sorted by rating and review count.
+
+Request:
+
+```bash
+curl -s "http://localhost:4000/products/wc_30177/complements?limit=8&lang=en" | jq '.items | length'
+```
+
+Response shape is identical to Alternatives.
 
 ### Fields (excerpt)
 
