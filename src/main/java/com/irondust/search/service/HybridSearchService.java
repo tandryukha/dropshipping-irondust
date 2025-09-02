@@ -3,6 +3,7 @@ package com.irondust.search.service;
 import com.irondust.search.config.VectorProperties;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.*;
 
@@ -27,10 +28,17 @@ public class HybridSearchService {
         // Run Meili search
         Mono<Map<String, Object>> meiliMono = meiliService.searchRaw(q, filter, sort, page, size, facets);
 
-        // Run vector search if query present
-        Mono<List<QdrantService.SearchResult>> vectorMono = (q != null && !q.isBlank() && embeddingService.isEnabled())
+        // Run vector search if query present and long enough; do not block request if vector side is slow
+        boolean vectorEligible = q != null && !q.isBlank() && q.trim().length() >= Math.max(1, vectorProperties.getMinQueryLength()) && embeddingService.isEnabled();
+        Mono<List<QdrantService.SearchResult>> vectorMono = vectorEligible
                 ? Mono.fromSupplier(() -> embeddingService.embedText(q))
-                    .flatMap(vec -> qdrantService.search(vec, buildVectorFilter(filter), vectorProperties.getVectorSearchK()))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .flatMap(vec -> {
+                        int dynamicK = Math.min(Math.max(20, vectorProperties.getVectorSearchK()), 100);
+                        return qdrantService.search(vec, buildVectorFilter(filter), dynamicK);
+                    })
+                    .timeout(java.time.Duration.ofMillis(Math.max(50, vectorProperties.getVectorTimeoutMs())))
+                    .onErrorResume(e -> Mono.just(List.of()))
                 : Mono.just(List.of());
 
         return Mono.zip(meiliMono, vectorMono)

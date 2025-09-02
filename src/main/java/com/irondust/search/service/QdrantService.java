@@ -98,8 +98,8 @@ public class QdrantService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("vector", queryVector);
         payload.put("limit", limit);
-        // Ensure payloads are returned so we can map back to document ids
-        payload.put("with_payload", true);
+        // Only return minimal payload to map back to doc id
+        payload.put("with_payload", Map.of("include", java.util.List.of("doc_id","id")));
         payload.put("with_vectors", false);
         if (filter != null && !filter.isEmpty()) payload.put("filter", filter);
         return qdrantClient.post().uri("/collections/{name}/points/search", name)

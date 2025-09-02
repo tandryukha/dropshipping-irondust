@@ -25,6 +25,8 @@ vector:
   vectorSearchK: ${HYBRID_VECTOR_K:100}
   qdrantUpsertBatchSize: ${QDRANT_UPSERT_BATCH:64}
   qdrantMaxRetries: ${QDRANT_MAX_RETRIES:3}
+  vectorTimeoutMs: ${VECTOR_TIMEOUT_MS:150}
+  minQueryLength: ${VECTOR_MIN_QUERY_LENGTH:3}
 
 spring:
   main:

@@ -23,6 +23,10 @@ public class VectorProperties {
     private int rrfK = 60;
     /** Default vector search limit before fusion */
     private int vectorSearchK = 100;
+    /** Max time to wait for vector side (ms) before falling back to Meili-only */
+    private int vectorTimeoutMs = 150;
+    /** Minimum query length to trigger vector search */
+    private int minQueryLength = 3;
     /** Sub-batch size for Qdrant upserts to avoid large payloads */
     private int qdrantUpsertBatchSize = 64;
     /** Max retries for Qdrant upsert failures */
@@ -48,6 +52,12 @@ public class VectorProperties {
 
     public int getVectorSearchK() { return vectorSearchK; }
     public void setVectorSearchK(int vectorSearchK) { this.vectorSearchK = vectorSearchK; }
+
+    public int getVectorTimeoutMs() { return vectorTimeoutMs; }
+    public void setVectorTimeoutMs(int vectorTimeoutMs) { this.vectorTimeoutMs = vectorTimeoutMs; }
+
+    public int getMinQueryLength() { return minQueryLength; }
+    public void setMinQueryLength(int minQueryLength) { this.minQueryLength = minQueryLength; }
 
     public int getQdrantUpsertBatchSize() { return qdrantUpsertBatchSize; }
     public void setQdrantUpsertBatchSize(int qdrantUpsertBatchSize) { this.qdrantUpsertBatchSize = qdrantUpsertBatchSize; }

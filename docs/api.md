@@ -81,6 +81,12 @@ curl -X POST http://localhost:4000/search/hybrid \
   -d '{"q": "vegan preworkout", "filters": {"in_stock": true}, "page": 1, "size": 6}'
 ```
 
+Latency notes:
+
+- The hybrid endpoint runs Meilisearch and Qdrant in parallel with a short vector-side timeout.
+- If the vector call exceeds `vector.vectorTimeoutMs` (default 150 ms) or the query is shorter than `vector.minQueryLength` (default 3), it falls back to Meili-only results automatically.
+- Tune via `vector.vectorTimeoutMs`, `vector.minQueryLength`, and `vector.vectorSearchK` in `application.yml`.
+
 ### Filterable and sortable fields
 
 Core facets:
