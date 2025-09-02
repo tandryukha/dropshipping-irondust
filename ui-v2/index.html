@@ -213,7 +213,8 @@
 
     /* Alternatives carousel (lighter, denser) */
     .alt-grid{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;max-width:100%;scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;position:relative}
-    .alt-grid .sku{flex:0 0 calc((100% - 10px)/2);min-width:260px;max-width:none;scroll-snap-align:start}
+    /* Make cards more compact so more fit in the viewport */
+    .alt-grid .sku{flex:0 0 calc((100% - 20px)/3);min-width:0;max-width:none;scroll-snap-align:start}
     .sku{border:1px solid #edf1f4;border-radius:14px;padding:10px;background:#fff}
     .sku .btn{margin-top:8px;background:var(--fp-primary);border:0;border-radius:10px;padding:8px 10px;color:#fff;font-weight:800;width:100%}
     /* More picks carousel (denser) */
@@ -222,8 +223,12 @@
     .more .sku{padding:8px;display:flex;flex-direction:column;min-height:180px}
     /* Stabilize Alternatives layout (prevent CLS) */
     .alt-card{display:flex;flex-direction:column;height:100%}
+    /* Preserve image without awkward cropping; tighter height */
     .alt-image{aspect-ratio:4/3;width:100%;max-height:120px;background:#fff;border:1px solid #eef1f4;border-radius:12px;display:grid;place-items:center;overflow:hidden;padding:4px}
     .alt-image img{width:100%;height:100%;object-fit:contain;object-position:center;border-radius:8px}
+    /* Alternatives-specific image sizing: shorter box and true contain */
+    .alt-grid .alt-image{aspect-ratio:auto;height:96px;max-height:none}
+    .alt-grid .alt-image img{width:auto;height:100%}
     .alt-image.skeleton{position:relative}
     .alt-image.skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg, rgba(240,244,248,0.9) 25%, rgba(255,255,255,0.9) 37%, rgba(240,244,248,0.9) 63%);background-size:400% 100%;animation:shimmer 1.2s ease-in-out infinite}
     @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
@@ -231,10 +236,10 @@
     .alt-grid::before,.alt-grid::after,.more::before,.more::after{content:"";position:absolute;top:0;bottom:0;width:28px;pointer-events:none;z-index:2;opacity:0;transition:opacity .18s ease}
     .alt-grid.can-scroll-left::before,.more.can-scroll-left::before{left:0;opacity:1;background:linear-gradient(90deg, rgba(255,255,255,1), rgba(255,255,255,0))}
     .alt-grid.can-scroll-right::after,.more.can-scroll-right::after{right:0;opacity:1;background:linear-gradient(270deg, rgba(255,255,255,1), rgba(255,255,255,0))}
-    .alt-title{margin-top:6px;font-weight:800;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.4em;line-height:1.25;font-size:14px}
+    .alt-title{margin-top:6px;font-weight:800;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.2em;line-height:1.25;font-size:13px}
     .alt-snippet{font-size:11px;color:var(--fp-muted);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    .alt-details{font-size:12px;color:var(--fp-muted);min-height:1.6em}
-    .alt-price{font-weight:800;margin-top:4px;min-height:24px;font-variant-numeric:tabular-nums}
+    .alt-details{font-size:11px;color:var(--fp-muted);min-height:1.6em}
+    .alt-price{font-weight:800;margin-top:4px;min-height:20px;font-variant-numeric:tabular-nums;font-size:14px}
     .alt-subprice{font-size:12px;color:var(--fp-muted)}
     .alt-price-row{display:flex;align-items:baseline;gap:6px;margin-top:4px}
     .alt-save{font-size:10px;background:#fff3f3;border:1px solid #ffc9c9;color:#b91c1c;padding:2px 6px;border-radius:999px;font-weight:800}
@@ -374,7 +379,7 @@
       .alt-grid{gap:6px}
       .sku{padding:6px;border-radius:10px}
       .alt-grid .sku{flex-basis:56%}
-      .alt-image{max-height:72px;border-radius:8px;padding:3px}
+      .alt-grid .alt-image{height:72px}
       .alt-title{font-size:12px;min-height:2.0em}
       .alt-details{font-size:10px;min-height:1.2em}
       .alt-price{font-size:13px;min-height:18px;margin-top:2px}
