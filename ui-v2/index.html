@@ -241,8 +241,10 @@
     .alt-details{font-size:11px;color:var(--fp-muted);min-height:1.6em}
     .alt-price{font-weight:800;margin-top:4px;min-height:20px;font-variant-numeric:tabular-nums;font-size:14px}
     .alt-subprice{font-size:12px;color:var(--fp-muted)}
-    .alt-price-row{display:flex;align-items:baseline;gap:6px;margin-top:4px}
+    .alt-price-row{display:flex;align-items:baseline;gap:6px;margin-top:4px;flex-wrap:wrap}
     .alt-save{font-size:10px;background:#fff3f3;border:1px solid #ffc9c9;color:#b91c1c;padding:2px 6px;border-radius:999px;font-weight:800}
+    /* New: per-serving savings badge (green) */
+    .alt-pps{font-size:10px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:2px 6px;border-radius:999px;font-weight:800}
     .alt-cta{display:none}
     .alt-reason{display:inline-block;margin-top:4px;font-size:10px;padding:2px 6px;border-radius:999px;background:#eef7ff;border:1px solid #d6e7ff;color:#065e67;font-weight:600;width:max-content}
     /* Smaller cards in More picks */
@@ -633,6 +635,9 @@
       <!-- Right -->
       <aside class="card">
         <h3 style="margin:0 0 8px">Alternatives</h3>
+        <div style="margin:6px 0 8px">
+          <button id="altCheaperToggle" class="chip chip-pps" role="switch" aria-pressed="false" title="Show only items with lower price per serving">Cheaper than this</button>
+        </div>
         <div class="alt-grid" id="pdpAltGrid" role="region" aria-roledescription="carousel" aria-label="Alternatives" tabindex="0"></div>
 
         <h3 style="margin:16px 0 8px">More picks</h3>

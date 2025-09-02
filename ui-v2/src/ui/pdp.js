@@ -139,6 +139,27 @@ function formatEuro(value, currency='EUR'){
   const symbol = currency === 'EUR' ? '€' : '';
   return symbol + value.toFixed(2);
 }
+
+// Compute per-serving savings badge text vs the currently viewed product.
+// Returns a short string like "15% less/serv" or an empty string if not qualifying.
+const PPS_SAVINGS_MIN_PERCENT = 0.15; // 15%
+const PPS_SAVINGS_MIN_ABS = 0.05;     // €0.05 per serving
+const PPS_SAVINGS_MAX_PERCENT = 0.5;  // cap shown percent at 50%
+function computePerServingSavingsBadge(item, current){
+  try{
+    const a = (typeof item?.price_per_serving === 'number') ? item.price_per_serving : null;
+    const b = (typeof current?.price_per_serving === 'number') ? current.price_per_serving : null;
+    if (a == null || b == null) return '';
+    if (!(a > 0 && b > 0)) return '';
+    if (a >= b) return '';
+    const abs = b - a;
+    const pct = Math.max(0, Math.min(PPS_SAVINGS_MAX_PERCENT, abs / b));
+    if (abs < PPS_SAVINGS_MIN_ABS) return '';
+    if (pct < PPS_SAVINGS_MIN_PERCENT) return '';
+    const pctInt = Math.round(pct * 100);
+    return `${pctInt}% less/serv`;
+  }catch(_e){ return ''; }
+}
 function extractFlavors(dynamicAttrs){
   try{
     const obj = dynamicAttrs || {};
@@ -205,6 +226,7 @@ export function mountPdp() {
     // Alternatives containers
     pdpAltGrid: $('#pdpAltGrid'),
     pdpMoreGrid: $('#pdpMoreGrid'),
+    altCheaperToggle: $('#altCheaperToggle'),
   });
 
   // Bind existing static flavor buttons if present
@@ -231,6 +253,18 @@ export function mountPdp() {
         panels.forEach(p => p.classList.remove('active'));
         panels[index].classList.add('active');
       });
+    });
+  }
+
+  // Bind Alternatives: "Cheaper than this" toggle
+  if (els.altCheaperToggle) {
+    els.altCheaperToggle.addEventListener('click', ()=>{
+      const pressed = els.altCheaperToggle.getAttribute('aria-pressed') === 'true';
+      const next = !pressed;
+      els.altCheaperToggle.setAttribute('aria-pressed', String(next));
+      store.set('altCheaper', next);
+      const current = store.get('currentProduct');
+      if (current) { fetchAndRenderAlternatives(current); }
     });
   }
 
@@ -434,6 +468,17 @@ export function openProduct(id){
 
 // --- Alternatives rendering ---
 
+// Optionally filter to items cheaper per serving than the current product
+function maybeFilterCheaper(items, current){
+  try{
+    const enabled = !!store.get('altCheaper');
+    if (!enabled) return Array.isArray(items) ? items : [];
+    const cur = (typeof current?.price_per_serving === 'number') ? current.price_per_serving : null;
+    if (cur == null || !(cur > 0)) return Array.isArray(items) ? items : [];
+    return (Array.isArray(items) ? items : []).filter(it => typeof it?.price_per_serving === 'number' && it.price_per_serving > 0 && it.price_per_serving < cur);
+  }catch(_e){ return Array.isArray(items) ? items : []; }
+}
+
 function altDetailsLine(item){
   const bits = [];
   const form = typeof item?.form === 'string' ? item.form : '';
@@ -480,6 +525,7 @@ function buildAltCardHTML(item, index=0){
       return '';
     }catch(_){ return ''; }
   })();
+  const ppsBadge = computePerServingSavingsBadge(item, current);
 
   // Optional benefit snippet to promote product value (clamped in CSS)
   const benefitSnippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
@@ -495,6 +541,7 @@ function buildAltCardHTML(item, index=0){
       <div class="alt-price-row">
         <div class="alt-price">${priceText}</div>
         ${savings ? `<span class="alt-save">${savings}</span>` : ''}
+        ${ppsBadge ? `<span class="alt-pps" title="vs this product’s price per serving">${ppsBadge}</span>` : ''}
       </div>
       ${pricePerServing ? `<div class="alt-subprice">${pricePerServing} / serv</div>` : ''}
     </div>`;
@@ -506,12 +553,14 @@ function buildMoreCardHTML(item){
   const priceText = typeof item?.price_cents === 'number' ? formatPrice(item.price_cents, item?.currency||'EUR') : '';
   const benefitSnippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
   const benefitHtml = benefitSnippet ? `<div class="alt-snippet">${benefitSnippet.length > 90 ? (benefitSnippet.slice(0,87).trim()+"…") : benefitSnippet}</div>` : '';
+  const pricePerServing = typeof item?.price_per_serving === 'number' ? formatEuro(item.price_per_serving, item?.currency||'EUR') : '';
   return `
     <div class="sku alt-card" data-id="${item?.id||''}" role="button" tabindex="0" aria-label="Open ${name}">
       <div class="alt-image skeleton"><img src="${img}" alt="${name}" width="84" height="84" loading="lazy" decoding="async"></div>
       <div class="alt-title">${name}</div>
       ${benefitHtml}
       <div class="alt-price">${priceText}</div>
+      ${pricePerServing ? `<div class="alt-subprice">${pricePerServing} / serv</div>` : ''}
     </div>`;
 }
 
@@ -576,7 +625,9 @@ async function fetchAndRenderAlternatives(prod){
     // Prefer backend recommendations if available
     try {
       const rec = await getAlternatives(String(prod?.id||''), { limit: 8 });
-      const items = Array.isArray(rec?.items) ? rec.items : [];
+      let items = Array.isArray(rec?.items) ? rec.items : [];
+      // Optionally filter by cheaper than current
+      items = maybeFilterCheaper(items, prod);
       if (items.length) {
         const alt = items.slice(0, 8);
         if (els.pdpAltGrid) { els.pdpAltGrid.innerHTML = alt.map(buildAltCardHTML).join(''); attachAltHandlers(els.pdpAltGrid); }
@@ -651,6 +702,8 @@ async function fetchAndRenderAlternatives(prod){
       for (const it of b) { if (!seen.has(it.id)) { items.push(it); seen.add(it.id); } }
     }
 
+    // Apply optional cheaper-than-current filter as late as possible to keep variety
+    items = maybeFilterCheaper(items, prod);
     const alt = items.slice(0, 8);
     if (els.pdpAltGrid) {
       els.pdpAltGrid.innerHTML = alt.map((it, idx)=>buildAltCardHTML(it, idx)).join('');
