@@ -170,6 +170,9 @@ node_modules/
 tmp/
 temp/
 
+# UI screenshots (local-only)
+/ui-v2/.screenshots/
+
 # MkDocs build output
 site/
 qdrant_data/

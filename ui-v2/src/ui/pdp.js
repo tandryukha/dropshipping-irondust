@@ -446,15 +446,18 @@ function altDetailsLine(item){
   return bits.join(' • ');
 }
 
-function buildAltCardHTML(item){
+function buildAltCardHTML(item, index=0){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/alt/240/140';
   const name = item?.name || '';
   const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2).replace('.', ',') : '';
   const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
   const details = altDetailsLine(item);
+  const eager = index === 0;
+  const loading = eager ? 'eager' : 'lazy';
+  const fetchpriority = eager ? 'high' : 'auto';
   return `
     <div class="sku alt-card" data-id="${item?.id||''}">
-      <div class="alt-image"><img src="${img}" alt="${name}"></div>
+      <div class="alt-image skeleton"><img src="${img}" alt="${name}" loading="${loading}" decoding="async" fetchpriority="${fetchpriority}" width="240" height="180"></div>
       <div class="alt-title">${name}</div>
       <div class="alt-details muted">${details}</div>
       <div class="alt-price">${symbol}${price}</div>
@@ -469,7 +472,7 @@ function buildMoreCardHTML(item){
   const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
   return `
     <div class="sku alt-card" data-id="${item?.id||''}">
-      <div class="alt-image"><img src="${img}" alt="${name}" width="120" height="120" loading="lazy" decoding="async"></div>
+      <div class="alt-image skeleton"><img src="${img}" alt="${name}" width="120" height="90" loading="lazy" decoding="async"></div>
       <div class="alt-title">${name}</div>
       <div class="alt-price">${symbol}${price}</div>
     </div>`;
@@ -486,6 +489,38 @@ function attachAltHandlers(container){
       // Ensure PDP opens via bus
       bus.dispatchEvent(new CustomEvent('open-product', { detail: { id } }));
     });
+  });
+
+  // Image skeleton + error fallback handling
+  container.querySelectorAll('.alt-image img').forEach(img => {
+    if (img.__boundLoad) return; img.__boundLoad = true;
+    const box = img.closest('.alt-image');
+    const removeSkeleton = () => { if (box) box.classList.remove('skeleton'); };
+    if (img.complete && img.naturalWidth > 0) {
+      removeSkeleton();
+    } else {
+      img.addEventListener('load', removeSkeleton, { once: true });
+      img.addEventListener('error', () => {
+        const w = Number(img.getAttribute('width')) || 240;
+        const h = Number(img.getAttribute('height')) || 180;
+        img.src = `https://picsum.photos/seed/fallback/${w}/${h}`;
+        removeSkeleton();
+      }, { once: true });
+    }
+  });
+
+  // Hint the browser to prefetch the next few images to reduce pop-in
+  const imgs = Array.from(container.querySelectorAll('.alt-image img'));
+  const toPrefetch = imgs.slice(1, 3); // next two after the first
+  toPrefetch.forEach(srcImg => {
+    const url = srcImg.getAttribute('src');
+    if (!url) return;
+    const i = new Image();
+    i.decoding = 'async';
+    i.loading = 'eager';
+    i.src = url;
+    // Optional: fire decode without blocking
+    if (i.decode) { i.decode().catch(() => {}); }
   });
 }
 
@@ -571,7 +606,7 @@ async function fetchAndRenderAlternatives(prod){
 
     const alt = items.slice(0, 8);
     if (els.pdpAltGrid) {
-      els.pdpAltGrid.innerHTML = alt.map(buildAltCardHTML).join('');
+      els.pdpAltGrid.innerHTML = alt.map((it, idx)=>buildAltCardHTML(it, idx)).join('');
       attachAltHandlers(els.pdpAltGrid);
     }
     return alt.map(x=>x.id);

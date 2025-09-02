@@ -31,14 +31,15 @@ node - <<'NODE'
 const fs = require('fs');
 (async () => {
   const { chromium } = require('playwright');
-  const outDir = '../ui-audit-out';
+  const outDir = '../ui-v2/.screenshots';
   fs.mkdirSync(outDir, { recursive: true });
 
   const browser = await chromium.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  await page.goto('http://localhost:8011/index.html', { waitUntil: 'load' });
+  // Use PDP route to evaluate Alternatives/More picks
+  await page.goto('http://localhost:8011/index.html#/p/wc_29951', { waitUntil: 'load' });
 
   const sizes = [
     { width: 375, height: 2000, label: 'mobile' },
@@ -48,7 +49,7 @@ const fs = require('fs');
 
   for (const s of sizes) {
     await page.setViewportSize({ width: s.width, height: s.height });
-    await page.screenshot({ path: `${outDir}/index-${s.label}-${s.width}.png`, fullPage: true });
+    await page.screenshot({ path: `${outDir}/pdp-${s.label}-${s.width}.png`, fullPage: true });
   }
 
   const { AxeBuilder } = require('@axe-core/playwright');
@@ -63,7 +64,7 @@ NODE
 ### 4) Run pa11y (accessibility) report
 
 ```bash
-npx pa11y http://localhost:8011/index.html --reporter json > ../ui-audit-out/pa11y-index.json || true
+npx pa11y http://localhost:8011/index.html --reporter json > ../ui-v2/.screenshots/pa11y-index.json || true
 ```
 
 ### 5) Optional: run Lighthouse (with Playwright Chromium)
@@ -73,13 +74,13 @@ CHROME_PATH=$(node -p "require('playwright').chromium.executablePath()")
 npx lighthouse http://localhost:8011/index.html \
   --preset=desktop \
   --output=html --output=json \
-  --output-path=../ui-audit-out/lighthouse-index \
+  --output-path=../ui-v2/.screenshots/lighthouse-index \
   --no-update-notifier \
   --chrome-path="$CHROME_PATH"
 ```
 
 ### Outputs
-Artifacts are written to `tmp/ui-audit-out/`:
+Artifacts are written to `ui-v2/.screenshots/`:
 - `index-mobile-375.png`, `index-tablet-768.png`, `index-desktop-1280.png`
 - `axe-index.json`, `pa11y-index.json`
 - `lighthouse-index.html` and `lighthouse-index.report.json` (if Lighthouse ran)
