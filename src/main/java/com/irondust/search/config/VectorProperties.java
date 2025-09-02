@@ -23,6 +23,10 @@ public class VectorProperties {
     private int rrfK = 60;
     /** Default vector search limit before fusion */
     private int vectorSearchK = 100;
+    /** Sub-batch size for Qdrant upserts to avoid large payloads */
+    private int qdrantUpsertBatchSize = 64;
+    /** Max retries for Qdrant upsert failures */
+    private int qdrantMaxRetries = 3;
 
     public String getHost() { return host; }
     public void setHost(String host) { this.host = host; }
@@ -44,6 +48,12 @@ public class VectorProperties {
 
     public int getVectorSearchK() { return vectorSearchK; }
     public void setVectorSearchK(int vectorSearchK) { this.vectorSearchK = vectorSearchK; }
+
+    public int getQdrantUpsertBatchSize() { return qdrantUpsertBatchSize; }
+    public void setQdrantUpsertBatchSize(int qdrantUpsertBatchSize) { this.qdrantUpsertBatchSize = qdrantUpsertBatchSize; }
+
+    public int getQdrantMaxRetries() { return qdrantMaxRetries; }
+    public void setQdrantMaxRetries(int qdrantMaxRetries) { this.qdrantMaxRetries = qdrantMaxRetries; }
 }
 
 

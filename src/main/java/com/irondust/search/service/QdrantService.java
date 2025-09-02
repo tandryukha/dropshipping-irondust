@@ -56,29 +56,40 @@ public class QdrantService {
     public Mono<Void> upsertBatch(List<QdrantPoint> points) {
         if (points == null || points.isEmpty()) return Mono.empty();
         String name = vectorProperties.getCollectionName();
-        List<Map<String, Object>> pts = new ArrayList<>();
-        for (QdrantPoint p : points) {
-            Map<String, Object> pt = new LinkedHashMap<>();
-            pt.put("id", p.id);
-            // Qdrant accepts either "vector" (single unnamed) or "vectors" (named). Some versions prefer "vectors".
-            pt.put("vector", p.vector);
-            pt.put("payload", p.payload);
-            pts.add(pt);
+        int chunk = Math.max(1, vectorProperties.getQdrantUpsertBatchSize());
+        List<List<QdrantPoint>> batches = new ArrayList<>();
+        for (int i = 0; i < points.size(); i += chunk) {
+            batches.add(points.subList(i, Math.min(points.size(), i + chunk)));
         }
-        Map<String, Object> payload = Map.of("points", pts);
-        return qdrantClient.put().uri("/collections/{name}/points?wait=true", name)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(payload))
-                .retrieve()
-                .onStatus(s -> s.is4xxClientError() || s.is5xxServerError(), resp ->
-                        resp.bodyToMono(String.class).defaultIfEmpty("")
-                                .flatMap(body -> {
-                                    log.error("Qdrant upsert error: status={} body_length={}", resp.statusCode(), body != null ? body.length() : 0);
-                                    return Mono.error(new RuntimeException("Qdrant upsert failed: " + body));
-                                })
-                )
-                .bodyToMono(Map.class)
-                .doOnNext(r -> log.info("Qdrant upsert ok: points={} collection={}", points.size(), vectorProperties.getCollectionName()))
+        return Flux.fromIterable(batches)
+                .concatMap(batch -> {
+                    List<Map<String, Object>> pts = new ArrayList<>();
+                    for (QdrantPoint p : batch) {
+                        Map<String, Object> pt = new LinkedHashMap<>();
+                        pt.put("id", p.id);
+                        pt.put("vector", p.vector);
+                        pt.put("payload", p.payload);
+                        pts.add(pt);
+                    }
+                    Map<String, Object> payload = Map.of("points", pts);
+                    return qdrantClient.put().uri("/collections/{name}/points?wait=true", name)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(BodyInserters.fromValue(payload))
+                            .retrieve()
+                            .onStatus(s -> s.is4xxClientError() || s.is5xxServerError(), resp ->
+                                    resp.bodyToMono(String.class).defaultIfEmpty("")
+                                            .flatMap(body -> {
+                                                log.error("Qdrant upsert error: status={} body_length={} batch_size={}", resp.statusCode(), body != null ? body.length() : 0, pts.size());
+                                                return Mono.error(new RuntimeException("Qdrant upsert failed"));
+                                            })
+                            )
+                            .bodyToMono(Map.class)
+                            .doOnNext(r -> log.info("Qdrant upsert ok: points={} collection={}", pts.size(), vectorProperties.getCollectionName()))
+                            .retryWhen(reactor.util.retry.Retry.max(vectorProperties.getQdrantMaxRetries())
+                                    .filter(ex -> true)
+                                    .doBeforeRetry(sig -> log.warn("Retrying Qdrant upsert batch attempt={} size={}", sig.totalRetriesInARow() + 1, pts.size())))
+                            .then();
+                })
                 .then();
     }
 

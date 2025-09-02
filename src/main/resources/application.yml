@@ -23,6 +23,8 @@ vector:
   embeddingDim: ${EMBEDDING_DIM:3072}
   rrfK: ${HYBRID_RRF_K:60}
   vectorSearchK: ${HYBRID_VECTOR_K:100}
+  qdrantUpsertBatchSize: ${QDRANT_UPSERT_BATCH:64}
+  qdrantMaxRetries: ${QDRANT_MAX_RETRIES:3}
 
 spring:
   main:

@@ -1,7 +1,8 @@
 import { $, $$, sanitizeHtml } from '../core/dom.js';
 import { bus } from '../core/bus.js';
 import { store } from '../core/store.js';
-import { getProduct } from '../api/api.js';
+import { getProduct, searchProducts } from '../api/api.js';
+import { navigate } from '../core/router.js';
 import { openFor } from './flavor-popover.js';
 import { t } from '../core/language.js';
 import { isCountBasedForm } from '../core/metrics.js';
@@ -201,6 +202,9 @@ export function mountPdp() {
     // Dosage and timing elements
     dosageBox: document.querySelector('.mini .box:first-child'),
     timingBox: document.querySelector('.mini .box:last-child'),
+    // Alternatives containers
+    pdpAltGrid: $('#pdpAltGrid'),
+    pdpMoreGrid: $('#pdpMoreGrid'),
   });
 
   // Bind existing static flavor buttons if present
@@ -386,6 +390,9 @@ export function mountPdp() {
         });
       }
       els.pdpAdd?.setAttribute('data-name', prod?.name || 'Product');
+
+      // Load alternatives and more picks
+      await fetchAndRenderAlternatives(prod);
     } catch(err) {
       console.warn('Failed to open product', err);
     }
@@ -405,6 +412,109 @@ export function mountPdp() {
 export function openProduct(id){
   // Bridge for the router → PDP
   bus.dispatchEvent(new CustomEvent('open-product', { detail: { id } }));
+}
+
+// --- Alternatives rendering ---
+
+function altDetailsLine(item){
+  const bits = [];
+  const form = typeof item?.form === 'string' ? item.form : '';
+  if (form) bits.push(form);
+  if (typeof item?.serving_size_g === 'number') bits.push(`${item.serving_size_g} g/serv`);
+  if (typeof item?.unit_count === 'number') bits.push(`${item.unit_count} pcs`);
+  if (typeof item?.rating === 'number' && typeof item?.review_count === 'number' && item.review_count >= 3) {
+    bits.push(`★ ${item.rating.toFixed(1)} (${item.review_count})`);
+  }
+  return bits.join(' • ');
+}
+
+function buildAltCardHTML(item){
+  const img = (item?.images?.[0]) || 'https://picsum.photos/seed/alt/240/140';
+  const name = item?.name || '';
+  const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2).replace('.', ',') : '';
+  const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
+  const details = altDetailsLine(item);
+  return `
+    <div class="sku" data-id="${item?.id||''}">
+      <img src="${img}" alt="${name}" style="border-radius:12px">
+      <div style="margin-top:6px;font-weight:800">${name}</div>
+      <div class="muted" style="font-size:12px">${details}</div>
+      <div style="font-weight:800;margin-top:4px">${symbol}${price}</div>
+      <button class="btn" data-id="${item?.id||''}">View</button>
+    </div>`;
+}
+
+function buildMoreCardHTML(item){
+  const img = (item?.images?.[0]) || 'https://picsum.photos/seed/more/120/100';
+  const name = item?.name || '';
+  const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2) : '';
+  const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';
+  return `
+    <div class="sku" data-id="${item?.id||''}">
+      <img src="${img}" alt="" style="border-radius:10px">
+      <div style="font-size:12px">${name}<br><strong>${symbol}${price}</strong></div>
+    </div>`;
+}
+
+function attachAltHandlers(container){
+  if (!container) return;
+  container.querySelectorAll('.sku').forEach(card=>{
+    if (card.__boundAlt) return; card.__boundAlt = true;
+    card.addEventListener('click', (e)=>{
+      const id = card.getAttribute('data-id') || e.target.getAttribute('data-id');
+      if (!id) return;
+      navigate('/p/'+id);
+      // Ensure PDP opens via bus
+      bus.dispatchEvent(new CustomEvent('open-product', { detail: { id } }));
+    });
+  });
+}
+
+async function fetchAndRenderAlternatives(prod){
+  try{
+    const catSlug = Array.isArray(prod?.categories_slugs) && prod.categories_slugs.length ? prod.categories_slugs[0] : null;
+    const baseFilters = { in_stock: true };
+    if (catSlug) baseFilters.categories_slugs = [catSlug];
+    if (typeof prod?.form === 'string' && prod.form) baseFilters.form = prod.form;
+    if (typeof prod?.id === 'string' && prod.id) baseFilters.id = { op: '!=', value: prod.id };
+    if (typeof prod?.parent_id === 'string' && prod.parent_id) baseFilters.parent_id = { op: '!=', value: prod.parent_id };
+
+    // Primary: category + form
+    let resp = await searchProducts('', { page: 1, size: 8, filters: baseFilters, sort: ['rating:desc','review_count:desc'] });
+    let items = Array.isArray(resp?.items) ? resp.items : [];
+
+    // Fallbacks to broaden results if too few
+    if (items.length < 4) {
+      const f2 = { ...baseFilters };
+      delete f2.form;
+      resp = await searchProducts('', { page: 1, size: 8, filters: f2, sort: ['rating:desc','review_count:desc'] });
+      items = Array.isArray(resp?.items) ? resp.items : items;
+    }
+    if (items.length < 4 && typeof prod?.brand_slug === 'string' && prod.brand_slug) {
+      const f3 = { in_stock: true, brand_slug: prod.brand_slug };
+      if (typeof prod?.id === 'string') f3.id = { op: '!=', value: prod.id };
+      if (typeof prod?.parent_id === 'string') f3.parent_id = { op: '!=', value: prod.parent_id };
+      resp = await searchProducts('', { page: 1, size: 8, filters: f3, sort: ['rating:desc','review_count:desc'] });
+      items = Array.isArray(resp?.items) ? resp.items : items;
+    }
+
+    const alt = items.slice(0, 2);
+    const more = items.slice(2, 8);
+
+    if (els.pdpAltGrid) {
+      els.pdpAltGrid.innerHTML = alt.map(buildAltCardHTML).join('');
+      attachAltHandlers(els.pdpAltGrid);
+    }
+    if (els.pdpMoreGrid) {
+      els.pdpMoreGrid.innerHTML = more.map(buildMoreCardHTML).join('');
+      attachAltHandlers(els.pdpMoreGrid);
+    }
+  }catch(_e){
+    try{
+      if (els.pdpAltGrid) els.pdpAltGrid.innerHTML = '';
+      if (els.pdpMoreGrid) els.pdpMoreGrid.innerHTML = '';
+    }catch(_ignored){}
+  }
 }
 
 
