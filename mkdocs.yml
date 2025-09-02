@@ -43,5 +43,6 @@ nav:
   - API: api.md
   - Localization: localization.md
   - Development: dev-checklist.md
+  - UI Audit: ui-audit.md
 
 
