@@ -249,6 +249,7 @@ export function mountPdp() {
     pdpAltGrid: $('#pdpAltGrid'),
     pdpMoreGrid: $('#pdpMoreGrid'),
     altCheaperToggle: $('#altCheaperToggle'),
+    altDietBadge: $('#altDietBadge'),
   });
 
   // Initialize "Cheaper than this" toggle state from store
@@ -304,6 +305,36 @@ export function mountPdp() {
 
   // Bind Alternatives: "Cheaper than this" toggle initially
   bindCheaperToggle();
+
+  // Keep Vegan badge in Alternatives header in sync with active filter/state
+  try{
+    const updateAltDietBadge = ()=>{
+      try{
+        const badge = els.altDietBadge;
+        if (!badge) return;
+        // Show if current product is vegan OR vegan filter chip is active
+        const current = store.get('currentProduct');
+        const isProductVegan = Array.isArray(current?.diet_tags) && current.diet_tags.includes('vegan');
+        const veganChip = document.querySelector('.chip[data-filter*="\"diet_tags\":[\"vegan\"]"]');
+        const isFilterOn = !!(veganChip && veganChip.getAttribute('aria-pressed') === 'true');
+        badge.style.display = (isProductVegan || isFilterOn) ? '' : 'none';
+      }catch(_e){}
+    };
+    // Initial sync shortly after mount
+    setTimeout(updateAltDietBadge, 0);
+    // Update when cheaper toggle changes (layout refresh) and when product loads
+    bus.addEventListener('store:altCheaper', updateAltDietBadge);
+    bus.addEventListener('store:currentProduct', updateAltDietBadge);
+    // Observe changes to the vegan chip's aria-pressed attribute
+    const veganChip = document.querySelector('.chip[data-filter*="\"diet_tags\":[\"vegan\"]"]');
+    if (veganChip && !veganChip.__pdpObserved){
+      veganChip.__pdpObserved = true;
+      const mo = new MutationObserver(updateAltDietBadge);
+      mo.observe(veganChip, { attributes:true, attributeFilter:['aria-pressed'] });
+    }
+    // Also re-evaluate after alternatives render
+    setTimeout(updateAltDietBadge, 10);
+  }catch(_e){}
 
   // Bind QA chip functionality (toggle on repeated click)
   document.addEventListener('click', (e) => {
