@@ -125,6 +125,12 @@ export function t(key, fallback = '') {
       'est': 'Vastupidavus'
     }
     ,
+    // AI search ui
+    'ai.ask': {
+      'en': 'Ask AI',
+      'ru': 'Спросить ИИ',
+      'est': 'Küsi AI-lt'
+    },
     // PDP labels
     'pdp.dosage': {
       'en': 'Dosage',

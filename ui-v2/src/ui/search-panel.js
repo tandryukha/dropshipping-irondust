@@ -1,6 +1,6 @@
 import { $, $$ } from '../core/dom.js';
 import { bus } from '../core/bus.js';
-import { searchProducts } from '../api/api.js';
+import { searchProducts, getFeatureFlag, getAiAnswer } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
 import { derivePricePer100g, isCountBasedForm } from '../core/metrics.js';
 import { navigate } from '../core/router.js';
@@ -719,11 +719,14 @@ export function mountSearchPanel() {
   const overlayInput = $('#searchOverlayInput');
   const searchPanel = $('#searchPanel');
   const productsList = $('#productsList');
+  const aiAnswerCard = $('#aiAnswerCard');
   const allChips = $$('.chip[role="switch"]');
   const sortDropdown = $('#sortDropdown');
   const sortDropdownHeader = $('#sortDropdownHeader');
   const overlayFiltersBtn = $('#overlayFiltersBtn');
   const overlayClearBtn = $('#overlayClearBtn');
+  const askAiHeaderBtn = $('#askAiHeader');
+  const askAiOverlayBtn = $('#askAiOverlay');
   const closeOverlayBtn = $('#closeOverlayBtn');
   const applyFooterBtn = $('#applyFooterBtn');
   const panelInner = document.querySelector('.panel-inner');
@@ -736,6 +739,126 @@ export function mountSearchPanel() {
     reachedEnd: false,
     observer: null
   };
+
+  // AI state and cache
+  const aiState = {
+    enabled: false,
+    loading: false,
+    lastKey: '',
+    aiOnly: false,
+  };
+
+  function aiCacheKey(query, filters){
+    try{ return JSON.stringify({ q:(query||'').trim(), f: canonicalize(filters||{}) }); }catch(_e){ return String(query||''); }
+  }
+
+  function getAiCache(key){
+    try{ const s = sessionStorage.getItem('ui_ai_cache'); const obj = s? JSON.parse(s):{}; return obj[key]; }catch(_e){ return undefined; }
+  }
+
+  function setAiCache(key, value){
+    try{ const s = sessionStorage.getItem('ui_ai_cache'); const obj = s? JSON.parse(s):{}; obj[key]=value; sessionStorage.setItem('ui_ai_cache', JSON.stringify(obj)); }catch(_e){}
+  }
+
+  function renderAiAnswer({ answer, items, query }){
+    if (!aiAnswerCard) return;
+    const safe = escapeHtml(String(answer||''));
+    const chips = [
+      { id:'cheap', label:'Sort by price/serv', action:'sort:price_asc' },
+      { id:'vegan', label:'Vegan', filter:{ diet_tags:['vegan'] } },
+      { id:'in_stock', label:'In stock', filter:{ in_stock:true } }
+    ];
+    const itemsHtml = Array.isArray(items) ? items.slice(0,4).map(it=>{
+      const name = escapeHtml(String(it?.name||''));
+      const url = escapeHtml(String(it?.permalink||''));
+      return `<a class="item" href="${url}" target="_blank" rel="noopener">${name}</a>`;
+    }).join('') : '';
+    const chipsHtml = chips.map(c=>`<button class="chip" data-ai-chip='${JSON.stringify(c)}'>${escapeHtml(c.label)}</button>`).join('');
+    const aiOnlyBtnLabel = aiState.aiOnly ? 'Show results' : 'AI-only view';
+    aiAnswerCard.innerHTML = `
+      <div class="title"><span aria-hidden="true">⚡</span><span>AI Answer</span><span style="flex:1"></span><button class="btn" id="aiOnlyToggle" style="padding:4px 8px;font-size:12px">${escapeHtml(aiOnlyBtnLabel)}</button></div>
+      <div class="muted">${safe}</div>
+      ${itemsHtml?`<div class="items" aria-label="Cited items">${itemsHtml}</div>`:''}
+      <div class="chips" aria-label="Suggested refinements">${chipsHtml}</div>
+      <div class="muted" style="margin-top:6px">Not medical advice.</div>
+    `;
+    aiAnswerCard.style.display = '';
+    // Apply ai-only state to product list visibility
+    if (productsList) productsList.style.display = aiState.aiOnly ? 'none' : '';
+    // Bind chip actions
+    aiAnswerCard.querySelectorAll('button[data-ai-chip]').forEach(btn=>{
+      if (btn.__aiBound) return; btn.__aiBound=true;
+      btn.addEventListener('click', ()=>{
+        try{
+          const obj = JSON.parse(btn.getAttribute('data-ai-chip')||'{}');
+          if (obj.action === 'sort:price_asc'){
+            if (sortDropdown) sortDropdown.value = 'price_asc';
+            if (sortDropdownHeader) sortDropdownHeader.value = 'price_asc';
+            searchState.sortOrder = 'price_asc';
+          }
+          if (obj.filter){
+            // Merge into preset filters to respect chips
+            const merged = { ...(searchState.__presetFilters||{}), ...obj.filter };
+            // Ensure in_stock true is preserved unless explicitly false
+            if (typeof merged.in_stock === 'undefined') merged.in_stock = true;
+            searchState.__presetFilters = merged;
+            updateAppliedBar();
+            if (window.checkChipOverflow) window.checkChipOverflow();
+          }
+          runFilteredSearch();
+        }catch(_e){}
+      });
+    });
+    const toggleBtn = aiAnswerCard.querySelector('#aiOnlyToggle');
+    if (toggleBtn && !toggleBtn.__bound){
+      toggleBtn.__bound = true;
+      toggleBtn.addEventListener('click', ()=>{
+        aiState.aiOnly = !aiState.aiOnly;
+        if (productsList) productsList.style.display = aiState.aiOnly ? 'none' : '';
+        renderAiAnswer({ answer, items, query });
+      });
+    }
+  }
+
+  function hideAi(){ if (aiAnswerCard) { aiAnswerCard.style.display='none'; aiAnswerCard.innerHTML=''; } }
+
+  function showAiLoading(){ if (aiAnswerCard) { aiAnswerCard.style.display=''; aiAnswerCard.innerHTML = '<div class="content-card" aria-busy="true">Loading AI answer…</div>'; } }
+
+  function scrollToAi(){
+    try{
+      const col = document.getElementById('productsCol');
+      if (col) col.scrollTo({ top: 0, behavior: 'smooth' });
+      aiAnswerCard?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }catch(_e){}
+  }
+
+  async function ensureAiFlag(){
+    try{
+      const res = await getFeatureFlag('ai_search', { defaultValue:true });
+      aiState.enabled = !!res?.enabled;
+      if (askAiHeaderBtn) askAiHeaderBtn.style.display = aiState.enabled ? '' : 'none';
+      if (askAiOverlayBtn) askAiOverlayBtn.style.display = aiState.enabled ? '' : 'none';
+    }catch(_e){ aiState.enabled = false; }
+  }
+
+  async function requestAiAnswer(){
+    if (!aiState.enabled) return;
+    const query = (overlayInput?.value||headerInput?.value||'').trim();
+    const filters = { ...getActiveFilters(), ...(searchState.__presetFilters||{}) };
+    const key = aiCacheKey(query, filters);
+    aiState.lastKey = key;
+    const cached = getAiCache(key);
+    if (cached){ renderAiAnswer({ ...cached, query }); return; }
+    showAiLoading();
+    aiState.loading = true;
+    try{
+      const data = await getAiAnswer(query, { page:1, size:6, filters });
+      const payload = { answer: data?.answer, items: Array.isArray(data?.items)?data.items:[] };
+      setAiCache(key, payload);
+      if (aiState.lastKey === key) renderAiAnswer({ ...payload, query });
+    }catch(_e){ if (aiAnswerCard) { aiAnswerCard.innerHTML = '<div class="content-card">AI failed. Showing regular results.</div>'; aiAnswerCard.style.display=''; } }
+    finally { aiState.loading = false; }
+  }
 
   function filtersSignature(obj){
     try{ return JSON.stringify(canonicalize(obj||{})); }catch(_e){ return ''; }
@@ -852,6 +975,14 @@ export function mountSearchPanel() {
     }catch(_e){}
     // Always trigger a search immediately to show results (empty q allowed)
     try{ performSearch({ append:false }); }catch(_e){}
+    // Refresh AI visibility and optionally prefetch
+    ensureAiFlag().then(()=>{
+      if (aiState.enabled){
+        // Prefetch for current input
+        const qNow = (overlayInput?.value||headerInput?.value||'').trim();
+        if (qNow.length >= 2) { requestAiAnswer().catch(()=>{}); }
+      } else { hideAi(); }
+    });
     // If still no query and no effective filters, trigger a default empty search to show popular items
     try{
       setTimeout(()=>{
@@ -869,6 +1000,7 @@ export function mountSearchPanel() {
     searchPanel.classList.remove('visible');
     setOverlayAria(false);
     try{ document.body.classList.remove('no-scroll'); }catch(_e){}
+    hideAi();
     // When closing from a /search route, navigate to home and keep applied filters
     try{
       const onSearchRoute = String(location.hash||'').startsWith('#/search');
@@ -919,6 +1051,7 @@ export function mountSearchPanel() {
     updateAppliedBar();
     if (window.checkChipOverflow) window.checkChipOverflow();
     productsList.innerHTML = '';
+    hideAi();
     renderPreInputSuggestions();
     markChangedSinceApply();
     persistQuickFilters();
@@ -937,6 +1070,25 @@ export function mountSearchPanel() {
       e.preventDefault();
       closeOverlay();
     }
+  });
+
+  // Ask AI triggers
+  askAiHeaderBtn?.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    if (!searchPanel?.classList.contains('visible')) openOverlay();
+    aiState.aiOnly = false; // keep results visible by default
+    showAiLoading();
+    try{ await ensureAiFlag(); }catch(_e){}
+    requestAiAnswer();
+    scrollToAi();
+  });
+  askAiOverlayBtn?.addEventListener('click', async (e)=>{ 
+    e.preventDefault(); 
+    aiState.aiOnly = false; 
+    showAiLoading();
+    try{ await ensureAiFlag(); }catch(_e){}
+    requestAiAnswer(); 
+    scrollToAi();
   });
   
   // Handle preset cards (both in panel and modal)
@@ -1379,7 +1531,12 @@ export function mountSearchPanel() {
           </div>
           ${helperHtml}`;
       }
-      if (append && items.length) productsList.insertAdjacentHTML('beforeend', html); else productsList.innerHTML = html;
+      if (!append) {
+        // Keep AI card at the top; replace product list only
+        productsList.innerHTML = html;
+      } else if (items.length) {
+        productsList.insertAdjacentHTML('beforeend', html);
+      }
       attachAddHandlers(productsList);
       attachOpenHandlers(productsList);
       // Interleave helpers after render on mobile
@@ -1402,6 +1559,8 @@ export function mountSearchPanel() {
         if (current !== path) navigate(path);
       }
       if (query) persistRecentQuery(query);
+      // Proactively refresh AI answer on search result change
+      if (aiState.enabled && query.length >= 2) requestAiAnswer().catch(()=>{});
     }catch(e){
       console.error('Search error:', e);
       if (!append) productsList.innerHTML = '<div class="muted" style="padding:8px">Search failed. Check API.</div>';
@@ -1506,6 +1665,8 @@ export function mountSearchPanel() {
       renderPreInputSuggestions();
     }
     debounced(val);
+    // Clear AI when query is empty
+    if (!val || !val.trim()) hideAi();
   });
   overlayInput?.addEventListener('keydown', (e)=>{ 
     if(e.key==='Enter'){

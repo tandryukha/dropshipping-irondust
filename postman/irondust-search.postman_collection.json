@@ -135,6 +135,58 @@
     }
     ,
     {
+      "name": "AI Quick Answer",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"q\": \"cheap protein\",\n  \"filters\": {\n    \"in_stock\": true\n  },\n  \"page\": 1,\n  \"size\": 6\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/search/ai",
+          "host": ["{{baseUrl}}"],
+          "path": ["search","ai"]
+        }
+      }
+    }
+    ,
+    {
+      "name": "Feature Flags - Get all",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/feature-flags", "host": ["{{baseUrl}}"], "path": ["feature-flags"] }
+      }
+    },
+    {
+      "name": "Feature Flags - Read ai_search",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/feature-flags/ai_search?defaultValue=true", "host": ["{{baseUrl}}"], "path": ["feature-flags","ai_search"], "query": [{"key":"defaultValue","value":"true"}] }
+      }
+    },
+    {
+      "name": "Feature Flags - Set ai_search (enable)",
+      "request": {
+        "method": "POST",
+        "header": [ {"key": "x-admin-key", "value": "{{adminKey}}"} ],
+        "url": { "raw": "{{baseUrl}}/feature-flags/ai_search?enabled=true", "host": ["{{baseUrl}}"], "path": ["feature-flags","ai_search"], "query": [{"key":"enabled","value":"true"}] }
+      }
+    },
+    {
+      "name": "Feature Flags - Set ai_search (disable)",
+      "request": {
+        "method": "POST",
+        "header": [ {"key": "x-admin-key", "value": "{{adminKey}}"} ],
+        "url": { "raw": "{{baseUrl}}/feature-flags/ai_search?enabled=false", "host": ["{{baseUrl}}"], "path": ["feature-flags","ai_search"], "query": [{"key":"enabled","value":"false"}] }
+      }
+    }
+    ,
+    {
       "name": "Product alternatives",
       "request": {
         "method": "GET",

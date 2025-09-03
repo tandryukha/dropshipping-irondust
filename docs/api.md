@@ -66,6 +66,12 @@ curl -X POST http://localhost:4000/ingest/products \
 - POST /search/hybrid — Force Hybrid search (BM25 + vectors via RRF)
 - POST /search/ai — AI quick answer, grounded in top results (feature-flagged)
 
+### UI: Ask AI
+
+- The UI includes an Ask AI button (header and in the search overlay) and an AI Answer card rendered above results when `ai_search` is enabled.
+- The AI Answer card shows: a concise answer, cited items, and suggested refinement chips (e.g., sort by price per serving, Vegan).
+- The feature flag can be toggled at runtime via `/feature-flags/ai_search` without redeploying.
+
 Example:
 
 ```bash
@@ -73,6 +79,14 @@ curl -X POST http://localhost:4000/search \
   -H "Content-Type: application/json" \
   -d '{"q": "citrulline", "page": 1, "size": 5}'
 ```
+AI example:
+
+```bash
+curl -s -X POST http://localhost:4000/search/ai \
+  -H 'Content-Type: application/json' \
+  -d '{"q":"cheap protein","filters":{"in_stock":true},"page":1,"size":6}'
+```
+
 
 Hybrid example:
 
@@ -112,6 +126,11 @@ curl 'http://localhost:4000/feature-flags/ai_search?defaultValue=true'
 
 Notes:
 - Current implementation returns a concise heuristic, grounded in Meilisearch top‑K; can be upgraded to LLM later.
+
+UI behavior:
+- Normal results remain visible and interactive. AI renders above them and does not block.
+- Clear loading and graceful fallback states are shown.
+- Answers are cached for the session and localized by `lang`.
 
 - /search defaults to lexical (Meilisearch) for instant responses on head terms.
 - It triggers hybrid only when beneficial:

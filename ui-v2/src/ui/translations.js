@@ -8,6 +8,16 @@ export function applyTranslations() {
   if (searchInput) {
     searchInput.placeholder = t('search.placeholder', 'Search whey, creatine, goals…');
   }
+  const overlayInput = $('#searchOverlayInput');
+  if (overlayInput) {
+    overlayInput.placeholder = t('search.placeholder', 'Search whey, creatine, goals…');
+  }
+
+  // AI UI
+  const askHeader = $('#askAiHeader');
+  if (askHeader) askHeader.setAttribute('aria-label', t('ai.ask', 'Ask AI'));
+  const askOverlay = $('#askAiOverlay');
+  if (askOverlay) askOverlay.textContent = t('ai.ask', 'Ask AI');
   
   // Cart UI (support old pill and new icon styles)
   const cartPill = $('.cart-pill');

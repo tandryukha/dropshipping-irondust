@@ -161,6 +161,12 @@
     /* Chip tray with overflow control */
     .chip-tray{display:flex;flex-wrap:nowrap;gap:6px;overflow:hidden;position:relative;align-items:center}
     .content-card{padding:10px 12px;border:1px solid #eef1f4;border-radius:14px;margin-bottom:10px;background:#fff}
+    /* AI answer card */
+    .ai-answer .title{font-weight:800;display:flex;align-items:center;gap:8px}
+    .ai-answer .items{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    .ai-answer .item{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:10px;border:1px solid #e5e7eb;background:#f9fafb;font-size:12px;cursor:pointer}
+    .ai-answer .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .ai-answer .muted{font-size:12px;color:var(--fp-muted)}
     .pill{font-size:12px;padding:4px 8px;border-radius:999px;background:#f9fafb;border:1px solid #e5e7eb;margin-left:6px}
     .tag{font-size:11px;background:#f2f4f7;border:1px solid #e5e7eb;padding:2px 6px;border-radius:999px;margin-left:4px}
     .divider{height:1px;background:#eef1f4;margin:8px 0}
@@ -417,6 +423,7 @@
         <label for="search" class="visually-hidden">Search</label>
         <input id="search" class="search-input" placeholder="Search whey, creatine, goals…" autocomplete="off" />
         <span class="kbd" aria-hidden="true">/</span>
+        <button id="askAiHeader" class="bolt" title="Ask AI" aria-label="Ask AI" style="display:none"><span>⚡</span></button>
       </div>
 
       <!-- Global sort removed by request (available in Popular section) -->
@@ -447,6 +454,7 @@
               <div class="panel-actions">
                 <button class="btn" id="overlayClearBtn" aria-label="Clear all">Clear all</button>
                 <button class="btn" id="overlayFiltersBtn" aria-label="Open filters">Filters</button>
+                <button class="btn btn-primary" id="askAiOverlay" aria-label="Ask AI" style="display:none">Ask AI</button>
               </div>
             </div>
             <div id="chipsDock" class="chip-tray" aria-label="Quick filters dock"></div>
@@ -468,6 +476,7 @@
           <!-- Products column WITH Add (only scrollable column) -->
           <div class="col" id="productsCol" role="region" aria-label="Products results" style="max-height:calc(80vh - var(--panel-top-offset,110px));">
             <!-- Real results are rendered dynamically -->
+            <div id="aiAnswerCard" class="content-card ai-answer" role="region" aria-live="polite" style="display:none"></div>
             <div id="productsList"></div>
           </div>
 
