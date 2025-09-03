@@ -1,10 +1,14 @@
 package com.irondust.search.controller;
 
+import com.irondust.search.config.VectorProperties;
 import com.irondust.search.dto.SearchDtos;
 import com.irondust.search.model.ProductDoc;
 import com.irondust.search.service.FilterStringBuilder;
+import com.irondust.search.service.HybridSearchService;
 import com.irondust.search.service.MeiliService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,14 +18,28 @@ import java.util.*;
 
 @RestController
 public class SearchController {
+    private static final Logger log = LoggerFactory.getLogger(SearchController.class);
     private final MeiliService meiliService;
+    private final HybridSearchService hybridSearchService;
+    private final VectorProperties vectorProperties;
 
-    public SearchController(MeiliService meiliService) {
+    public SearchController(MeiliService meiliService, HybridSearchService hybridSearchService, VectorProperties vectorProperties) {
         this.meiliService = meiliService;
+        this.hybridSearchService = hybridSearchService;
+        this.vectorProperties = vectorProperties;
     }
 
+    /**
+     * Adaptive search: runs fast lexical search by default and selectively triggers hybrid
+     * (lexical + vector) when the query is semantic/cross-locale or when lexical recall is low.
+     */
     @PostMapping("/search")
     public Mono<SearchDtos.SearchResponseBody<ProductDoc>> search(@Valid @RequestBody SearchDtos.SearchRequestBody body) {
+        try {
+            log.info("/search q='{}' page={} size={} lang={} filters_present={} sort_present={}",
+                    body.getQ(), body.getPage(), body.getSize(), body.getLang(),
+                    body.getFilters() != null, body.getSort() != null);
+        } catch (Exception ignore) { /* best-effort logging */ }
         Map<String, Object> filters = body.getFilters();
         if (filters == null) {
             filters = new LinkedHashMap<>();
@@ -33,8 +51,8 @@ public class SearchController {
         String filter = FilterStringBuilder.build(filters);
         List<String> facets = List.of("brand_slug", "categories_slugs", "form", "diet_tags", "goal_tags");
         // If a single goal is selected, prefer sorting by its score desc
-        List<String> sort = body.getSort();
-        if (sort == null || sort.isEmpty()) {
+        List<String> computedSort = body.getSort();
+        if (computedSort == null || computedSort.isEmpty()) {
             Object goalObj = filters.get("goal_tags");
             if (goalObj instanceof List<?> gl && gl.size() == 1) {
                 String g = String.valueOf(gl.get(0));
@@ -49,47 +67,28 @@ public class SearchController {
                     default -> null;
                 };
                 if (scoreField != null) {
-                    sort = List.of(scoreField + ":desc");
+                    computedSort = List.of(scoreField + ":desc");
                 }
             }
         }
-        return meiliService.searchRaw(body.getQ(), filter, sort, body.getPage(), body.getSize(), facets)
-                .map(raw -> {
-                    SearchDtos.SearchResponseBody<ProductDoc> resp = new SearchDtos.SearchResponseBody<>();
-                    List<ProductDoc> items = new ArrayList<>();
-                    Object hitsObj = raw.get("hits");
-                    if (hitsObj instanceof List<?> hits) {
-                        for (Object h : hits) {
-                            if (h instanceof Map<?, ?> m) {
-                                ProductDoc d = new ProductDoc();
-                                mapToProductDoc(m, d);
-                                // Apply language-specific fields if requested
-                                applyLanguageFields(d, body.getLang());
-                                items.add(d);
-                            }
-                        }
-                    }
-                    resp.setItems(items);
-                    Object totalObj = raw.containsKey("totalHits") ? raw.get("totalHits") : raw.getOrDefault("estimatedTotalHits", 0);
-                    long total = (totalObj instanceof Number) ? ((Number) totalObj).longValue() : 0L;
-                    resp.setTotal(total);
+        final List<String> sort = computedSort;
+        String q = body.getQ();
+        if (shouldPreTriggerHybrid(q, body.getLang())) {
+            return hybridSearchService.search(q, filter, sort, body.getPage(), body.getSize(), facets)
+                    .map(raw -> mapRawToResponse(raw, body.getLang()));
+        }
 
-                    Map<String, Map<String, Integer>> facetsDist = new LinkedHashMap<>();
-                    Object facetsObj = raw.get("facetDistribution");
-                    if (facetsObj instanceof Map<?, ?> f) {
-                        for (String key : Arrays.asList("brand_slug", "categories_slugs", "form", "diet_tags", "goal_tags")) {
-                            Object dmap = f.get(key);
-                            if (dmap instanceof Map<?, ?> dm) {
-                                Map<String, Integer> inner = new LinkedHashMap<>();
-                                for (Map.Entry<?, ?> e : dm.entrySet()) {
-                                    inner.put(String.valueOf(e.getKey()), ((Number) e.getValue()).intValue());
-                                }
-                                facetsDist.put(key, inner);
-                            }
-                        }
+        return meiliService.searchRaw(q, filter, sort, body.getPage(), body.getSize(), facets)
+                .flatMap(raw -> {
+                    long total = extractTotal(raw);
+                    boolean hasQuery = q != null && !q.isBlank();
+                    int size = body.getSize() != null ? body.getSize() : 24;
+                    boolean lowRecall = hasQuery && total < Math.max(24, size);
+                    if (lowRecall && (q != null && q.trim().length() >= Math.max(1, vectorProperties.getMinQueryLength()))) {
+                        return hybridSearchService.search(q, filter, sort, body.getPage(), body.getSize(), facets)
+                                .map(hraw -> mapRawToResponse(hraw, body.getLang()));
                     }
-                    resp.setFacets(facetsDist);
-                    return resp;
+                    return Mono.just(mapRawToResponse(raw, body.getLang()));
                 });
     }
 
@@ -230,6 +229,85 @@ public class SearchController {
                 d.setSearch_text(st);
             }
         }
+    }
+
+    /**
+     * Maps raw Meilisearch (or fused hybrid) payload into API response and applies language overrides.
+     */
+    private SearchDtos.SearchResponseBody<ProductDoc> mapRawToResponse(Map<String, Object> raw, String lang) {
+        SearchDtos.SearchResponseBody<ProductDoc> resp = new SearchDtos.SearchResponseBody<>();
+        List<ProductDoc> items = new ArrayList<>();
+        Object hitsObj = raw.get("hits");
+        if (hitsObj instanceof List<?> hits) {
+            for (Object h : hits) {
+                if (h instanceof Map<?, ?> m) {
+                    ProductDoc d = new ProductDoc();
+                    mapToProductDoc(m, d);
+                    applyLanguageFields(d, lang);
+                    items.add(d);
+                }
+            }
+        }
+        resp.setItems(items);
+        Object totalObj = raw.containsKey("totalHits") ? raw.get("totalHits") : raw.getOrDefault("estimatedTotalHits", 0);
+        long total = (totalObj instanceof Number) ? ((Number) totalObj).longValue() : 0L;
+        resp.setTotal(total);
+
+        Map<String, Map<String, Integer>> facetsDist = new LinkedHashMap<>();
+        Object facetsObj = raw.get("facetDistribution");
+        if (facetsObj instanceof Map<?, ?> f) {
+            for (String key : Arrays.asList("brand_slug", "categories_slugs", "form", "diet_tags", "goal_tags")) {
+                Object dmap = f.get(key);
+                if (dmap instanceof Map<?, ?> dm) {
+                    Map<String, Integer> inner = new LinkedHashMap<>();
+                    for (Map.Entry<?, ?> e : dm.entrySet()) {
+                        inner.put(String.valueOf(e.getKey()), ((Number) e.getValue()).intValue());
+                    }
+                    facetsDist.put(key, inner);
+                }
+            }
+        }
+        resp.setFacets(facetsDist);
+        return resp;
+    }
+
+    /**
+     * Heuristics to decide whether to run hybrid first instead of purely lexical.
+     */
+    private boolean shouldPreTriggerHybrid(String q, String lang) {
+        if (q == null || q.isBlank()) return false;
+        String t = q.trim().toLowerCase(Locale.ROOT);
+        int tokens = t.split("\\s+").length;
+        if (tokens >= 4) return true;
+        if (t.contains(" similar ") || t.contains(" like ") || t.contains("alternative") || t.contains("instead of")) return true;
+        if (t.startsWith("similar ") || t.startsWith("like ") || t.startsWith("alternative ")) return true;
+        if (looksCyrillic(t)) return true;
+        if (hasEstonianMarkers(t)) return true;
+        return false;
+    }
+
+    /** Quick Cyrillic check for cross-locale gating. */
+    private boolean looksCyrillic(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            Character.UnicodeBlock b = Character.UnicodeBlock.of(c);
+            if (b == Character.UnicodeBlock.CYRILLIC || b == Character.UnicodeBlock.CYRILLIC_SUPPLEMENTARY ||
+                    b == Character.UnicodeBlock.CYRILLIC_EXTENDED_A || b == Character.UnicodeBlock.CYRILLIC_EXTENDED_B) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Quick Estonian diacritics check for cross-locale gating. */
+    private boolean hasEstonianMarkers(String text) {
+        return text.indexOf('ä') >= 0 || text.indexOf('õ') >= 0 || text.indexOf('ö') >= 0 || text.indexOf('ü') >= 0;
+    }
+
+    /** Extracts total hits from Meili response supporting both fields. */
+    private long extractTotal(Map<String, Object> raw) {
+        Object totalObj = raw.containsKey("totalHits") ? raw.get("totalHits") : raw.getOrDefault("estimatedTotalHits", 0);
+        return (totalObj instanceof Number) ? ((Number) totalObj).longValue() : 0L;
     }
 }
 

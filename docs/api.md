@@ -62,8 +62,8 @@ curl -X POST http://localhost:4000/ingest/products \
 
 ## Search
 
-- POST /search — Search products with filters and sorting
-- POST /search/hybrid — Hybrid search (BM25 + vectors via RRF)
+- POST /search — Search products with filters and sorting (now with adaptive hybrid gating)
+- POST /search/hybrid — Force Hybrid search (BM25 + vectors via RRF)
 
 Example:
 
@@ -86,6 +86,16 @@ Latency notes:
 - The hybrid endpoint runs Meilisearch and Qdrant in parallel with a short vector-side timeout.
 - If the vector call exceeds `vector.vectorTimeoutMs` (default 150 ms) or the query is shorter than `vector.minQueryLength` (default 3), it falls back to Meili-only results automatically.
 - Tune via `vector.vectorTimeoutMs`, `vector.minQueryLength`, and `vector.vectorSearchK` in `application.yml`.
+
+Adaptive hybrid gating in /search:
+
+- /search defaults to lexical (Meilisearch) for instant responses on head terms.
+- It triggers hybrid only when beneficial:
+  - Low recall: total results < max(24, size)
+  - Semantic-looking query: 4+ tokens or contains “similar/like/alternative/instead of”
+  - Cross‑locale hints: Cyrillic characters or Estonian diacritics in the query
+- A pre-trigger will call hybrid first if the query looks semantic/cross‑locale; otherwise we run lexical first and fall back to hybrid only when recall is low.
+- Vector side budget is bounded by `vector.vectorTimeoutMs` and `vector.minQueryLength`.
 
 ### Filterable and sortable fields
 

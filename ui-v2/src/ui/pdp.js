@@ -229,6 +229,14 @@ export function mountPdp() {
     altCheaperToggle: $('#altCheaperToggle'),
   });
 
+  // Initialize "Cheaper than this" toggle state from store
+  try {
+    const initCheaper = !!store.get('altCheaper');
+    if (els.altCheaperToggle) {
+      els.altCheaperToggle.setAttribute('aria-pressed', String(initCheaper));
+    }
+  } catch(_e) {}
+
   // Bind existing static flavor buttons if present
   if (els.pdpFlavors) {
     bindFlavorButtons(els.pdpFlavors);
@@ -468,6 +476,9 @@ export function openProduct(id){
 
 // --- Alternatives rendering ---
 
+// Sequence guard for in-flight alternatives requests to avoid stale renders overwriting newer ones
+let __altReqEpoch = 0;
+
 // Optionally filter to items cheaper per serving than the current product
 function maybeFilterCheaper(items, current){
   try{
@@ -635,12 +646,17 @@ function attachAltHandlers(container){
 
 async function fetchAndRenderAlternatives(prod){
   try{
+    // Bump epoch to invalidate any prior in-flight calls
+    const myEpoch = ++__altReqEpoch;
+    const latestCurrent = store.get('currentProduct') || prod;
     // Prefer backend recommendations if available
     try {
       const rec = await getAlternatives(String(prod?.id||''), { limit: 8 });
       let items = Array.isArray(rec?.items) ? rec.items : [];
       // Optionally filter by cheaper than current
-      items = maybeFilterCheaper(items, prod);
+      items = maybeFilterCheaper(items, latestCurrent);
+      // Abort render if a newer request started meanwhile
+      if (myEpoch !== __altReqEpoch) return;
       if (items.length) {
         const alt = items.slice(0, 8);
         if (els.pdpAltGrid) { els.pdpAltGrid.innerHTML = alt.map(buildAltCardHTML).join(''); attachAltHandlers(els.pdpAltGrid); }
@@ -716,7 +732,9 @@ async function fetchAndRenderAlternatives(prod){
     }
 
     // Apply optional cheaper-than-current filter as late as possible to keep variety
-    items = maybeFilterCheaper(items, prod);
+    items = maybeFilterCheaper(items, latestCurrent);
+    // Abort render if a newer request started meanwhile
+    if (myEpoch !== __altReqEpoch) return;
     const alt = items.slice(0, 8);
     if (els.pdpAltGrid) {
       els.pdpAltGrid.innerHTML = alt.map((it, idx)=>buildAltCardHTML(it, idx)).join('');

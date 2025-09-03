@@ -143,6 +143,9 @@
     .chip-price,.chip-pps{background:#fff9f0;border-color:#ffe4c7}
     .chip-price[aria-pressed="true"],.chip-pps[aria-pressed="true"]{background:#fff3e0;border-color:#ffc78a;color:#6b3f00}
     .chip-overflow{background:#f3f4f6;border-color:#e5e7eb;font-weight:600}
+    /* Tiny icon helper inside chips/labels */
+    .chip .icon{font-size:14px;line-height:1}
+    .checkbox-label .icon{font-size:16px;line-height:1}
     
     /* Preset cards */
     .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
@@ -495,9 +498,9 @@
             <h4 id="quickFiltersHeader">Quick Filters</h4>
             <div class="chip-tray" id="quickFilters">
               <button class="chip chip-stock" role="switch" aria-pressed="true" data-filter='{"in_stock":true}'>In stock</button>
-              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}' data-filter-group="form">Powder</button>
-              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}' data-filter-group="form">Capsules</button>
-              <button class="chip chip-diet" role="switch" aria-pressed="false" data-filter='{"diet_tags":["vegan"]}'>Vegan</button>
+              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}' data-filter-group="form"><span class="icon" aria-hidden="true">🥄</span><span>Powder</span></button>
+              <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}' data-filter-group="form"><span class="icon" aria-hidden="true">💊</span><span>Capsules</span></button>
+              <button class="chip chip-diet" role="switch" aria-pressed="false" data-filter='{"diet_tags":["vegan"]}'><span class="icon" aria-hidden="true">🌿</span><span>Vegan</span></button>
               <button class="chip chip-price" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":2000}}' data-filter-group="price">≤€20</button>
               <button class="chip chip-pps" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":0.5}}' data-filter-group="pps">≤€0.50/serv</button>
               <button class="chip chip-overflow" id="quickOverflow" style="display:none">+<span>0</span></button>
@@ -755,30 +758,30 @@
       <div class="filter-section">
         <h4>Form</h4>
         <div class="chip-group">
-          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}'>Powder</button>
-          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}'>Capsules</button>
-          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"tabs"}'>Tabs</button>
-          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"liquid"}'>Liquid</button>
-          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"bar"}'>Bar</button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"powder"}'><span class="icon" aria-hidden="true">🥄</span><span>Powder</span></button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}'><span class="icon" aria-hidden="true">💊</span><span>Capsules</span></button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"tabs"}'><span class="icon" aria-hidden="true">💊</span><span>Tabs</span></button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"liquid"}'><span class="icon" aria-hidden="true">💧</span><span>Liquid</span></button>
+          <button class="chip chip-form" role="switch" aria-pressed="false" data-filter='{"form":"bar"}'><span class="icon" aria-hidden="true">🍫</span><span>Bar</span></button>
         </div>
       </div>
       <div class="filter-section">
         <h4>Diet</h4>
         <label class="checkbox-label">
           <input type="checkbox" id="filterVegan">
-          <span>Vegan</span>
+          <span class="icon" aria-hidden="true">🌿</span><span>Vegan</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="filterGlutenFree">
-          <span>Gluten-free</span>
+          <span class="icon" aria-hidden="true">🚫🌾</span><span>Gluten-free</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="filterSugarFree">
-          <span>Sugar-free</span>
+          <span class="icon" aria-hidden="true">🚫🍬</span><span>Sugar-free</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="filterLactoseFree">
-          <span>Lactose-free</span>
+          <span class="icon" aria-hidden="true">🚫🥛</span><span>Lactose-free</span>
         </label>
       </div>
       <div class="filter-section">

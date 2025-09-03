@@ -1,5 +1,9 @@
 server:
   port: 4000
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-exception: true
 
 app:
   adminKey: dev_admin_key
