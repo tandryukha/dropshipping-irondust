@@ -44,3 +44,23 @@ export async function getComplements(id, { limit=8 } = {}) {
 }
 
 
+export async function getFeatureFlag(name, { defaultValue=false } = {}){
+  const url = `${API_BASE}/feature-flags/${encodeURIComponent(name)}?defaultValue=${String(defaultValue)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json(); // { name, enabled }
+}
+
+export async function getAiAnswer(q, { page=1, size=6, filters={} } = {}){
+  const lang = language.getLanguage();
+  const payload = { q, page, size, filters, lang };
+  const res = await fetch(API_BASE + '/search/ai', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json(); // { answer, items: [{ id, name, price_cents, price_per_serving, permalink }] }
+}
+
+

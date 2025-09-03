@@ -131,8 +131,9 @@
     .panel .product .benefit-snippet{margin-top:2px}
     .panel .product .title + .muted{margin-top:4px}
     /* Compact chips */
-    .chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:999px;background:#f6f8fb;border:1px solid #e0e6ef;margin:4px 4px 0 0;font-size:12px;cursor:pointer;color:#1f2937;height:28px;white-space:nowrap}
+    .chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:999px;background:#f6f8fb;border:1px solid #e0e6ef;margin:4px 4px 0 0;font-size:12px;cursor:pointer;color:#1f2937;height:28px;white-space:nowrap;transition:all 0.15s ease}
     .chip[aria-pressed="true"]{background:#dff6ff;border-color:#6bd3ee;color:#06485b;box-shadow:0 0 0 2px rgba(22,168,201,.25) inset}
+    .chip:hover{transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,0.1)}
     /* Chip group colors */
     .chip-stock{background:#eef9ed;border-color:#d6f3d5}
     .chip-stock[aria-pressed="true"]{background:#e2f7e1;border-color:#b9ebba;color:#065f06}
@@ -141,7 +142,7 @@
     .chip-diet{background:#f2fbf6;border-color:#d6f3e3}
     .chip-diet[aria-pressed="true"]{background:#e8f9f0;border-color:#b9ebcf;color:#065f46}
     .chip-price,.chip-pps{background:#fff9f0;border-color:#ffe4c7}
-    .chip-price[aria-pressed="true"],.chip-pps[aria-pressed="true"]{background:#fff3e0;border-color:#ffc78a;color:#6b3f00}
+    .chip-price[aria-pressed="true"],.chip-pps[aria-pressed="true"]{background:#ffeaa7;border-color:#fdcb6e;color:#2d3436;box-shadow:0 0 0 2px rgba(253,203,110,.4) inset;font-weight:600}
     .chip-overflow{background:#f3f4f6;border-color:#e5e7eb;font-weight:600}
     /* Tiny icon helper inside chips/labels */
     .chip .icon{font-size:14px;line-height:1}

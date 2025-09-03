@@ -1,4 +1,14 @@
 services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: irondust
+      POSTGRES_USER: irondust
+      POSTGRES_PASSWORD: irondust
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
   meili:
     image: getmeili/meilisearch:v1.7
     environment:
@@ -36,11 +46,17 @@ services:
       AI_CRIT_CONF_THRESHOLD: ${AI_CRIT_CONF_THRESHOLD:-0.9}
       AI_CONF_THRESHOLD_SERVINGS: ${AI_CONF_THRESHOLD_SERVINGS:-0.75}
       AI_CONF_THRESHOLD_SERVING_SIZE_G: ${AI_CONF_THRESHOLD_SERVING_SIZE_G:-0.75}
+      SPRING_R2DBC_URL: r2dbc:postgresql://db:5432/irondust
+      SPRING_R2DBC_USERNAME: irondust
+      SPRING_R2DBC_PASSWORD: irondust
     ports:
       - "4000:4000"
     depends_on:
+      - db
       - meili
       - qdrant
 
 
 
+volumes:
+  pg_data:

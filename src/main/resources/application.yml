@@ -35,6 +35,10 @@ vector:
 spring:
   main:
     web-application-type: reactive
+  r2dbc:
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://127.0.0.1:5432/irondust}
+    username: ${SPRING_R2DBC_USERNAME:irondust}
+    password: ${SPRING_R2DBC_PASSWORD:irondust}
 
 logging:
   level:

@@ -64,6 +64,7 @@ curl -X POST http://localhost:4000/ingest/products \
 
 - POST /search — Search products with filters and sorting (now with adaptive hybrid gating)
 - POST /search/hybrid — Force Hybrid search (BM25 + vectors via RRF)
+- POST /search/ai — AI quick answer, grounded in top results (feature-flagged)
 
 Example:
 
@@ -88,6 +89,29 @@ Latency notes:
 - Tune via `vector.vectorTimeoutMs`, `vector.minQueryLength`, and `vector.vectorSearchK` in `application.yml`.
 
 Adaptive hybrid gating in /search:
+### AI Answer
+
+- Endpoint: POST /search/ai
+- Body: same shape as /search. Returns a short grounded answer plus cited items.
+- Feature flag: `ai_search` (default enabled). Toggle at runtime:
+
+Enable:
+```bash
+curl -X POST 'http://localhost:4000/feature-flags/ai_search?enabled=true'
+```
+
+Disable:
+```bash
+curl -X POST 'http://localhost:4000/feature-flags/ai_search?enabled=false'
+```
+
+Read:
+```bash
+curl 'http://localhost:4000/feature-flags/ai_search?defaultValue=true'
+```
+
+Notes:
+- Current implementation returns a concise heuristic, grounded in Meilisearch top‑K; can be upgraded to LLM later.
 
 - /search defaults to lexical (Meilisearch) for instant responses on head terms.
 - It triggers hybrid only when beneficial:

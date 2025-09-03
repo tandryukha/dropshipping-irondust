@@ -41,6 +41,7 @@ nav:
   - Getting Started: how-to-run.md
   - Architecture: architecture.md
   - API: api.md
+  - Feature Flags: feature-flags.md
   - Localization: localization.md
   - Development: dev-checklist.md
   - UI Audit: ui-audit.md

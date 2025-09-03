@@ -147,8 +147,8 @@ const PPS_SAVINGS_MIN_ABS = 0.05;     // €0.05 per serving
 const PPS_SAVINGS_MAX_PERCENT = 0.5;  // cap shown percent at 50%
 function computePerServingSavingsBadge(item, current){
   try{
-    const a = (typeof item?.price_per_serving === 'number') ? item.price_per_serving : null;
-    const b = (typeof current?.price_per_serving === 'number') ? current.price_per_serving : null;
+    const a = derivePricePerServing(item);
+    const b = derivePricePerServing(current);
     if (a == null || b == null) return '';
     if (!(a > 0 && b > 0)) return '';
     if (a >= b) return '';
@@ -237,6 +237,29 @@ export function mountPdp() {
     }
   } catch(_e) {}
 
+  // React to altCheaper changes anywhere
+  bus.addEventListener('store:altCheaper', ()=>{
+    try{
+      console.log('Store altCheaper event fired!');
+      const on = !!store.get('altCheaper');
+      console.log('New altCheaper state:', on);
+      if (els.altCheaperToggle) {
+        els.altCheaperToggle.setAttribute('aria-pressed', String(on));
+        console.log('Toggle aria-pressed updated to:', on);
+      }
+      // Only re-render from cached candidates, don't trigger new API calls
+      if (Array.isArray(__lastAltCandidates) && __lastAltCandidates.length) {
+        console.log('Re-rendering alternatives from cached candidates, count:', __lastAltCandidates.length);
+        renderAlternativesFromCandidates(__lastAltCandidates);
+      } else {
+        console.log('No cached candidates available, not fetching new ones');
+      }
+      // Don't fetch new alternatives just because toggle changed - use cached data only
+    }catch(_e){
+      console.error('Error in altCheaper store listener:', _e);
+    }
+  });
+
   // Bind existing static flavor buttons if present
   if (els.pdpFlavors) {
     bindFlavorButtons(els.pdpFlavors);
@@ -267,12 +290,14 @@ export function mountPdp() {
   // Bind Alternatives: "Cheaper than this" toggle
   if (els.altCheaperToggle) {
     els.altCheaperToggle.addEventListener('click', ()=>{
+      console.log('Toggle clicked!');
       const pressed = els.altCheaperToggle.getAttribute('aria-pressed') === 'true';
       const next = !pressed;
+      console.log('Toggle state changing from', pressed, 'to', next);
       els.altCheaperToggle.setAttribute('aria-pressed', String(next));
       store.set('altCheaper', next);
-      const current = store.get('currentProduct');
-      if (current) { fetchAndRenderAlternatives(current); }
+      console.log('Toggle state set in store:', store.get('altCheaper'));
+      // No network call on toggle; re-render handled by store listener if we have cached candidates
     });
   }
 
@@ -478,16 +503,86 @@ export function openProduct(id){
 
 // Sequence guard for in-flight alternatives requests to avoid stale renders overwriting newer ones
 let __altReqEpoch = 0;
+let __lastAltCandidates = null;
+
+// Safely compute price per serving when not explicitly provided
+function derivePricePerServing(prod){
+  try{
+    if (typeof prod?.price_per_serving === 'number' && prod.price_per_serving > 0) return prod.price_per_serving;
+    // From total price and servings
+    if (typeof prod?.price_cents === 'number' && typeof prod?.servings === 'number' && prod.servings > 0) {
+      return (prod.price_cents / 100) / prod.servings;
+    }
+    // From count-based dosage
+    if (typeof prod?.price_cents === 'number' && typeof prod?.unit_count === 'number' && typeof prod?.units_per_serving === 'number' && prod.units_per_serving > 0) {
+      const srv = Math.floor(prod.unit_count / prod.units_per_serving);
+      if (srv > 0) return (prod.price_cents / 100) / srv;
+    }
+    // From price per 100g and serving size
+    if (typeof prod?.price_per_100g === 'number' && typeof prod?.serving_size_g === 'number' && prod.serving_size_g > 0) {
+      return (prod.price_per_100g * prod.serving_size_g) / 100;
+    }
+    // From net weight and serving size + price
+    if (typeof prod?.price_cents === 'number' && typeof prod?.net_weight_g === 'number' && typeof prod?.serving_size_g === 'number' && prod.net_weight_g > 0 && prod.serving_size_g > 0) {
+      const pricePerGram = (prod.price_cents / 100) / prod.net_weight_g;
+      return pricePerGram * prod.serving_size_g;
+    }
+  }catch(_e){}
+  return null;
+}
 
 // Optionally filter to items cheaper per serving than the current product
 function maybeFilterCheaper(items, current){
   try{
     const enabled = !!store.get('altCheaper');
     if (!enabled) return Array.isArray(items) ? items : [];
-    const cur = (typeof current?.price_per_serving === 'number') ? current.price_per_serving : null;
-    if (cur == null || !(cur > 0)) return Array.isArray(items) ? items : [];
-    return (Array.isArray(items) ? items : []).filter(it => typeof it?.price_per_serving === 'number' && it.price_per_serving > 0 && it.price_per_serving < cur);
+    // Try comparable metrics in order: per-serving, per-100g, per-unit
+    const list = Array.isArray(items) ? items : [];
+    return list.filter(it => {
+      const a = derivePricePerServing(it), b = derivePricePerServing(current);
+      if (typeof a === 'number' && a > 0 && typeof b === 'number' && b > 0) return a < b;
+      const a100 = derivePricePer100g(it), b100 = derivePricePer100g(current);
+      if (typeof a100 === 'number' && a100 > 0 && typeof b100 === 'number' && b100 > 0) return a100 < b100;
+      const au = derivePricePerUnit(it), bu = derivePricePerUnit(current);
+      if (typeof au === 'number' && au > 0 && typeof bu === 'number' && bu > 0) return au < bu;
+      return false;
+    });
   }catch(_e){ return Array.isArray(items) ? items : []; }
+}
+
+function derivePricePer100g(prod){
+  try{
+    if (typeof prod?.price_per_100g === 'number' && prod.price_per_100g > 0) return prod.price_per_100g;
+    if (typeof prod?.price_cents === 'number' && typeof prod?.net_weight_g === 'number' && prod.net_weight_g > 0) {
+      return (prod.price_cents / 100) / (prod.net_weight_g / 100);
+    }
+  }catch(_e){}
+  return null;
+}
+
+function derivePricePerUnit(prod){
+  try{
+    if (typeof prod?.price_per_unit === 'number' && prod.price_per_unit > 0) return prod.price_per_unit;
+    if (typeof prod?.price_cents === 'number' && typeof prod?.unit_count === 'number' && prod.unit_count > 0) {
+      return (prod.price_cents / 100) / prod.unit_count;
+    }
+  }catch(_e){}
+  return null;
+}
+
+function renderAlternativesFromCandidates(candidates){
+  try{
+    const myEpoch = __altReqEpoch; // only render if still latest context
+    const current = store.get('currentProduct');
+    let items = Array.isArray(candidates) ? candidates : [];
+    items = maybeFilterCheaper(items, current);
+    if (myEpoch !== __altReqEpoch) return;
+    const alt = items.slice(0, 8);
+    if (els.pdpAltGrid) {
+      els.pdpAltGrid.innerHTML = alt.map((it, idx)=>buildAltCardHTML(it, idx)).join('');
+      attachAltHandlers(els.pdpAltGrid);
+    }
+  }catch(_e){}
 }
 
 function altDetailsLine(item){
@@ -653,6 +748,7 @@ async function fetchAndRenderAlternatives(prod){
     try {
       const rec = await getAlternatives(String(prod?.id||''), { limit: 8 });
       let items = Array.isArray(rec?.items) ? rec.items : [];
+      __lastAltCandidates = Array.isArray(items) ? items.slice() : [];
       // Optionally filter by cheaper than current
       items = maybeFilterCheaper(items, latestCurrent);
       // Abort render if a newer request started meanwhile
@@ -732,6 +828,7 @@ async function fetchAndRenderAlternatives(prod){
     }
 
     // Apply optional cheaper-than-current filter as late as possible to keep variety
+    __lastAltCandidates = Array.isArray(items) ? items.slice() : [];
     items = maybeFilterCheaper(items, latestCurrent);
     // Abort render if a newer request started meanwhile
     if (myEpoch !== __altReqEpoch) return;
