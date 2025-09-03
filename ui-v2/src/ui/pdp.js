@@ -8,6 +8,28 @@ import { t } from '../core/language.js';
 import { isCountBasedForm } from '../core/metrics.js';
 
 const els = {};
+let __lastAltCandidates = []; // cache for toggle re-rendering
+let __altReqEpoch = 0; // prevent race conditions
+
+// Bind the "Cheaper than this" toggle
+function bindCheaperToggle() {
+  const toggle = document.getElementById('altCheaperToggle');
+  if (toggle && !toggle._boundCheaper) {
+    toggle._boundCheaper = true;
+    toggle.addEventListener('click', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const pressed = toggle.getAttribute('aria-pressed') === 'true';
+      const next = !pressed;
+      toggle.setAttribute('aria-pressed', String(next));
+      store.set('altCheaper', next);
+      // Trigger re-render immediately with cached data
+      if (Array.isArray(__lastAltCandidates) && __lastAltCandidates.length) {
+        renderAlternativesFromCandidates(__lastAltCandidates);
+      }
+    });
+  }
+}
 
 // Helper function to extract dosage information from search_text
 function extractDosageFromText(searchText) {
@@ -240,24 +262,17 @@ export function mountPdp() {
   // React to altCheaper changes anywhere
   bus.addEventListener('store:altCheaper', ()=>{
     try{
-      console.log('Store altCheaper event fired!');
       const on = !!store.get('altCheaper');
-      console.log('New altCheaper state:', on);
-      if (els.altCheaperToggle) {
-        els.altCheaperToggle.setAttribute('aria-pressed', String(on));
-        console.log('Toggle aria-pressed updated to:', on);
+      const toggle = document.getElementById('altCheaperToggle');
+      if (toggle) {
+        toggle.setAttribute('aria-pressed', String(on));
       }
       // Only re-render from cached candidates, don't trigger new API calls
       if (Array.isArray(__lastAltCandidates) && __lastAltCandidates.length) {
-        console.log('Re-rendering alternatives from cached candidates, count:', __lastAltCandidates.length);
         renderAlternativesFromCandidates(__lastAltCandidates);
-      } else {
-        console.log('No cached candidates available, not fetching new ones');
       }
       // Don't fetch new alternatives just because toggle changed - use cached data only
-    }catch(_e){
-      console.error('Error in altCheaper store listener:', _e);
-    }
+    }catch(_e){}
   });
 
   // Bind existing static flavor buttons if present
@@ -287,19 +302,8 @@ export function mountPdp() {
     });
   }
 
-  // Bind Alternatives: "Cheaper than this" toggle
-  if (els.altCheaperToggle) {
-    els.altCheaperToggle.addEventListener('click', ()=>{
-      console.log('Toggle clicked!');
-      const pressed = els.altCheaperToggle.getAttribute('aria-pressed') === 'true';
-      const next = !pressed;
-      console.log('Toggle state changing from', pressed, 'to', next);
-      els.altCheaperToggle.setAttribute('aria-pressed', String(next));
-      store.set('altCheaper', next);
-      console.log('Toggle state set in store:', store.get('altCheaper'));
-      // No network call on toggle; re-render handled by store listener if we have cached candidates
-    });
-  }
+  // Bind Alternatives: "Cheaper than this" toggle initially
+  bindCheaperToggle();
 
   // Bind QA chip functionality (toggle on repeated click)
   document.addEventListener('click', (e) => {
@@ -461,6 +465,9 @@ export function mountPdp() {
       // Load alternatives and complements separately
       const altIds = await fetchAndRenderAlternatives(prod);
       await fetchAndRenderComplements(prod, new Set(Array.isArray(altIds)?altIds:[]));
+      
+      // Ensure toggle is bound after alternatives are loaded
+      bindCheaperToggle();
 
       // After content is in the DOM, update scroll affordance states
       requestAnimationFrame(()=>{
@@ -502,8 +509,7 @@ export function openProduct(id){
 // --- Alternatives rendering ---
 
 // Sequence guard for in-flight alternatives requests to avoid stale renders overwriting newer ones
-let __altReqEpoch = 0;
-let __lastAltCandidates = null;
+// (Variables declared at top of file)
 
 // Safely compute price per serving when not explicitly provided
 function derivePricePerServing(prod){
