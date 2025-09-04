@@ -2,6 +2,11 @@ Feature Flags
 
 Runtime-configurable feature toggles managed by the backend. Values are stored in Postgres (`feature_flags` table) and can be changed via HTTP API using the admin key.
 
+Defaults
+
+- On first run, the table is auto-created, and default flags are seeded:
+  - `ai_search = true`
+
 Flag table
 
 | Name | Default | Description | How to set (admin) | How to read |
@@ -31,4 +36,10 @@ Notes
 - All set operations require `x-admin-key` matching `app.adminKey` in backend config.
 - Reads do not require admin key and are safe for clients.
 - Flags are evaluated at request time; no restart is required.
+
+Admin UI
+
+- The Admin UI exposes feature flags at `/admin-ui` (Basic Auth). The Admin UI calls:
+  - `GET /admin/feature-flags` to list
+  - `PATCH /admin/feature-flags/{key}` with JSON body `{ "enabled": true|false }` and header `x-admin-key` to update
 

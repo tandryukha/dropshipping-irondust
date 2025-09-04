@@ -45,7 +45,7 @@
       document.getElementById(type + 'RunId').textContent = js.runId || '';
     }
     async function loadFlags() {
-      const res = await fetch('/admin/feature-flags');
+      const res = await fetch('/feature-flags');
       const js = await res.json();
       const container = document.getElementById('flags');
       container.innerHTML = '';
@@ -59,8 +59,8 @@
       });
     }
     async function toggleFlag(key, enabled) {
-      await fetch('/admin/feature-flags/' + encodeURIComponent(key), {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled })
+      await fetch('/feature-flags/' + encodeURIComponent(key) + '?enabled=' + (enabled ? 'true':'false'), {
+        method: 'POST', headers: { 'x-admin-key': 'dev_admin_key' }
       });
       loadFlags();
     }

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class FeatureFlagService {
@@ -15,12 +16,33 @@ public class FeatureFlagService {
 
     public FeatureFlagService(DatabaseClient db) {
         this.db = db;
-        ensureSchema().subscribe();
+        ensureSchema().then(ensureDefaults()).subscribe();
     }
 
     private Mono<Void> ensureSchema() {
         String ddl = "CREATE TABLE IF NOT EXISTS feature_flags (name TEXT PRIMARY KEY, enabled BOOLEAN NOT NULL)";
         return db.sql(ddl).fetch().rowsUpdated().then();
+    }
+
+    private Mono<Void> ensureDefaults() {
+        // Insert defaults if table is empty
+        return db.sql("SELECT COUNT(1) AS c FROM feature_flags").fetch().one()
+                .flatMap(row -> {
+                    Number c = (Number) row.get("c");
+                    if (c != null && c.longValue() == 0L) {
+                        Map<String, Boolean> d = com.irondust.search.admin.FeatureFlagDefaults.defaults();
+                        AtomicBoolean any = new AtomicBoolean(false);
+                        return reactor.core.publisher.Flux.fromIterable(d.entrySet())
+                                .flatMap(e -> db.sql("INSERT INTO feature_flags(name, enabled) VALUES(:name,:enabled)")
+                                        .bind("name", e.getKey())
+                                        .bind("enabled", e.getValue())
+                                        .fetch().rowsUpdated())
+                                .doOnNext(i -> any.set(true))
+                                .then();
+                    }
+                    return Mono.empty();
+                })
+                .onErrorResume(e -> Mono.empty());
     }
 
     public Mono<Boolean> isEnabled(String name, boolean defaultValue) {
