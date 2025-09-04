@@ -60,19 +60,31 @@ public class VariationGrouper implements EnricherStep {
 
     private String normalizeBaseTitle(String name) {
         if (name == null) return "";
-        
-        // Remove common flavor/size suffixes
+
+        // Lowercase copy for normalization
         String normalized = name.toLowerCase();
-        
-        // Remove flavor indicators
-        normalized = normalized.replaceAll("\\s*(unflavored|flavored|citrus|berry|coffee|chocolate|vanilla)\\s*$", "");
-        
+
+        // Drop bracketed/parenthesized flavor/size parts at the end, e.g., "(raspberry)" or "[cherry-lime]"
+        normalized = normalized.replaceAll("\\s*[\\(\uFF08\u3010\u005B][^\\)\uFF09\u3011\u005D]{1,40}[\\)\uFF09\u3011\u005D]\\s*$", "");
+
+        // Remove common flavor words (keep base product). Include Estonian variants.
+        normalized = normalized.replaceAll(
+            "\\b(unflavored|flavored|vanilla|vanill|chocolate|sokolaad|šokolaad|s\u0161okolaad|cocoa|strawberry|maasikas|raspberry|vaarikas|berry|blueberry|mustikas|metsamarja|banana|banaan|banaanijogurt|jogurt|citrus|orange|apelsin|lemon|sidrun|lime|laim|cola|kola|cherry|kirss|apple|\u00F5un|oun|mango|peach|virsik|pear|pirn|coffee|kohv|mocha|caramel|karamell|coconut|kookos|tropical|troopiline)\\b",
+            "");
+
+        // Remove explicit Estonian 'maitse' flavor tails often seen after a dash
+        normalized = normalized.replaceAll("\\s*-\\s*maitse.*$", "");
+
         // Remove size indicators (keep the main product name)
-        normalized = normalized.replaceAll("\\s*(\\d+\\s*(g|ml|kg|l|servings?|capsules?|tablets?))\\s*$", "");
-        
-        // Remove common suffixes
-        normalized = normalized.replaceAll("\\s*(powder|capsules?|tablets?|drink|gel|bar)\\s*$", "");
-        
+        normalized = normalized.replaceAll("\\b(\\d{1,4}\\s*(g|gramm|kg|ml|l))\\b", "");
+        normalized = normalized.replaceAll("\\b(\\d{1,3}\\s*(servings?|portsjonid?|capsules?|kapslid|tablets?|tabletid|tabs))\\b", "");
+
+        // Remove common form suffixes
+        normalized = normalized.replaceAll("\\s*(powder|pulber|capsules?|kapslid|tablets?|tabletid|tabs|drink|jook|gel|geel|bar|batoon)\\s*$", "");
+
+        // Collapse whitespace and separators
+        normalized = normalized.replaceAll("[\\s\u00A0]+", " ").replaceAll("\\s*[-–—]+\\s*$", "");
+
         return normalized.trim();
     }
 

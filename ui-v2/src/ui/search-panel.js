@@ -1600,40 +1600,27 @@ export function mountSearchPanel() {
     // Clear previous defaults
     $$('.preset-card').forEach(card => card.classList.remove('suggested'));
     
-    // Suggest presets based on query
+    // Suggest presets based on query (narrower intents)
     if (q.includes('pre') || q.includes('workout') || q.includes('energy')) {
-      const preWorkoutCard = $('.preset-card[data-preset="preworkout"]');
-      if (preWorkoutCard) {
-        preWorkoutCard.classList.add('suggested');
-      }
+      const energyCard = $('.preset-card[data-preset="energy"]');
+      energyCard?.classList.add('suggested');
     }
-    
-    if (q.includes('protein') || q.includes('whey') || q.includes('build')) {
-      const strengthCard = $('.preset-card[data-preset="strength"]');
-      if (strengthCard) {
-        strengthCard.classList.add('suggested');
-      }
+    if (q.includes('lean') || q.includes('muscle') || q.includes('creatine') || q.includes('build') || q.includes('strength')) {
+      const leanCard = $('.preset-card[data-preset="strength"]');
+      leanCard?.classList.add('suggested');
     }
-    
-    if (q.includes('creatine') || q.includes('strength')) {
-      const strengthCard = $('.preset-card[data-preset="strength"]');
-      if (strengthCard) {
-        strengthCard.classList.add('suggested');
-      }
-      // Auto-apply price filter for budget products
-      if (q.includes('budget') || q.includes('cheap')) {
-        const priceChip = $('.chip[data-filter*="2000"]');
-        if (priceChip && priceChip.getAttribute('aria-pressed') !== 'true') {
-          updateChipSelection(priceChip);
-        }
-      }
+    if (q.includes('recover') || q.includes('sleep') || q.includes('soreness')) {
+      const recCard = $('.preset-card[data-preset="recovery"]');
+      recCard?.classList.add('suggested');
     }
-    
-    if (q.includes('vitamin') || q.includes('wellness') || q.includes('health')) {
-      const wellnessCard = $('.preset-card[data-preset="wellness"]');
-      if (wellnessCard) {
-        wellnessCard.classList.add('suggested');
-      }
+    if (q.includes('cut') || q.includes('weight') || q.includes('loss') || q.includes('fat')) {
+      const wlCard = $('.preset-card[data-preset="weight_loss"]');
+      wlCard?.classList.add('suggested');
+    }
+    // Budget hint still useful for creatine
+    if (q.includes('creatine') && (q.includes('budget') || q.includes('cheap'))) {
+      const priceChip = $('.chip[data-filter*="2000"]');
+      if (priceChip && priceChip.getAttribute('aria-pressed') !== 'true') updateChipSelection(priceChip);
     }
   }
 
@@ -1942,8 +1929,9 @@ async function refreshContentRail(query){
           const topic = String(hit?.title||'');
           const upsell = renderInlineUpsells(topic);
           const metaText = [String(meta?.source||'').toUpperCase(), String(meta?.license||'')].filter(Boolean).join(' • ');
-          const footer = `<div class="muted" style="font-size:12px;margin-top:8px">${metaText}</div>`;
-          expand.innerHTML = `<div class="content-body">${html}</div>${upsell}${footer}`;
+          const footer = `<div class=\"muted\" style=\"font-size:12px;margin-top:8px\">${metaText}</div>`;
+          const formatted = normalizeContentHtml(html);
+          expand.innerHTML = `<div class=\"content-body\">${formatted}</div>${upsell}${footer}`;
           // Bind upsell clicks
           expand.querySelectorAll('[data-pid]').forEach(el=>{
             if (el.__bound) return; el.__bound = true;
@@ -2065,6 +2053,48 @@ function renderInlineUpsells(topic){
     if (cards.length === 0) return '';
     return `<div class=\"mini\" style=\"margin-top:8px\">${cards.join('')}<div>`;
   }catch(_e){ return ''; }
+}
+
+// Normalize raw HTML from sources into consistent readable blocks
+function normalizeContentHtml(html){
+  try{
+    const temp = document.createElement('div');
+    temp.innerHTML = String(html||'');
+    // Keep only first 3 paragraphs and lists; convert headers to strong
+    const out = document.createElement('div');
+    let taken = 0;
+    const nodes = Array.from(temp.childNodes);
+    for(const node of nodes){
+      if (taken >= 6) break;
+      const tag = (node.tagName||'').toLowerCase();
+      if (tag === 'p' || tag === 'ul' || tag === 'ol'){
+        const clone = node.cloneNode(true);
+        sanitizeLinks(clone);
+        out.appendChild(clone);
+        taken++;
+      } else if (/^h[1-6]$/.test(tag)){
+        const p = document.createElement('p');
+        p.innerHTML = `<strong>${escapeHtml(node.textContent||'')}</strong>`;
+        out.appendChild(p);
+        taken++;
+      }
+    }
+    if (out.children.length === 0){
+      const p = document.createElement('p');
+      p.textContent = temp.textContent.slice(0, 240) + (temp.textContent.length>240?'…':'');
+      out.appendChild(p);
+    }
+    // Ensure consistent typography
+    out.querySelectorAll('p').forEach(p=>{ p.style.margin = '6px 0'; p.style.lineHeight = '1.5'; });
+    out.querySelectorAll('ul,ol').forEach(l=>{ l.style.margin = '6px 0 6px 18px'; });
+    return out.innerHTML;
+  }catch(_e){ return String(html||''); }
+}
+
+function sanitizeLinks(root){
+  try{
+    root.querySelectorAll('a').forEach(a=>{ a.setAttribute('rel','noopener'); a.setAttribute('target','_blank'); });
+  }catch(_e){}
 }
 
 

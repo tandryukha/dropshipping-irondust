@@ -102,14 +102,28 @@ public class SearchControllerMapper {
         if (bs instanceof String s) { d.setBenefit_snippet(s); }
         Object fq = m.get("faq");
         if (fq instanceof List<?> l) { d.setFaq((List<Map<String,String>>) (List<?>) l); }
+        // Dynamic attributes: present either under dynamic_attrs or flattened
+        Map<String, List<String>> dynMap = new LinkedHashMap<>();
         Object dyn = m.get("dynamic_attrs");
         if (dyn instanceof Map<?, ?> map) {
-            Map<String, List<String>> conv = new LinkedHashMap<>();
             for (Map.Entry<?, ?> e : ((Map<?, ?>) dyn).entrySet()) {
-                conv.put(String.valueOf(e.getKey()), (List<String>) e.getValue());
+                dynMap.put(String.valueOf(e.getKey()), (List<String>) e.getValue());
             }
-            d.setDynamic_attrs(conv);
+        } else {
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                String key = String.valueOf(e.getKey());
+                if (key == null) continue;
+                if (key.startsWith("attr_") || key.equals("flavor") || key.equals("flavors") || key.equals("variant_group_id") || key.equals("warnings")) {
+                    Object v = e.getValue();
+                    if (v instanceof List<?> l) {
+                        dynMap.put(key, (List<String>) (List<?>) l);
+                    } else if (v != null) {
+                        dynMap.put(key, List.of(String.valueOf(v)));
+                    }
+                }
+            }
         }
+        if (!dynMap.isEmpty()) d.setDynamic_attrs(dynMap);
         d.setName_i18n((Map<String, String>) m.get("name_i18n"));
         d.setDescription_i18n((Map<String, String>) m.get("description_i18n"));
         d.setShort_description_i18n((Map<String, String>) m.get("short_description_i18n"));

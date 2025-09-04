@@ -66,6 +66,15 @@ curl -X POST http://localhost:4000/ingest/products \
 - POST /search/hybrid — Force Hybrid search (BM25 + vectors via RRF)
 - POST /search/ai — AI quick answer, grounded in top results (feature-flagged)
 
+### Variant grouping (flavors)
+
+- Variants that only differ by flavor/size are grouped by `parent_id` (Meili `distinctAttribute`).
+- On ingest, we aggregate group metadata so the UI can render a single card with a flavor chooser:
+  - `dynamic_attrs.flavors`: union of flavors across the group
+  - `price`/`price_cents`: set to the cheapest variant in the group
+  - `price_per_serving`/`price_per_100g`: set to group minimums when available
+- Alternatives exclude items with the same `parent_id` as the current product.
+
 ## Content
 
 - POST /ingest/content/minimal — Admin-only seed of content index

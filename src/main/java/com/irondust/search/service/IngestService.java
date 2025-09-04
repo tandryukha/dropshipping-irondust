@@ -69,6 +69,8 @@ public class IngestService {
                         allDocs.add(r.doc);
                         reports.add(r.report);
                     }
+                    // Merge same products (variants) by parent_id: collect flavors and min prices
+                    applyVariantGroupingAggregates(allDocs);
                     // discover dynamic facets
                     Set<String> dynamicFacetFields = new LinkedHashSet<>();
                     for (ProductDoc doc : allDocs) {
@@ -150,6 +152,8 @@ public class IngestService {
                         docs.add(r.doc);
                         reports.add(r.report);
                     }
+                    // Apply grouping aggregates for partial ingests as well
+                    applyVariantGroupingAggregates(docs);
                     return meiliService.addOrReplaceDocuments(docs)
                             .then(Mono.fromSupplier(() -> buildReport(docs.size(), reports)));
                 });
@@ -484,6 +488,135 @@ public class IngestService {
         report.setWarnings_total(warningsTotal);
         report.setConflicts_total(conflictsTotal);
         return report;
+    }
+
+    /**
+     * Aggregates variant groups (same parent_id) to enable UI grouping by flavor and to show
+     * the cheapest price for the group. This method mutates the provided list of documents
+     * in-place by:
+     * - Adding dynamic_attrs.flavors: union of flavors across the group (deduplicated)
+     * - Overriding price/price_cents with the group's minimum
+     * - Overriding price_per_serving and price_per_100g with the group's minimum when available
+     * - Propagating sale metadata (is_on_sale, discount_pct) from the cheapest variant
+     */
+    private void applyVariantGroupingAggregates(List<ProductDoc> docs) {
+        if (docs == null || docs.isEmpty()) return;
+
+        class GroupAgg {
+            java.util.Set<String> flavors = new java.util.LinkedHashSet<>();
+            Integer minPriceCents = null;
+            Double minPrice = null;
+            Double minPps = null;
+            Double minP100 = null;
+            Boolean isOnSale = null;
+            Double discountPct = null;
+        }
+
+        java.util.Map<String, GroupAgg> byParent = new java.util.LinkedHashMap<>();
+
+        for (ProductDoc d : docs) {
+            String parent = d != null ? d.getParent_id() : null;
+            // Still collect flavors even when parent is missing to expose a single-option list
+            String fl = extractFlavorValue(d);
+            if (parent == null || parent.isBlank()) {
+                ensureFlavorsArray(d, fl != null ? java.util.List.of(fl) : java.util.List.of());
+                continue;
+            }
+            GroupAgg g = byParent.computeIfAbsent(parent, k -> new GroupAgg());
+            if (fl != null && !fl.isBlank()) g.flavors.add(fl.trim());
+
+            if (d.getPrice_cents() != null) {
+                if (g.minPriceCents == null || d.getPrice_cents() < g.minPriceCents) {
+                    g.minPriceCents = d.getPrice_cents();
+                    g.minPrice = (d.getPrice() != null) ? d.getPrice() : (d.getPrice_cents() / 100.0);
+                    g.isOnSale = d.getIs_on_sale();
+                    g.discountPct = d.getDiscount_pct();
+                }
+            }
+            if (d.getPrice_per_serving() != null) {
+                g.minPps = (g.minPps == null) ? d.getPrice_per_serving() : Math.min(g.minPps, d.getPrice_per_serving());
+            }
+            if (d.getPrice_per_100g() != null) {
+                g.minP100 = (g.minP100 == null) ? d.getPrice_per_100g() : Math.min(g.minP100, d.getPrice_per_100g());
+            }
+        }
+
+        for (ProductDoc d : docs) {
+            String parent = d != null ? d.getParent_id() : null;
+            if (parent == null || parent.isBlank()) continue;
+            GroupAgg g = byParent.get(parent);
+            if (g == null) continue;
+
+            // Apply flavors list
+            ensureFlavorsArray(d, new java.util.ArrayList<>(g.flavors));
+
+            // Apply group min pricing
+            if (g.minPriceCents != null) d.setPrice_cents(g.minPriceCents);
+            if (g.minPrice != null) d.setPrice(g.minPrice);
+            if (g.minPps != null) d.setPrice_per_serving(g.minPps);
+            if (g.minP100 != null) d.setPrice_per_100g(g.minP100);
+            if (g.isOnSale != null) d.setIs_on_sale(g.isOnSale);
+            if (g.discountPct != null) d.setDiscount_pct(g.discountPct);
+        }
+    }
+
+    private static void ensureFlavorsArray(ProductDoc d, java.util.List<String> flavors) {
+        if (d == null) return;
+        java.util.Map<String, java.util.List<String>> dyn = d.getDynamic_attrs();
+        if (dyn == null) {
+            dyn = new java.util.LinkedHashMap<>();
+            d.setDynamic_attrs(dyn);
+        }
+        if (flavors == null) flavors = java.util.List.of();
+        // Deduplicate and keep stable order
+        java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
+        for (String s : flavors) { if (s != null && !s.isBlank()) set.add(s.trim()); }
+        dyn.put("flavors", new java.util.ArrayList<>(set));
+    }
+
+    private static String extractFlavorValue(ProductDoc d) {
+        if (d == null) return null;
+        if (d.getFlavor() != null && !d.getFlavor().isBlank()) return d.getFlavor();
+        java.util.Map<String, java.util.List<String>> dyn = d.getDynamic_attrs();
+        if (dyn != null) {
+            java.util.List<String> v = dyn.get("flavor");
+            if (v == null || v.isEmpty()) v = dyn.get("attr_pa_maitse");
+            if (v != null && !v.isEmpty() && v.get(0) != null && !v.get(0).isBlank()) return v.get(0).trim();
+        }
+        // Fallback: guess from product name suffix or parenthesized part
+        try {
+            String name = d.getName();
+            if (name != null) {
+                String lowered = name.toLowerCase();
+                // Prefer bracketed parts like "(vanill)"
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("[\\(\u005B\u3010]([^\\)\u005D\u3011]{2,32})[\\)\u005D\u3011]\s*$").matcher(lowered);
+                if (m.find()) {
+                    String in = m.group(1).trim();
+                    if (!in.isBlank()) return capitalizeFlavor(in);
+                }
+                // Known multi-word patterns first
+                String[] multi = {"valge šokolaad","valge sokolaad","kookos-šokolaad","kookos sokolaad","white chocolate"};
+                for (String p : multi) { if (lowered.contains(p)) return capitalizeFlavor(p); }
+                // Single-word/short tokens
+                String[] tokens = {"vanill","vanilla","šokolaad","sokolaad","kookos","maasikas","vaarikas","metsamarja","banaan","kirss","apelsin","sidrun","laim","mustikas","tropical","troopiline","kola","cola","citrus","caramel","karamell","kohv","coffee"};
+                for (String t : tokens) { if (lowered.matches(".*\\b"+java.util.regex.Pattern.quote(t)+"\\b.*")) return capitalizeFlavor(t); }
+                // As a last resort, take the last word if it looks like a flavor word (letters only)
+                String[] parts = lowered.replaceAll("[0-9]+\\s*(g|kg|ml|l|servings?|portsjonid?)"," ").trim().split("\\s+");
+                if (parts.length >= 1) {
+                    String last = parts[parts.length - 1];
+                    if (last.matches("[a-z\u00C0-\u024F\u0100-\u017F-]{3,}")) return capitalizeFlavor(last);
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private static String capitalizeFlavor(String s) {
+        if (s == null) return null;
+        String trimmed = s.trim();
+        if (trimmed.isEmpty()) return null;
+        // Simple title-case for first letter; keep diacritics
+        return Character.toUpperCase(trimmed.charAt(0)) + (trimmed.length() > 1 ? trimmed.substring(1) : "");
     }
 
     /**
