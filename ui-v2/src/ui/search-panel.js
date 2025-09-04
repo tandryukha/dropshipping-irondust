@@ -2005,7 +2005,7 @@ function renderUpsellCard(id, name, price){
   const safeName = escapeHtml(String(name||''));
   const safePrice = escapeHtml(String(price||''));
   return `
-    <div class=\"box\" data-pid=\"${escapeHtml(String(id||''))}\">\n      <div style=\"display:flex;align-items:center;gap:10px\">\n        <img src=\"https://picsum.photos/seed/${'${encodeURIComponent(String(id||""))}'} /48/48\" alt=\"${'${safeName}'}\" width=\"48\" height=\"48\" style=\"border-radius:10px\">\n        <div>\n          <div style=\"font-weight:600\">${'${safeName}'} </div>\n          <div class=\"muted\" style=\"font-size:12px\">${'${safePrice}'} </div>\n        </div>\n        <button class=\"btn\" style=\"margin-left:auto\">View</button>\n      </div>\n    </div>`;
+    <div class=\"box\" data-pid=\"${escapeHtml(String(id||''))}\">\n      <div style=\"display:flex;align-items:center;gap:10px\">\n        <img src=\"https://picsum.photos/seed/${encodeURIComponent(String(id||''))}/48/48\" alt=\"${safeName}\" width=\"48\" height=\"48\" style=\"border-radius:10px\">\n        <div>\n          <div style=\"font-weight:600\">${safeName}</div>\n          <div class=\"muted\" style=\"font-size:12px\">${safePrice}</div>\n        </div>\n        <button class=\"btn\" style=\"margin-left:auto\">View</button>\n      </div>\n    </div>`;
 }
 
 

@@ -1,0 +1,56 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+PROJECT BRIEF
+- Purpose: Spring Boot API that ingests WooCommerce data, enriches deterministically + with AI, and serves search over Meilisearch, with vectors in Qdrant for hybrid search and PDP alternatives. Target: irondust.eu.
+- Core services: API (4000), Meilisearch (7700), Qdrant (6333), Postgres (local dev), static UI (ui-v2).
+- Indices: Meili `products_lex` (canonical docs). Qdrant: `products_vec_lg` (3072-dim embeddings).
+- Pipeline: RawProduct → rule-based ParsedProduct → AI-enriched EnrichedProduct. Deterministic values win unless strong evidence; conflicts logged.
+
+KEY ENDPOINTS (stable)
+- Ingest: POST /ingest/full; POST /ingest/products
+- Search: POST /search (adaptive lexical→hybrid); POST /search/hybrid (force); POST /search/ai
+- Products: GET /products/{id}; GET /products/{id}/alternatives; GET /products/{id}/complements
+- Content: POST /ingest/content/minimal; POST /content/search; POST /content/render (returns 451 if not eligible)
+- Feature flags: GET /feature-flags; GET /feature-flags/{name}?defaultValue=true; POST /feature-flags/{name}?enabled=true|false  (toggle `ai_search`)
+- Vectors (admin): POST /vectors/reindex/all; POST /vectors/reindex
+- Health: GET /healthz
+
+HYBRID SEARCH/GATING (performance)
+- Vector timeout and gating: short budget; fall back to Meili when vector call is slow or query is too short.
+- Tunables (env): VECTOR_TIMEOUT_MS=150; VECTOR_MIN_QUERY_LENGTH=3; HYBRID_RRF_K=60; HYBRID_VECTOR_K=100.
+- Vector setup (env): QDRANT_COLLECTION=products_vec_lg; EMBEDDING_MODEL=text-embedding-3-large; EMBEDDING_DIM=3072; QDRANT_UPSERT_BATCH=8; QDRANT_MAX_RETRIES=5.
+
+FACETS/PRICE FIELDS (excerpt)
+- Facets: in_stock, categories_slugs, brand_slug, form, diet_tags, goal_tags, parent_id, is_on_sale.
+- Price metrics: price, price_per_serving, price_per_serving_min/max, price_per_100g, price_per_unit.
+
+CONTENT SOURCES AND LICENSING
+- Supported render sources: Wikipedia (CC BY-SA 4.0, attribution required), FDA (Public Domain). Always return attribution/license box; otherwise 451.
+
+RUN/DEV QUICKSTART
+- Use ./rebuild-and-watch.sh (loads .env, rebuilds API, starts services, starts docs server).
+- Service URLs: API http://localhost:4000; Meili http://localhost:7700; Qdrant http://localhost:6333; UI http://localhost:8011 (via ./ui-v2/serve.sh).
+- Admin key: app.adminKey=dev_admin_key (local).
+- AI: OPENAI_API_KEY in .env; AI_ENRICH=true to enable enrichment.
+
+WORKSPACE RULES (operational)
+- Don’t preload `docs/` into context. Instead: read only relevant files on demand.
+- After API changes: update Postman collection under `postman/`, refresh `/docs`.
+- Prefer E2E verification via curl; avoid full ingests by default due to cost.
+- Don’t change UI unless asked. If fixing an issue: add a minimal unit test with real data shape when feasible.
+
+DOCS POINTERS (read on demand)
+- docs/api.md: endpoints, examples, feature flags.
+- docs/how-to-run.md: local run, curl examples, vector tasks, tuning.
+- docs/architecture.md and indexing-architecture.md: pipeline, data contracts, hybrid strategy.
+- docs/localization*.md: i18n behavior, fields, flags.
+
+EXAMPLE COMMANDS (quick)
+- Ingest subset: curl -X POST :4000/ingest/products -H 'x-admin-key: dev_admin_key' -H 'Content-Type: application/json' -d '{"ids":[31476,31477]}'
+- Search: curl -X POST :4000/search -H 'Content-Type: application/json' -d '{"q":"citrulline","page":1,"size":5}'
+- Hybrid: curl -X POST :4000/search/hybrid -H 'Content-Type: application/json' -d '{"q":"vegan protein","filters":{"in_stock":true},"page":1,"size":6}'
+- Toggle AI: curl -X POST ':4000/feature-flags/ai_search?enabled=true'
