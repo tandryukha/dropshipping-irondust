@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 import com.irondust.search.util.TokenAccounting;
 
@@ -204,18 +205,28 @@ public class TranslationService {
         ObjectNode responseFormat = request.putObject("response_format");
         responseFormat.put("type", "json_object");
         
-        Mono<ProductTranslation> primary = webClient.post()
-                .uri("/chat/completions")
-                .bodyValue(request.toString())
-                .retrieve()
-                .onStatus(status -> status.isError(), resp ->
-                        resp.bodyToMono(String.class).defaultIfEmpty("")
-                                .flatMap(body -> {
-                                    log.error("OpenAI translation HTTP {}: {}", resp.statusCode().value(), truncateForLog(body));
-                                    return Mono.error(new RuntimeException("OpenAI error " + resp.statusCode().value()));
-                                })
-                )
-                .bodyToMono(JsonNode.class)
+        // Gate outbound call by OpenAI rate limits (process-wide)
+        Mono<ProductTranslation> primary = Mono.defer(() -> {
+                    try {
+                        com.irondust.search.util.OpenAiRateLimiter.acquire(approxTotalTok);
+                    } catch (Exception ignored) {}
+                    return webClient.post()
+                            .uri("/chat/completions")
+                            .bodyValue(request.toString())
+                            .retrieve()
+                            .onStatus(status -> status.isError(), resp ->
+                                    resp.bodyToMono(String.class).defaultIfEmpty("")
+                                            .flatMap(body -> {
+                                                log.error("OpenAI translation HTTP {}: {}", resp.statusCode().value(), truncateForLog(body));
+                                                if (resp.statusCode().value() == 429) {
+                                                    com.irondust.search.util.OpenAiRateLimiter.onRateLimitHit();
+                                                }
+                                                return Mono.error(new RuntimeException("OpenAI error " + resp.statusCode().value()));
+                                            })
+                            )
+                            .bodyToMono(JsonNode.class);
+                })
+                .subscribeOn(Schedulers.boundedElastic())
                 .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SEC))
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).jitter(0.5))
                 .map(response -> {

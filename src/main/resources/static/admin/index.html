@@ -76,6 +76,15 @@
       document.getElementById(type + 'RunId').textContent = js.runId || '';
       // Also try fetching latest result
       try { await fetchAndRenderLatestResult(type); } catch {}
+      // Render processed/total if available
+      const prog = document.getElementById(type + 'Progress');
+      if (prog) {
+        let txt = '';
+        if (js && typeof js.processed === 'number') {
+          txt = 'processed=' + js.processed + (js.total ? (' / ' + js.total) : '');
+        }
+        prog.textContent = txt;
+      }
     }
     async function waitForCompletion(runId) {
       if (!runId) return;
@@ -254,6 +263,14 @@
       refreshLatest('index');
       loadFlags();
       loadBlacklist();
+      // Poll every 1s while something is running
+      setInterval(async () => {
+        try {
+          const res = await fetch('/admin/runs/latest?type=ingest');
+          const js = await res.json();
+          if (js && js.status === 'running') await refreshLatest('ingest');
+        } catch {}
+      }, 1000);
     });
   </script>
   </head>
@@ -269,6 +286,7 @@
         </div>
         <div class="spacer"></div>
         <div class="small">Latest status: <b id="ingestStatus">-</b></div>
+        <div class="small" id="ingestProgress"></div>
         <div class="small">Latest runId: <code id="ingestRunId"></code></div>
         <div class="spacer"></div>
         <div class="small">Latest result</div>
@@ -282,6 +300,7 @@
         </div>
         <div class="spacer"></div>
         <div class="small">Latest status: <b id="indexStatus">-</b></div>
+        <div class="small" id="indexProgress"></div>
         <div class="small">Latest runId: <code id="indexRunId"></code></div>
         <div class="spacer"></div>
         <div class="small">Latest result</div>

@@ -42,6 +42,13 @@ public class IngestService {
     }
 
     public Mono<IngestDtos.IngestReport> ingestFull() {
+        return ingestFullWithProgress(null);
+    }
+
+    /**
+     * Full ingest with optional progress callback. The callback receives the number of items processed so far.
+     */
+    public Mono<IngestDtos.IngestReport> ingestFullWithProgress(java.util.function.IntConsumer onProgress) {
         // Reset AI token accounting at the start of a full ingest run
         TokenAccounting.reset();
         java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
@@ -64,6 +71,9 @@ public class IngestService {
                             int confCount = r.report.getConflicts() != null ? r.report.getConflicts().size() : 0;
                             log.info("Full ingest progress: {} items processed so far; id={} warnings={} conflicts={}",
                                     current, r.report.getId(), warnCount, confCount);
+                            if (onProgress != null) {
+                                try { onProgress.accept(current); } catch (Exception ignored) {}
+                            }
                             return r;
                         })
                         .subscribeOn(Schedulers.boundedElastic());

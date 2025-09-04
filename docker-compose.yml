@@ -27,6 +27,8 @@ services:
     build: .
     environment:
       JAVA_OPTS: ""
+      OPENAI_RPM: ${OPENAI_RPM:-500}
+      OPENAI_TPM: ${OPENAI_TPM:-200000}
       MEILI_HOST: http://meili:7700
       MEILI_KEY: local_dev_key
       QDRANT_HOST: http://qdrant:6333

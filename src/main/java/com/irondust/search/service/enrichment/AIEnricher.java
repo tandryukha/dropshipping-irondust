@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
+import com.irondust.search.util.OpenAiRateLimiter;
 
 /**
  * Optional AI enricher. Runs once per product when enabled via environment variables.
@@ -150,6 +151,9 @@ public class AIEnricher {
 
             String body = mapper.writeValueAsString(req);
             log.info("AI request → product={} model={} hash={}", raw.getId(), model, inputHash);
+            // Rate limit: conservatively estimate tokens and acquire budget before calling
+            long estTokens = OpenAiRateLimiter.estimateTokens(body) + 400; // cushion for response
+            OpenAiRateLimiter.acquire(estTokens);
             HttpRequest httpReq = HttpRequest.newBuilder()
                     .uri(URI.create(OPENAI_URL))
                     .header("Authorization", "Bearer " + apiKey)
@@ -160,6 +164,7 @@ public class AIEnricher {
             log.info("AI response ← product={} status={}", raw.getId(), resp.statusCode());
             if (resp.statusCode() >= 300) {
                 log.warn("AI enrich failed status {}: {}", resp.statusCode(), resp.body());
+                if (resp.statusCode() == 429) OpenAiRateLimiter.onRateLimitHit();
                 return Map.of();
             }
             Map<String, Object> parsedResp = mapper.readValue(resp.body(), new TypeReference<Map<String, Object>>(){});

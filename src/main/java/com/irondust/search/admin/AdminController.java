@@ -57,7 +57,18 @@ public class AdminController {
         if (clearAi) AIEnricher.clearPersistentCache();
         if (clearTr) translationService.clearPersistentCache();
 
-        ingestService.ingestFull()
+        java.util.concurrent.atomic.AtomicInteger processedRef = new java.util.concurrent.atomic.AtomicInteger(0);
+        ingestService.ingestFullWithProgress(n -> {
+                    int v = processedRef.updateAndGet(prev -> Math.max(prev, n));
+                    RunRegistry.RunInfo cur = runRegistry.get(runId);
+                    if (cur != null) {
+                        cur.processed = v;
+                        runRegistry.put(cur);
+                    }
+                    if (n % 25 == 0) { // throttle log spam a bit
+                        logSseService.append(runId, "Progress: processed=" + n);
+                    }
+                })
                 .doOnSubscribe(s -> logSseService.append(runId, "Ingest started"))
                 .doOnError(e -> {
                     info.status = "failed";

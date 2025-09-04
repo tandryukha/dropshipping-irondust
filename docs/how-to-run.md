@@ -35,12 +35,18 @@ The `rebuild-and-watch.sh` script:
 
 ### 3. Optional: Configure AI Enrichment
 
-If you want to enable AI enrichment features, create a `.env` file in the repository root:
+If you want to enable AI enrichment features, create a `.env` file in the repository root (you can also tune OpenAI rate limits to match your account caps):
 
 ```bash
 # .env
 OPENAI_API_KEY=your_openai_key_here
 AI_ENRICH=true
+
+# Optional throttling (defaults shown)
+# Approx request-per-minute budget across all OpenAI calls
+OPENAI_RPM=500
+# Approx tokens-per-minute budget across all OpenAI calls
+OPENAI_TPM=200000
 ```
 
 Then rerun the startup script:

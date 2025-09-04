@@ -150,13 +150,14 @@ Adds/validates:
 
 * Deterministic values with high confidence (from explicit attributes) **win** unless AI supplies strong contradictory evidence. Conflicts are **not auto‑overwritten**; they are logged and stored as `ai_suggested_*` for operator review (optional).
 
-### 4.3 Ingestion parallelism
+### 4.3 Ingestion parallelism & OpenAI throttling
 
 Full ingestion runs with bounded parallelism to reduce wall-clock time while protecting upstream/downstream services:
 
 - Transformation/conversion parallelism is controlled by `app.ingestParallelism` and uses a bounded elastic scheduler.
 - Meilisearch uploads run in chunks with concurrent requests controlled by `app.meiliConcurrentUpdates` and chunk size `app.uploadChunkSize`.
 - The enrichment pipeline is instantiated per product to avoid shared mutable state.
+- All OpenAI calls (translations + AIEnricher) share a process-wide limiter honoring approx `OPENAI_RPM` and `OPENAI_TPM` (defaults: 500 RPM, 200k TPM). Adjust these env vars to your account limits.
 
 Tune these values based on CPU cores, network bandwidth, and Meilisearch throughput. Start conservative (e.g., 4/3 concurrency) and increase gradually while monitoring logs and latency.
 
