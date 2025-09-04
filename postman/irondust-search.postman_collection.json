@@ -18,6 +18,47 @@
       }
     },
     {
+      "name": "Admin: Trigger Reingest",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Basic {{adminBasic}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/ingest/reingest", "host": ["{{baseUrl}}"], "path": ["admin","ingest","reingest"] }
+      }
+    },
+    {
+      "name": "Admin: Trigger Reindex",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Basic {{adminBasic}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/index/reindex", "host": ["{{baseUrl}}"], "path": ["admin","index","reindex"] }
+      }
+    },
+    {
+      "name": "Admin: Latest (ingest)",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Basic {{adminBasic}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/runs/latest?type=ingest", "host": ["{{baseUrl}}"], "path": ["admin","runs","latest"], "query": [{"key":"type","value":"ingest"}] }
+      }
+    },
+    {
+      "name": "Admin: Feature Flags - list",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Basic {{adminBasic}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/feature-flags", "host": ["{{baseUrl}}"], "path": ["admin","feature-flags"] }
+      }
+    },
+    {
+      "name": "Admin: Feature Flags - toggle ai_search",
+      "request": {
+        "method": "PATCH",
+        "header": [ { "key": "Authorization", "value": "Basic {{adminBasic}}" }, {"key":"Content-Type","value":"application/json"} ],
+        "body": { "mode": "raw", "raw": "{\n  \"enabled\": true\n}" },
+        "url": { "raw": "{{baseUrl}}/admin/feature-flags/ai_search", "host": ["{{baseUrl}}"], "path": ["admin","feature-flags","ai_search"] }
+      }
+    },
+    {
       "name": "Hybrid Search",
       "request": {
         "method": "POST",

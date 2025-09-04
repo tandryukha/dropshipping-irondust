@@ -282,3 +282,25 @@ curl -X POST http://localhost:4000/vectors/reindex \
   -H "x-admin-key: dev_admin_key" \
   -d '{"ids": ["wc_31476","wc_31477"]}'
 ```
+
+## Admin UI (basic)
+
+- Base URL: `http://localhost:4000/admin-ui` (same Spring app)
+- Auth: HTTP Basic using `app.adminUsername` / `app.adminPassword` (defaults `admin` / `admin`)
+
+### Admin endpoints
+
+- POST `/admin/ingest/reingest` → starts full reingest. Response: `{ runId, type: "ingest", status }`
+- POST `/admin/index/reindex?batchSize=100` → starts full reindex. Response: `{ runId, type: "index", status }`
+- GET `/admin/runs/latest?type=ingest|index` → latest run summary
+- GET `/admin/runs/{runId}` → run details
+- GET `/admin/runs/{runId}/logs/stream` → SSE stream of logs for the run
+
+### Feature flags (admin)
+
+- GET `/admin/feature-flags` → `{ key: boolean, ... }`
+- PATCH `/admin/feature-flags/{key}` body: `{ "enabled": true|false }` → returns updated flags
+
+Notes:
+- Feature flags are persisted to a JSON file configured by `app.featureFlagsPath` (default `tmp/feature-flags.json`).
+- SSE logs are emitted by the admin service. Native SSE from ingest/reindex can be proxied later.

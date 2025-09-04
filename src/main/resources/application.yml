@@ -7,6 +7,8 @@ server:
 
 app:
   adminKey: dev_admin_key
+  adminUsername: ${ADMIN_BASIC_USERNAME:admin}
+  adminPassword: ${ADMIN_BASIC_PASSWORD:admin}
   baseUrl: https://www.irondust.eu
   perPage: 100
   indexName: products_lex
@@ -15,6 +17,7 @@ app:
   meiliConcurrentUpdates: 25
   uploadChunkSize: 10000
   ingestHistoryDir: ${INGEST_HISTORY_DIR:tmp/ingest-history}
+  featureFlagsPath: ${FEATURE_FLAGS_PATH:tmp/feature-flags.json}
 
 meili:
   host: ${MEILI_HOST:http://127.0.0.1:7700}

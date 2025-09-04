@@ -74,3 +74,11 @@ Index settings:
 - Deterministic baseline guarantees usable facets and ranking without AI
 - AI augments with nuanced scores and fills gaps when confident
 - Clear provenance and guardrails reduce hallucinations and keep UX stable
+
+## Admin + Failover (TODO)
+
+- Basic Admin UI exists to trigger reingest/reindex and toggle flags.
+- TODO: Blue/green failover for search indexes (Meilisearch alias + Qdrant collection alias)
+  - Build index in shadow (e.g., `products_lex_next`, `products_vec_next`)
+  - Validate doc counts, schema, and sample queries
+  - Switch aliases atomically and provide rollback window

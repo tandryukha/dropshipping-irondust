@@ -57,6 +57,7 @@ Once running, you'll have access to:
 - **Meilisearch**: http://localhost:7700  
 - **Qdrant**: http://localhost:6333 (default collection: `products_vec`)
 - **UI (ui-v2 static)**: http://localhost:8011 (start with `./ui-v2/serve.sh` — single instance; reuse if already running)
+- **Admin UI**: http://localhost:4000/admin-ui (Basic Auth: `app.adminUsername` / `app.adminPassword`)
 
 ## Testing the System
 
@@ -97,6 +98,26 @@ Build all vectors (admin-only):
 ```bash
 curl -X POST http://localhost:4000/vectors/reindex/all \
   -H "x-admin-key: dev_admin_key"
+```
+
+### Admin: Trigger ingest and reindex (Basic Auth)
+
+Trigger full reingest:
+
+```bash
+curl -u admin:admin -X POST http://localhost:4000/admin/ingest/reingest
+```
+
+Trigger full reindex:
+
+```bash
+curl -u admin:admin -X POST http://localhost:4000/admin/index/reindex
+```
+
+Stream logs for a run (replace RUN_ID):
+
+```bash
+curl -N -u admin:admin http://localhost:4000/admin/runs/RUN_ID/logs/stream
 ```
 
 Refresh specific products:

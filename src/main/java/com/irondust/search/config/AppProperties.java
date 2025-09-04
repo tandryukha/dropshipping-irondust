@@ -5,6 +5,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
     private String adminKey;
+    /**
+     * Username for Basic Auth protecting Admin UI and Admin API endpoints.
+     */
+    private String adminUsername;
+    /**
+     * Password for Basic Auth protecting Admin UI and Admin API endpoints.
+     */
+    private String adminPassword;
     private String baseUrl;
     private int perPage;
     private String indexName;
@@ -22,6 +30,11 @@ public class AppProperties {
      * Defaults to "tmp/ingest-history" when not set.
      */
     private String ingestHistoryDir;
+    /**
+     * Filesystem path where Admin Feature Flags are persisted as JSON.
+     * Defaults to "tmp/feature-flags.json" when not set.
+     */
+    private String featureFlagsPath;
 
     public String getAdminKey() {
         return adminKey;
@@ -29,6 +42,30 @@ public class AppProperties {
 
     public void setAdminKey(String adminKey) {
         this.adminKey = adminKey;
+    }
+
+    public String getAdminUsername() {
+        return adminUsername;
+    }
+
+    public void setAdminUsername(String adminUsername) {
+        this.adminUsername = adminUsername;
+    }
+
+    public String getAdminPassword() {
+        return adminPassword;
+    }
+
+    public void setAdminPassword(String adminPassword) {
+        this.adminPassword = adminPassword;
+    }
+
+    public String getFeatureFlagsPath() {
+        return featureFlagsPath;
+    }
+
+    public void setFeatureFlagsPath(String featureFlagsPath) {
+        this.featureFlagsPath = featureFlagsPath;
     }
 
     public String getBaseUrl() {

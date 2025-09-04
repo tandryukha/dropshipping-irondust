@@ -66,6 +66,7 @@ graph TB
 ```
 
 Once running: API http://localhost:4000, Meilisearch http://localhost:7700.
+Admin UI: http://localhost:4000/admin-ui (Basic Auth; defaults admin/admin)
 
 ## Next Steps
 
@@ -75,6 +76,7 @@ Once running: API http://localhost:4000, Meilisearch http://localhost:7700.
 
 ### What’s new
 
+- Admin UI: trigger reingest/reindex, live logs via SSE, feature flag toggles
 - AI enrichment adds benefit snippet, FAQs, synonyms, goal scores
 - AI dosage/timing extraction: concise `dosage_text` and `timing_text` with `*_i18n` localization used by the PDP UI
 
