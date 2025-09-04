@@ -47,12 +47,17 @@
       const js = await res.json();
       document.getElementById('ingestRunId').textContent = js.runId || '';
       streamLogs(js.runId);
+      // Poll for completion and then fetch result
+      await waitForCompletion(js.runId);
+      await fetchAndRenderResult('ingest', js.runId);
     }
     async function startReindex() {
       const res = await fetch('/admin/index/reindex', { method: 'POST' });
       const js = await res.json();
       document.getElementById('indexRunId').textContent = js.runId || '';
       streamLogs(js.runId);
+      await waitForCompletion(js.runId);
+      await fetchAndRenderResult('index', js.runId);
     }
     let evtSrc;
     function streamLogs(runId) {
@@ -69,6 +74,37 @@
       const js = await res.json();
       document.getElementById(type + 'Status').textContent = js.status || '-';
       document.getElementById(type + 'RunId').textContent = js.runId || '';
+      // Also try fetching latest result
+      try { await fetchAndRenderLatestResult(type); } catch {}
+    }
+    async function waitForCompletion(runId) {
+      if (!runId) return;
+      let tries = 0;
+      while (tries < 600) { // up to ~5 min (600 * 500ms)
+        tries++;
+        try {
+          const r = await fetch('/admin/runs/' + encodeURIComponent(runId));
+          if (r.ok) {
+            const js = await r.json();
+            if (js.status === 'completed' || js.status === 'failed') break;
+          }
+        } catch {}
+        await new Promise(res => setTimeout(res, 500));
+      }
+    }
+    async function fetchAndRenderLatestResult(type) {
+      const res = await fetch('/admin/runs/latest/result?type=' + encodeURIComponent(type));
+      if (!res.ok) return;
+      const js = await res.json();
+      const el = document.getElementById(type + 'Result');
+      if (el) el.textContent = JSON.stringify(js, null, 2);
+    }
+    async function fetchAndRenderResult(type, runId) {
+      const res = await fetch('/admin/runs/' + encodeURIComponent(runId) + '/result');
+      if (!res.ok) return;
+      const js = await res.json();
+      const el = document.getElementById(type + 'Result');
+      if (el) el.textContent = JSON.stringify(js, null, 2);
     }
     async function loadFlags() {
       const res = await fetch('/feature-flags');
@@ -234,6 +270,9 @@
         <div class="spacer"></div>
         <div class="small">Latest status: <b id="ingestStatus">-</b></div>
         <div class="small">Latest runId: <code id="ingestRunId"></code></div>
+        <div class="spacer"></div>
+        <div class="small">Latest result</div>
+        <pre id="ingestResult"></pre>
       </div>
       <div class="card">
         <h3>Index</h3>
@@ -244,6 +283,9 @@
         <div class="spacer"></div>
         <div class="small">Latest status: <b id="indexStatus">-</b></div>
         <div class="small">Latest runId: <code id="indexRunId"></code></div>
+        <div class="spacer"></div>
+        <div class="small">Latest result</div>
+        <pre id="indexResult"></pre>
       </div>
     </div>
 

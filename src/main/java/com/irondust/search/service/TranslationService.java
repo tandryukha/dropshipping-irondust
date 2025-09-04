@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
+import com.irondust.search.util.TokenAccounting;
 
 import java.io.File;
 import java.io.IOException;
@@ -217,7 +218,18 @@ public class TranslationService {
                 .bodyToMono(JsonNode.class)
                 .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SEC))
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).jitter(0.5))
-                .map(response -> parseTranslationResponse(response, source))
+                .map(response -> {
+                    try {
+                        String usedModel = response.path("model").asText(model);
+                        long pTok = response.path("usage").path("prompt_tokens").asLong(0);
+                        long cTok = response.path("usage").path("completion_tokens").asLong(0);
+                        long tTok = response.path("usage").path("total_tokens").asLong(0);
+                        if (pTok > 0 || cTok > 0 || tTok > 0) {
+                            TokenAccounting.recordChatCompletionUsage(usedModel, pTok, cTok, tTok);
+                        }
+                    } catch (Exception ignored) {}
+                    return parseTranslationResponse(response, source);
+                })
                 .doOnSuccess(translation -> {
                     // Cache the result
                     Map<String, String> translationMap = productTranslationToMap(translation);

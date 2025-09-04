@@ -6,6 +6,7 @@ import com.irondust.search.model.ParsedProduct;
 import com.irondust.search.model.RawProduct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.irondust.search.util.TokenAccounting;
 
 import java.io.File;
 import java.io.IOException;
@@ -162,6 +163,19 @@ public class AIEnricher {
                 return Map.of();
             }
             Map<String, Object> parsedResp = mapper.readValue(resp.body(), new TypeReference<Map<String, Object>>(){});
+            try {
+                Object usageObj = parsedResp.get("usage");
+                String usedModel = parsedResp.get("model") != null ? String.valueOf(parsedResp.get("model")) : model;
+                if (usageObj instanceof Map<?, ?> u) {
+                    Object p = u.get("prompt_tokens");
+                    Object c = u.get("completion_tokens");
+                    Object t = u.get("total_tokens");
+                    long pTok = (p instanceof Number) ? ((Number) p).longValue() : 0L;
+                    long cTok = (c instanceof Number) ? ((Number) c).longValue() : 0L;
+                    long tTok = (t instanceof Number) ? ((Number) t).longValue() : 0L;
+                    TokenAccounting.recordChatCompletionUsage(usedModel, pTok, cTok, tTok);
+                }
+            } catch (Exception ignored) {}
             List<Map<String, Object>> choices = (List<Map<String, Object>>) parsedResp.get("choices");
             if (choices == null || choices.isEmpty()) return Map.of();
             Map<String, Object> msg = (Map<String, Object>) ((Map<String, Object>) choices.get(0).get("message"));

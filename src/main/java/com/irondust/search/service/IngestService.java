@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.scheduler.Schedulers;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import com.irondust.search.util.TokenAccounting;
 
 import java.util.*;
 import com.irondust.search.dto.IngestDtos;
@@ -41,6 +42,8 @@ public class IngestService {
     }
 
     public Mono<IngestDtos.IngestReport> ingestFull() {
+        // Reset AI token accounting at the start of a full ingest run
+        TokenAccounting.reset();
         java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
         int parallelism = Math.max(1, appProperties.getIngestParallelism());
 
@@ -123,6 +126,7 @@ public class IngestService {
                             .map(report -> {
                                 report.setIgnored_ids(new java.util.ArrayList<>(ignoredIds));
                                 report.setIgnored_count(ignoredIds.size());
+                                attachAiUsage(report);
                                 return report;
                             })
                             .flatMap(report -> persistFullIngestReport(report).thenReturn(report));
@@ -130,6 +134,8 @@ public class IngestService {
     }
 
     public Mono<IngestDtos.IngestReport> ingestByIds(List<Long> productIds) {
+        // Reset accounting per targeted ingest invocation
+        TokenAccounting.reset();
         return wooStoreService.fetchProductsByIds(productIds)
                 .index()
                 .flatMap(tuple -> {
@@ -149,7 +155,9 @@ public class IngestService {
                 .collectList()
                 .flatMap(results -> {
                     if (results.isEmpty()) {
-                        return Mono.just(buildReport(0, List.of()));
+                        IngestDtos.IngestReport r = buildReport(0, List.of());
+                        attachAiUsage(r);
+                        return Mono.just(r);
                     }
                     List<ProductDoc> docs = new ArrayList<>();
                     List<IngestDtos.ProductReport> reports = new ArrayList<>();
@@ -160,7 +168,11 @@ public class IngestService {
                     // Apply grouping aggregates for partial ingests as well
                     applyVariantGroupingAggregates(docs);
                     return meiliService.addOrReplaceDocuments(docs)
-                            .then(Mono.fromSupplier(() -> buildReport(docs.size(), reports)));
+                            .then(Mono.fromSupplier(() -> {
+                                IngestDtos.IngestReport r = buildReport(docs.size(), reports);
+                                attachAiUsage(r);
+                                return r;
+                            }));
                 });
     }
 
@@ -509,6 +521,24 @@ public class IngestService {
         report.setWarnings_total(warningsTotal);
         report.setConflicts_total(conflictsTotal);
         return report;
+    }
+
+    private void attachAiUsage(IngestDtos.IngestReport report) {
+        try {
+            java.util.Map<String, com.irondust.search.util.TokenAccounting.UsageWithCost> snap = com.irondust.search.util.TokenAccounting.snapshotWithCosts();
+            java.util.Map<String, java.util.Map<String, Object>> out = new java.util.LinkedHashMap<>();
+            for (var e : snap.entrySet()) {
+                var u = e.getValue();
+                java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("prompt_tokens", u.promptTokens);
+                m.put("completion_tokens", u.completionTokens);
+                m.put("total_tokens", u.totalTokens);
+                m.put("cost_usd", u.costUsd);
+                out.put(e.getKey(), m);
+            }
+            report.setAi_usage_per_model(out);
+            report.setAi_cost_total_usd(com.irondust.search.util.TokenAccounting.totalCostUsd(snap));
+        } catch (Exception ignored) {}
     }
 
     /**

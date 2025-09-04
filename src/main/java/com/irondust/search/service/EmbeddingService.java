@@ -6,6 +6,7 @@ import com.irondust.search.config.VectorProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import com.irondust.search.util.TokenAccounting;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -78,7 +79,10 @@ public class EmbeddingService {
             for (int i = 0; i < values.size(); i++) out[i] = values.get(i).floatValue();
             cache.put(key, out);
             long dt = System.currentTimeMillis() - t0;
-            log.info("Embedding generated: model={} dim={} tokens~={}ms={}", vectorProperties.getEmbeddingModel(), out.length, text.length(), dt);
+            // Rough prompt token estimate for embeddings; OpenAI does not return usage for this endpoint
+            long approxTokens = Math.max(1, Math.round(text.length() / 4.0));
+            try { TokenAccounting.recordEmbeddingUsage(vectorProperties.getEmbeddingModel(), approxTokens); } catch (Exception ignored) {}
+            log.info("Embedding generated: model={} dim={} tokens~={}ms={}", vectorProperties.getEmbeddingModel(), out.length, approxTokens, dt);
             return out;
         } catch (Exception e) {
             log.warn("Embedding error: {}", e.toString());

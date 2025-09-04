@@ -38,6 +38,15 @@ public class IngestDtos {
         private java.util.List<String> ignored_ids; // list of ignored product IDs (wc_*)
         private List<ProductReport> products; // per-product details
 
+        /**
+         * Per-model AI token usage and approximate cost.
+         * Structure: model -> { prompt_tokens, completion_tokens, total_tokens, cost_usd }
+         */
+        private java.util.Map<String, java.util.Map<String, Object>> ai_usage_per_model;
+
+        /** Total approximate AI cost in USD across all models for this ingest run. */
+        private double ai_cost_total_usd;
+
         public int getIndexed() { return indexed; }
         public void setIndexed(int indexed) { this.indexed = indexed; }
         public int getWarnings_total() { return warnings_total; }
@@ -50,6 +59,11 @@ public class IngestDtos {
         public void setIgnored_ids(java.util.List<String> ignored_ids) { this.ignored_ids = ignored_ids; }
         public List<ProductReport> getProducts() { return products; }
         public void setProducts(List<ProductReport> products) { this.products = products; }
+
+        public java.util.Map<String, java.util.Map<String, Object>> getAi_usage_per_model() { return ai_usage_per_model; }
+        public void setAi_usage_per_model(java.util.Map<String, java.util.Map<String, Object>> ai_usage_per_model) { this.ai_usage_per_model = ai_usage_per_model; }
+        public double getAi_cost_total_usd() { return ai_cost_total_usd; }
+        public void setAi_cost_total_usd(double ai_cost_total_usd) { this.ai_cost_total_usd = ai_cost_total_usd; }
     }
 }
 

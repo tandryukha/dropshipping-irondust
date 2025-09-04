@@ -18,6 +18,7 @@ public class RunRegistry {
         public Instant updatedAt;
         public Instant endedAt;
         public String message;
+        public String resultPath; // path to persisted JSON result for this run, if any
     }
 
     private final Map<String, RunInfo> runs = new ConcurrentHashMap<>();

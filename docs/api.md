@@ -24,7 +24,12 @@ Full ingest returns a JSON report with totals, per-product details, and ignored 
   "ignored_ids": ["wc_38369", "wc_38370"],
   "products": [
     { "id": "wc_30177", "warnings": [], "conflicts": [] }
-  ]
+  ],
+  "ai_usage_per_model": {
+    "gpt-4o-mini": { "prompt_tokens": 120345, "completion_tokens": 8033, "total_tokens": 128378, "cost_usd": 25.67 },
+    "text-embedding-3-large": { "prompt_tokens": 934500, "completion_tokens": 0, "total_tokens": 934500, "cost_usd": 121.49 }
+  },
+  "ai_cost_total_usd": 147.16
 }
 ```
 
@@ -40,6 +45,15 @@ Ignored items include non-supplement products (e.g., gift cards, vouchers). They
 
 - `x-clear-ai-cache: true` — Clears AI enrichment cache on disk (`tmp/ai-enrichment-cache.json`)
 - `x-clear-translation-cache: true` — Clears translation cache on disk (`tmp/translation-cache.json`)
+Cost estimation notes:
+
+- Token usage for chat completions (AI enrichment, translations) is taken from OpenAI response `usage` when available.
+- Embedding calls do not return usage; we approximate prompt tokens as `chars/4`.
+- Costs are approximate and can be overridden per model via environment variables:
+  - `OPENAI_COST_<MODEL>_INPUT_PER_1K`, `OPENAI_COST_<MODEL>_OUTPUT_PER_1K` for chat models
+  - `OPENAI_COST_<MODEL>_EMBED_PER_1K` for embedding models
+  - Example: `OPENAI_COST_GPT_4O_MINI_INPUT_PER_1K=0.15`, `OPENAI_COST_GPT_4O_MINI_OUTPUT_PER_1K=0.60`
+
 
 Both headers are optional and can be included with either ingest endpoint. Requires `x-admin-key`.
 
@@ -326,6 +340,8 @@ curl -X POST http://localhost:4000/vectors/reindex \
 - GET `/admin/runs/latest?type=ingest|index` → latest run summary
 - GET `/admin/runs/{runId}` → run details
 - GET `/admin/runs/{runId}/logs/stream` → SSE stream of logs for the run
+- GET `/admin/runs/{runId}/result` → persisted result payload for a specific run (JSON). For ingest: full ingest report; for reindex: minimal summary.
+- GET `/admin/runs/latest/result?type=ingest|index` → latest run's persisted result payload
 
 ### Blacklist (admin)
 
