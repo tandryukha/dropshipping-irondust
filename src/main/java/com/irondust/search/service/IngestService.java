@@ -26,15 +26,18 @@ public class IngestService {
     private final AppProperties appProperties;
     private final TranslationService translationService;
     private final FeatureFlagService featureFlags;
+    private final BlacklistService blacklistService;
 
     public IngestService(WooStoreService wooStoreService, MeiliService meiliService, 
                         AppProperties appProperties, EnrichmentPipeline enrichmentPipeline,
-                        TranslationService translationService, FeatureFlagService featureFlags) {
+                        TranslationService translationService, FeatureFlagService featureFlags,
+                        BlacklistService blacklistService) {
         this.wooStoreService = wooStoreService;
         this.meiliService = meiliService;
         this.appProperties = appProperties;
         this.translationService = translationService;
         this.featureFlags = featureFlags;
+        this.blacklistService = blacklistService;
     }
 
     public Mono<IngestDtos.IngestReport> ingestFull() {
@@ -203,55 +206,65 @@ public class IngestService {
     }
 
     private Mono<DocWithReport> transformWithEnrichmentWithReport(JsonNode p) {
-        // Skip blacklisted/non-supplement items (e.g., gift/present cards)
+        // Static blacklist (content/category heuristics)
         if (isBlacklisted(p)) {
-            String id = "wc_" + p.path("id").asLong();
-            log.info("Skipping blacklisted product {}", id);
+            String skippedId = "wc_" + p.path("id").asLong();
+            log.info("Skipping blacklisted product {} (static rules)", skippedId);
             return Mono.empty();
         }
 
-        // Create raw product from JSON
-        RawProduct raw = RawProduct.fromJsonNode(p);
-
-        // Use a fresh pipeline instance per product to ensure thread-safety under parallelism
-        // TitleComposer controlled via feature flag 'normalize_titles'.
-        return featureFlags.isEnabled("normalize_titles", false)
-                .flatMap(enableTitle -> {
-                    EnrichmentPipeline pipeline = new EnrichmentPipeline(enableTitle);
-                    EnrichedProduct enriched = pipeline.enrich(raw);
-
-                    // Always attempt translations - TranslationService will handle enabling/disabling based on API key
-                    return translateProduct(enriched)
-            .map(translations -> {
-                // Merge translation warnings into product warnings for reporting
-                java.util.List<String> mergedWarnings = new java.util.ArrayList<>(
-                        enriched.getWarnings() != null ? enriched.getWarnings() : java.util.List.of());
-                if (translations != null) {
-                    for (java.util.Map.Entry<String, ProductTranslation> e : translations.entrySet()) {
-                        String lang = e.getKey();
-                        ProductTranslation tr = e.getValue();
-                        if (tr != null && tr.warnings != null && !tr.warnings.isEmpty()) {
-                            for (String w : tr.warnings) {
-                                mergedWarnings.add("translation_" + lang + ": " + w);
-                            }
-                        }
+        // Dynamic blacklist (DB-backed): skip if present
+        String candidateId = "wc_" + p.path("id").asLong();
+        return blacklistService.isBlacklistedId(candidateId)
+                .flatMap(isBl -> {
+                    if (isBl) {
+                        log.info("Skipping blacklisted product {} (dynamic)", candidateId);
+                        return Mono.empty();
                     }
-                }
-                if (!mergedWarnings.isEmpty()) {
-                    enriched.setWarnings(mergedWarnings);
-                }
 
-                ProductDoc d = createProductDoc(enriched, translations);
-                IngestDtos.ProductReport report = createReport(enriched);
-                return new DocWithReport(d, report);
-            })
-            .onErrorResume(e -> {
-                log.error("Translation failed for product {}: {}", enriched.getId(), e.getMessage());
-                // Fall back to non-translated version
-                ProductDoc d = createProductDoc(enriched, null);
-                IngestDtos.ProductReport report = createReport(enriched);
-                return Mono.just(new DocWithReport(d, report));
-            });
+                    // Create raw product from JSON
+                    RawProduct raw = RawProduct.fromJsonNode(p);
+
+                    // Use a fresh pipeline instance per product to ensure thread-safety under parallelism
+                    // TitleComposer controlled via feature flag 'normalize_titles'.
+                    return featureFlags.isEnabled("normalize_titles", false)
+                            .flatMap(enableTitle -> {
+                                EnrichmentPipeline pipeline = new EnrichmentPipeline(enableTitle);
+                                EnrichedProduct enriched = pipeline.enrich(raw);
+
+                                // Always attempt translations - TranslationService will handle enabling/disabling based on API key
+                                return translateProduct(enriched)
+                                        .map(translations -> {
+                                            // Merge translation warnings into product warnings for reporting
+                                            java.util.List<String> mergedWarnings = new java.util.ArrayList<>(
+                                                    enriched.getWarnings() != null ? enriched.getWarnings() : java.util.List.of());
+                                            if (translations != null) {
+                                                for (java.util.Map.Entry<String, ProductTranslation> e : translations.entrySet()) {
+                                                    String lang = e.getKey();
+                                                    ProductTranslation tr = e.getValue();
+                                                    if (tr != null && tr.warnings != null && !tr.warnings.isEmpty()) {
+                                                        for (String w : tr.warnings) {
+                                                            mergedWarnings.add("translation_" + lang + ": " + w);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if (!mergedWarnings.isEmpty()) {
+                                                enriched.setWarnings(mergedWarnings);
+                                            }
+
+                                            ProductDoc d = createProductDoc(enriched, translations);
+                                            IngestDtos.ProductReport report = createReport(enriched);
+                                            return new DocWithReport(d, report);
+                                        })
+                                        .onErrorResume(e -> {
+                                            log.error("Translation failed for product {}: {}", enriched.getId(), e.getMessage());
+                                            // Fall back to non-translated version
+                                            ProductDoc d = createProductDoc(enriched, null);
+                                            IngestDtos.ProductReport report = createReport(enriched);
+                                            return Mono.just(new DocWithReport(d, report));
+                                        });
+                            });
                 });
     }
     

@@ -27,6 +27,16 @@ public class AdminBasicAuthFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
+        // Allow /admin/raw/** endpoints when a valid x-admin-key is provided (for programmatic tooling/UI)
+        if (path.startsWith("/admin/raw")) {
+            String key = exchange.getRequest().getHeaders().getFirst("x-admin-key");
+            String expected = appProperties.getAdminKey();
+            if (expected != null && expected.equals(key)) {
+                return chain.filter(exchange);
+            }
+            // else fall through to Basic auth check
+        }
+
         String auth = exchange.getRequest().getHeaders().getFirst("Authorization");
         if (auth == null || !auth.startsWith("Basic ")) {
             return unauthorized(exchange.getResponse());

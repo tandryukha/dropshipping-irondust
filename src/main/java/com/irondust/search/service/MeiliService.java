@@ -104,11 +104,10 @@ public class MeiliService {
     public Mono<Void> deleteDocumentsByIds(List<String> ids) {
         if (ids == null || ids.isEmpty()) return Mono.empty();
         String index = appProperties.getIndexName();
-        java.util.Map<String, Object> payload = new java.util.HashMap<>();
-        payload.put("ids", ids);
+        // Meilisearch v1.7 expects a bare JSON array for delete-batch
         return meiliClient.post().uri("/indexes/{uid}/documents/delete-batch", index)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(payload))
+                .body(BodyInserters.fromValue(ids))
                 .retrieve()
                 .bodyToMono(Map.class)
                 .then();

@@ -22,17 +22,18 @@ public class IngestServiceTitleFlagTest {
     @Test
     public void pipelineProducesDisplayTitleWhenEnabled() throws Exception {
         // Build a minimal Raw-like JSON payload
+        // Close to actual Woo payload for wc_31476
         String json = "{\n" +
                 "  \"id\": 50533,\n" +
-                "  \"name\": \"Cellucor C4 Original Pre-workout 30 servings (Cherry Lime)\",\n" +
+                "  \"name\": \"MST Citrulline RAW 300g Maitsestamata\",\n" +
                 "  \"permalink\": \"https://example/p/50533\",\n" +
                 "  \"images\": [],\n" +
                 "  \"categories\": [],\n" +
                 "  \"attributes\": [{\n" +
                 "    \"taxonomy\": \"pa_tootja\",\n" +
                 "    \"terms\": [{\n" +
-                "      \"slug\": \"cellucor\",\n" +
-                "      \"name\": \"Cellucor\"\n" +
+                "      \"slug\": \"mst-nutrition\",\n" +
+                "      \"name\": \"MST Nutrition®\"\n" +
                 "    }]\n" +
                 "  }]\n" +
                 "}";
@@ -49,7 +50,8 @@ public class IngestServiceTitleFlagTest {
         d.setName(enriched.getName());
         d.setBrand_name(enriched.getBrand_name());
         d.setDisplay_title(enriched.getDisplay_title());
-        assertTrue(d.getDisplay_title().contains("Cellucor"));
+        assertTrue(d.getDisplay_title().endsWith("— MST Nutrition®"));
+        assertTrue(d.getDisplay_title().startsWith("Citrulline RAW"));
     }
 }
 

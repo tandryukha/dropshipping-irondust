@@ -327,6 +327,27 @@ curl -X POST http://localhost:4000/vectors/reindex \
 - GET `/admin/runs/{runId}` → run details
 - GET `/admin/runs/{runId}/logs/stream` → SSE stream of logs for the run
 
+### Blacklist (admin)
+
+- GET `/admin/blacklist` → `{ entries: [{ id, reason, created_at }, ...] }`
+- POST `/admin/blacklist` → body: `{ ids?: ["wc_31476", ...] | id?: string | raw?: string, reason?: string }`
+  - Accepts ids in forms `wc_123` or just numeric `123` (auto-normalized)
+  - Side effects: Removes documents from Meilisearch and vectors from Qdrant immediately
+  - Returns: `{ ok: true, ids: ["wc_..."], action: "blacklisted_and_deindexed" }`
+- DELETE `/admin/blacklist/{id}` → removes id from blacklist (no reindex)
+  - Use `/ingest/products` to reindex if you want it back in search
+
+Example:
+
+```bash
+curl -s -X POST 'http://localhost:4000/admin/blacklist' \
+  -H 'x-admin-key: dev_admin_key' \
+  -H 'Content-Type: application/json' \
+  -d '{"ids":["wc_31476","31477"],"reason":"OOS or hidden"}' | jq
+
+curl -s -X DELETE 'http://localhost:4000/admin/blacklist/wc_31476' -H 'x-admin-key: dev_admin_key'
+```
+
 ### Feature flags (admin)
 
 - GET `/admin/feature-flags` → `{ key: boolean, ... }`

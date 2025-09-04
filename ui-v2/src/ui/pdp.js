@@ -379,7 +379,7 @@ export function mountPdp() {
     try{
       const prod = await getProduct(id);
       store.set('currentProduct', prod); // Store for tab updates
-      els.pdpProductName.textContent = prod?.name || 'Product';
+      els.pdpProductName.textContent = (prod?.display_title || prod?.name) || 'Product';
       els.pdpPrice.textContent = formatPrice(prod?.price_cents, prod?.currency||'EUR');
       els.pdpStars.textContent = renderStars(typeof prod?.rating === 'number' ? prod.rating : undefined);
       els.pdpReviewCount.textContent = String(prod?.review_count ?? '0');
@@ -389,7 +389,7 @@ export function mountPdp() {
       }
       if (Array.isArray(prod?.images) && prod.images.length) {
         els.pdpImage.src = prod.images[0];
-        els.pdpImage.alt = prod?.name || 'Product image';
+        els.pdpImage.alt = (prod?.display_title || prod?.name) || 'Product image';
       }
       // Description: prefer language-specific description (may contain HTML), fallback to search_text
       const rawDesc = typeof prod?.description === 'string' && prod.description.trim() ? prod.description : (typeof prod?.search_text === 'string' ? prod.search_text : '');
@@ -491,7 +491,7 @@ export function mountPdp() {
           ansEls[i].appendChild(wrap);
         });
       }
-      els.pdpAdd?.setAttribute('data-name', prod?.name || 'Product');
+      els.pdpAdd?.setAttribute('data-name', (prod?.display_title || prod?.name) || 'Product');
 
       // Load alternatives and complements separately
       const altIds = await fetchAndRenderAlternatives(prod);
@@ -636,7 +636,7 @@ function altDetailsLine(item){
 
 function buildAltCardHTML(item, index=0){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/alt/240/140';
-  const name = item?.name || '';
+  const name = (item?.display_title || item?.name) || '';
   const priceText = typeof item?.price_cents === 'number' ? formatPrice(item.price_cents, item?.currency||'EUR') : '';
   const details = altDetailsLine(item);
   const eager = index < 3; // load a few eagerly to avoid lazy-load stalls in sidecar
@@ -692,7 +692,7 @@ function buildAltCardHTML(item, index=0){
 
 function buildMoreCardHTML(item, index=0){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/more/120/120';
-  const name = item?.name || '';
+  const name = (item?.display_title || item?.name) || '';
   const priceText = typeof item?.price_cents === 'number' ? formatPrice(item.price_cents, item?.currency||'EUR') : '';
   const benefitSnippet = (typeof item?.benefit_snippet === 'string' ? item.benefit_snippet : '').trim();
   const benefitHtml = benefitSnippet ? `<div class="alt-snippet">${benefitSnippet.length > 90 ? (benefitSnippet.slice(0,87).trim()+"…") : benefitSnippet}</div>` : '';

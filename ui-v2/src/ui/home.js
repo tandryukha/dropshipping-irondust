@@ -75,7 +75,7 @@ function presetToFilters(key){
 function renderCardHTML(item){
   const id = item?.id || '';
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/home/200/200';
-  const name = item?.name || 'Product';
+  const name = (item?.display_title || item?.name) || 'Product';
   const priceNum = typeof item?.price_cents === 'number' ? (item.price_cents/100) : null;
   const price = priceNum != null ? priceNum.toFixed(2).replace('.', ',') : '';
   const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';

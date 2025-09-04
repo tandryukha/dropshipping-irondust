@@ -83,12 +83,18 @@ public class TitleComposer implements EnricherStep {
             if (firstSlug != null && !firstSlug.isBlank()) aliases.add(firstSlug);
         }
 
-        for (String alias : aliases) {
-            String aliasPattern = java.util.regex.Pattern.quote(alias).replace("\\ ", "\\s+");
-            String pattern = "^(?i)\\s*(" + aliasPattern + ")([\\u00A0\\s]*[:;\\-–—|]*\\s*)";
-            String stripped = result.replaceFirst(pattern, "").trim();
-            if (!stripped.equals(result)) {
-                return stripped;
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (String alias : aliases) {
+                String aliasPattern = java.util.regex.Pattern.quote(alias).replace("\\ ", "\\s+");
+                String pattern = "^(?i)\\s*(" + aliasPattern + ")([\\u00A0\\s]*[:;\\-–—|]*\\s*)";
+                String stripped = result.replaceFirst(pattern, "").trim();
+                if (!stripped.equals(result)) {
+                    result = stripped;
+                    changed = true;
+                    break; // try again from start in case of stacked tokens
+                }
             }
         }
         return result;

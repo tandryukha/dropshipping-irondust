@@ -87,7 +87,7 @@ function buildHighlighter(query){
 
 function renderProductHTML(item, query){
   const img = (item?.images?.[0]) || 'https://picsum.photos/seed/p/120/120';
-  const name = item?.name || 'Unnamed';
+  const name = (item?.display_title || item?.name) || 'Unnamed';
   const highlight = buildHighlighter(query);
   const price = typeof item?.price_cents === 'number' ? (item.price_cents/100).toFixed(2).replace('.', ',') : '';
   const symbol = (item?.currency || 'EUR') === 'EUR' ? '€' : '';

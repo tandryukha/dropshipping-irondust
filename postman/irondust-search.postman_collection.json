@@ -18,6 +18,31 @@
       }
     },
     {
+      "name": "Admin: Blacklist - List",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/admin/blacklist", "host": ["{{baseUrl}}"], "path": ["admin","blacklist"] }
+      }
+    },
+    {
+      "name": "Admin: Blacklist - Add + Deindex",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "x-admin-key", "value": "{{adminKey}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"ids\": [\"wc_31476\", \"31477\"],\n  \"reason\": \"manual\"\n}" },
+        "url": { "raw": "{{baseUrl}}/admin/blacklist", "host": ["{{baseUrl}}"], "path": ["admin","blacklist"] }
+      }
+    },
+    {
+      "name": "Admin: Blacklist - Remove",
+      "request": {
+        "method": "DELETE",
+        "header": [ { "key": "x-admin-key", "value": "{{adminKey}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/blacklist/{{productId}}", "host": ["{{baseUrl}}"], "path": ["admin","blacklist","{{productId}}"] }
+      }
+    },
+    {
       "name": "Admin: Raw System by ID",
       "request": {
         "method": "GET",

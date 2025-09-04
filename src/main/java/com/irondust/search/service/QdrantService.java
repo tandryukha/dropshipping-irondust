@@ -129,6 +129,31 @@ public class QdrantService {
         }
     }
 
+    /**
+     * Deletes points by Qdrant point ids.
+     */
+    public Mono<Void> deleteByPointIds(java.util.List<String> pointIds) {
+        if (pointIds == null || pointIds.isEmpty()) return Mono.empty();
+        String name = vectorProperties.getCollectionName();
+        java.util.Map<String, Object> payload = java.util.Map.of("points", pointIds);
+        return qdrantClient.post().uri("/collections/{name}/points/delete?wait=true", name)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(payload))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .then();
+    }
+
+    /**
+     * Deletes points by original document ids (using deterministic UUID mapping).
+     */
+    public Mono<Void> deleteByDocIds(java.util.List<String> docIds) {
+        if (docIds == null || docIds.isEmpty()) return Mono.empty();
+        java.util.List<String> pointIds = new java.util.ArrayList<>();
+        for (String d : docIds) pointIds.add(toPointIdForDocId(d));
+        return deleteByPointIds(pointIds);
+    }
+
     public Mono<List<SearchResult>> recommendByPointId(String pointId, Map<String, Object> filter, int limit) {
         String name = vectorProperties.getCollectionName();
         Map<String, Object> payload = new LinkedHashMap<>();
