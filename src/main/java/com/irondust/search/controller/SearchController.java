@@ -6,6 +6,7 @@ import com.irondust.search.model.ProductDoc;
 import com.irondust.search.service.FilterStringBuilder;
 import com.irondust.search.service.HybridSearchService;
 import com.irondust.search.service.MeiliService;
+import com.irondust.search.util.TitleUtils;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,7 +99,12 @@ public class SearchController {
         d.setType((String) m.get("type"));
         d.setSku((String) m.get("sku"));
         d.setSlug((String) m.get("slug"));
-        d.setName((String) m.get("name"));
+        String rawName = (String) m.get("name");
+        if (rawName != null) {
+            d.setName(TitleUtils.sanitizeTitle(rawName));
+        } else {
+            d.setName(null);
+        }
         d.setPermalink((String) m.get("permalink"));
         d.setPrice_cents((m.get("price_cents") instanceof Number) ? ((Number) m.get("price_cents")).intValue() : null);
         d.setCurrency((String) m.get("currency"));
@@ -113,6 +119,10 @@ public class SearchController {
         d.setBrand_slug((String) m.get("brand_slug"));
         d.setBrand_name((String) m.get("brand_name"));
         d.setSearch_text((String) m.get("search_text"));
+        Object dt = m.get("display_title");
+        if (dt instanceof String s && !s.isBlank()) {
+            d.setDisplay_title(TitleUtils.sanitizeTitle(s));
+        }
         // Optional AI dosage/timing fields
         d.setDosage_text((String) m.get("dosage_text"));
         d.setTiming_text((String) m.get("timing_text"));

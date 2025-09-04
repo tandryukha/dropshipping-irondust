@@ -5,6 +5,7 @@ import com.irondust.search.model.ProductDoc;
 import com.irondust.search.service.MeiliService;
 import com.irondust.search.service.RecommendationService;
 import org.springframework.http.ResponseEntity;
+import com.irondust.search.util.TitleUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,6 +34,17 @@ public class ProductController {
                     // Apply language-specific fields if requested
                     if (lang != null && !lang.isEmpty()) {
                         applyLanguageFieldsToRaw(doc, lang);
+                    }
+                    // Sanitize name/display_title for trailing/leading separators
+                    Object nm = doc.get("name");
+                    if (nm instanceof String ns && !ns.isBlank()) {
+                        String cleaned = TitleUtils.sanitizeTitle(ns);
+                        if (!cleaned.equals(ns)) doc.put("name", cleaned);
+                    }
+                    Object dt = doc.get("display_title");
+                    if (dt instanceof String s && !s.isBlank()) {
+                        String cleaned = TitleUtils.sanitizeTitle(s);
+                        if (!cleaned.equals(s)) doc.put("display_title", cleaned);
                     }
                     return ResponseEntity.ok(doc);
                 })

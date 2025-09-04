@@ -25,14 +25,16 @@ public class IngestService {
     private final MeiliService meiliService;
     private final AppProperties appProperties;
     private final TranslationService translationService;
+    private final FeatureFlagService featureFlags;
 
     public IngestService(WooStoreService wooStoreService, MeiliService meiliService, 
                         AppProperties appProperties, EnrichmentPipeline enrichmentPipeline,
-                        TranslationService translationService) {
+                        TranslationService translationService, FeatureFlagService featureFlags) {
         this.wooStoreService = wooStoreService;
         this.meiliService = meiliService;
         this.appProperties = appProperties;
         this.translationService = translationService;
+        this.featureFlags = featureFlags;
     }
 
     public Mono<IngestDtos.IngestReport> ingestFull() {
@@ -97,7 +99,7 @@ public class IngestService {
                             "goal_lean_muscle_score", "goal_recovery_score", "goal_weight_loss_score", "goal_wellness_score"
                     ));
                     List<String> searchable = List.of(
-                            "name", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", 
+                            "name", "display_title", "brand_name", "categories_names", "search_text", "sku", "ingredients_key", 
                             "synonyms_en", "synonyms_ru", "synonyms_et",
                             // Multilingual fields
                             "name_i18n", "search_text_i18n", "categories_names_i18n"
@@ -212,11 +214,14 @@ public class IngestService {
         RawProduct raw = RawProduct.fromJsonNode(p);
 
         // Use a fresh pipeline instance per product to ensure thread-safety under parallelism
-        EnrichmentPipeline pipeline = new EnrichmentPipeline();
-        EnrichedProduct enriched = pipeline.enrich(raw);
-        
-        // Always attempt translations - TranslationService will handle enabling/disabling based on API key
-        return translateProduct(enriched)
+        // TitleComposer controlled via feature flag 'normalize_titles'.
+        return featureFlags.isEnabled("normalize_titles", false)
+                .flatMap(enableTitle -> {
+                    EnrichmentPipeline pipeline = new EnrichmentPipeline(enableTitle);
+                    EnrichedProduct enriched = pipeline.enrich(raw);
+
+                    // Always attempt translations - TranslationService will handle enabling/disabling based on API key
+                    return translateProduct(enriched)
             .map(translations -> {
                 // Merge translation warnings into product warnings for reporting
                 java.util.List<String> mergedWarnings = new java.util.ArrayList<>(
@@ -247,6 +252,7 @@ public class IngestService {
                 IngestDtos.ProductReport report = createReport(enriched);
                 return Mono.just(new DocWithReport(d, report));
             });
+                });
     }
     
     private ProductDoc createProductDoc(EnrichedProduct enriched, Map<String, ProductTranslation> translations) {
@@ -275,6 +281,8 @@ public class IngestService {
         d.setBrand_name(enriched.getBrand_name());
         d.setDynamic_attrs(enriched.getDynamic_attrs());
         d.setSearch_text(enriched.getSearch_text());
+        // Optional display title for UI (feature-flagged generation)
+        d.setDisplay_title(enriched.getDisplay_title());
         
         // Add translations if available
         if (translations != null && !translations.isEmpty()) {

@@ -8,6 +8,10 @@ Base URL: http://localhost:4000
 - POST /ingest/products — Ingest specific products by ID
 
 ### Ingest response shape (excerpt)
+### Display title
+
+Responses for product search and product-by-id may include `display_title` when the `normalize_titles` feature flag is enabled. This field is a human-friendly title optimized for cards and alternatives (brand moved to the end). The canonical `name` from WooCommerce remains unchanged.
+
 
 Full ingest returns a JSON report with totals, per-product details, and ignored items metadata:
 
@@ -59,6 +63,24 @@ curl -X POST http://localhost:4000/ingest/products \
   -H "x-clear-translation-cache: true" \
   -d '{"ids": [31476, 31477]}'
 ```
+
+## Admin / Raw inspection
+
+- GET /admin/raw/system/{id} — Fetch raw product as stored in our system (Meilisearch)
+  - Requires header: `x-admin-key: <key>`
+  - Accepts `id` in forms: `wc_31476`, `wc31476`, or `31476`
+  - Example:
+  ```bash
+  curl -s http://localhost:4000/admin/raw/system/wc_31476 -H 'x-admin-key: dev_admin_key' | jq
+  ```
+
+- GET /admin/raw/woo/{id} — Fetch raw product JSON directly from WooCommerce Store API
+  - Requires header: `x-admin-key: <key>`
+  - Accepts numeric Woo product id or `wc_*` forms
+  - Example:
+  ```bash
+  curl -s http://localhost:4000/admin/raw/woo/31476 -H 'x-admin-key: dev_admin_key' | jq
+  ```
 
 ## Search
 

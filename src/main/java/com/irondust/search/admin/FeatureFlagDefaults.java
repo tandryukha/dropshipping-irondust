@@ -10,6 +10,8 @@ public final class FeatureFlagDefaults {
         Map<String, Boolean> m = new LinkedHashMap<>();
         // Core flags
         m.put("ai_search", Boolean.TRUE);
+        // Title normalization disabled by default; can be toggled via API
+        m.put("normalize_titles", Boolean.FALSE);
         return m;
     }
 }

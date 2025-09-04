@@ -18,6 +18,38 @@
       }
     },
     {
+      "name": "Admin: Raw System by ID",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "x-admin-key", "value": "{{adminKey}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/raw/system/{{productId}}", "host": ["{{baseUrl}}"], "path": ["admin","raw","system","{{productId}}"] }
+      }
+    },
+    {
+      "name": "Admin: Raw Woo by ID",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "x-admin-key", "value": "{{adminKey}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/raw/woo/{{wooId}}", "host": ["{{baseUrl}}"], "path": ["admin","raw","woo","{{wooId}}"] }
+      }
+    },
+    {
+      "name": "Feature Flags - Set normalize_titles (enable)",
+      "request": {
+        "method": "POST",
+        "header": [ {"key": "x-admin-key", "value": "{{adminKey}}"} ],
+        "url": { "raw": "{{baseUrl}}/feature-flags/normalize_titles?enabled=true", "host": ["{{baseUrl}}"], "path": ["feature-flags","normalize_titles"], "query": [{"key":"enabled","value":"true"}] }
+      }
+    },
+    {
+      "name": "Feature Flags - Set normalize_titles (disable)",
+      "request": {
+        "method": "POST",
+        "header": [ {"key": "x-admin-key", "value": "{{adminKey}}"} ],
+        "url": { "raw": "{{baseUrl}}/feature-flags/normalize_titles?enabled=false", "host": ["{{baseUrl}}"], "path": ["feature-flags","normalize_titles"], "query": [{"key":"enabled","value":"false"}] }
+      }
+    },
+    {
       "name": "Admin: Trigger Reingest",
       "request": {
         "method": "POST",

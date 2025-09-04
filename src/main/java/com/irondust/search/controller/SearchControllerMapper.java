@@ -66,6 +66,10 @@ public class SearchControllerMapper {
         d.setBrand_slug((String) m.get("brand_slug"));
         d.setBrand_name((String) m.get("brand_name"));
         d.setSearch_text((String) m.get("search_text"));
+        Object dt = m.get("display_title");
+        if (dt instanceof String s && !s.isBlank()) {
+            d.setDisplay_title(s);
+        }
         // Optional AI dosage/timing fields
         d.setDosage_text((String) m.get("dosage_text"));
         d.setTiming_text((String) m.get("timing_text"));

@@ -191,6 +191,7 @@ public class EnrichedProduct extends ParsedProduct {
         enriched.setGoal_recovery_score(parsed.getGoal_recovery_score());
         enriched.setGoal_weight_loss_score(parsed.getGoal_weight_loss_score());
         enriched.setGoal_wellness_score(parsed.getGoal_wellness_score());
+        enriched.setDisplay_title(parsed.getDisplay_title());
         return enriched;
     }
 }

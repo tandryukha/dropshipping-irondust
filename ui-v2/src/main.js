@@ -8,6 +8,7 @@ import { mountPdp, openProduct } from './ui/pdp.js';
 import { mountHome, showHome, hideHome } from './ui/home.js';
 import { mountLanguageSelector } from './ui/language-selector.js';
 import './ui/translations.js'; // Auto-applies translations
+import { mountAdmin } from './ui/admin.js';
 
 // Wire header bits that remain static
 function mountHeader() {
@@ -69,6 +70,7 @@ mountFlavorPopover();
 mountSearchPanel();
 mountPdp();
 mountHome();
+mountAdmin();
 start(); // start router
 
 

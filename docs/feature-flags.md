@@ -6,12 +6,14 @@ Defaults
 
 - On first run, the table is auto-created, and default flags are seeded:
   - `ai_search = true`
+  - `normalize_titles = false`
 
 Flag table
 
 | Name | Default | Description | How to set (admin) | How to read |
 |---|---|---|---|---|
 | ai_search | true | Enables AI Answer endpoint `/search/ai` and shows Ask AI in UI. | `POST /feature-flags/ai_search?enabled=true|false` with header `x-admin-key: <admin>` | `GET /feature-flags/ai_search?defaultValue=true` |
+| normalize_titles | false | Populates `display_title` (brand at end) and adds it to search. | `POST /feature-flags/normalize_titles?enabled=true|false` with header `x-admin-key: <admin>` | `GET /feature-flags/normalize_titles?defaultValue=false` |
 
 How to toggle AI off
 

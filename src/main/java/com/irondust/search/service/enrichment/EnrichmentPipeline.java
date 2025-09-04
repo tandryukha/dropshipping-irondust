@@ -65,17 +65,28 @@ public class EnrichmentPipeline {
      * in the correct order for processing.
      */
     public EnrichmentPipeline() {
+        this(true);
+    }
+
+    /**
+     * @param enableTitleComposer when true, include TitleComposer to populate display_title
+     */
+    public EnrichmentPipeline(boolean enableTitleComposer) {
         // Initialize deterministic enrichment steps in order
-        this.deterministicSteps = Arrays.asList(
+        List<EnricherStep> steps = new ArrayList<>(List.of(
             new Normalizer(),
             new UnitParser(),
             new ServingCalculator(),
             new PriceCalculator(),
             new TaxonomyParser(),
-            new IngredientTokenizer(),
-            new VariationGrouper(),
-            new ConflictDetector()
-        );
+            new IngredientTokenizer()
+        ));
+        if (enableTitleComposer) {
+            steps.add(new TitleComposer());
+        }
+        steps.add(new VariationGrouper());
+        steps.add(new ConflictDetector());
+        this.deterministicSteps = java.util.Collections.unmodifiableList(steps);
         this.aiEnricher = new AIEnricher();
     }
 
@@ -595,6 +606,9 @@ public class EnrichmentPipeline {
                     break;
                 case "goal_wellness_score":
                     parsed.setGoal_wellness_score((Double) value);
+                    break;
+                case "display_title":
+                    parsed.setDisplay_title((String) value);
                     break;
                 case "parent_id":
                     parsed.setParent_id((String) value);

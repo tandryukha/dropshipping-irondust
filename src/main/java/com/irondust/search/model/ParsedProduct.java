@@ -205,6 +205,14 @@ public class ParsedProduct {
     private Double goal_weight_loss_score;
     private Double goal_wellness_score;
 
+    /**
+     * Human-friendly display title optimized for cards, carousels and alternatives.
+     * Example: "Pre‑workout C4 Original 30 servings (Cherry Lime) — Cellucor".
+     * Kept separate from the canonical WooCommerce name to avoid breaking SEO and
+     * keep original data intact.
+     */
+    private String display_title;
+
     // Getters and setters for core fields
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -318,6 +326,8 @@ public class ParsedProduct {
     public void setGoal_weight_loss_score(Double goal_weight_loss_score) { this.goal_weight_loss_score = goal_weight_loss_score; }
     public Double getGoal_wellness_score() { return goal_wellness_score; }
     public void setGoal_wellness_score(Double goal_wellness_score) { this.goal_wellness_score = goal_wellness_score; }
+    public String getDisplay_title() { return display_title; }
+    public void setDisplay_title(String display_title) { this.display_title = display_title; }
 
     /**
      * Creates a ParsedProduct instance from a RawProduct.

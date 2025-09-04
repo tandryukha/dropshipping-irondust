@@ -90,6 +90,8 @@ public class ProductDoc {
     // AI dosage/timing (localized variants provided via *_i18n below)
     private String dosage_text;
     private String timing_text;
+    // UX title optimized for display (feature-flagged generation)
+    private String display_title;
 
     // Localized dosage/timing
     private Map<String, String> dosage_text_i18n;
@@ -233,6 +235,8 @@ public class ProductDoc {
     public void setDosage_text(String dosage_text) { this.dosage_text = dosage_text; }
     public String getTiming_text() { return timing_text; }
     public void setTiming_text(String timing_text) { this.timing_text = timing_text; }
+    public String getDisplay_title() { return display_title; }
+    public void setDisplay_title(String display_title) { this.display_title = display_title; }
     public Map<String, String> getDosage_text_i18n() { return dosage_text_i18n; }
     public void setDosage_text_i18n(Map<String, String> dosage_text_i18n) { this.dosage_text_i18n = dosage_text_i18n; }
     public Map<String, String> getTiming_text_i18n() { return timing_text_i18n; }

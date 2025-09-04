@@ -86,3 +86,38 @@ export async function renderContent(hit) {
 }
 
 
+// Admin helpers
+export async function ingestProducts(ids, { clearAi=false, clearTranslation=false, adminKey } = {}) {
+  if (!Array.isArray(ids)) throw new Error('ids must be an array');
+  const headers = { 'Content-Type':'application/json' };
+  const key = adminKey || localStorage.getItem('adminKey') || 'dev_admin_key';
+  if (key) headers['x-admin-key'] = key;
+  if (clearAi) headers['x-clear-ai-cache'] = 'true';
+  if (clearTranslation) headers['x-clear-translation-cache'] = 'true';
+  const res = await fetch(API_BASE + '/ingest/products', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ids })
+  });
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json(); // Ingest report
+}
+
+export async function getAdminRawSystem(id, { adminKey } = {}) {
+  const key = adminKey || localStorage.getItem('adminKey') || 'dev_admin_key';
+  const res = await fetch(`${API_BASE}/admin/raw/system/${encodeURIComponent(id)}`, {
+    headers: key ? { 'x-admin-key': key } : {}
+  });
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+export async function getAdminRawWoo(id, { adminKey } = {}) {
+  const key = adminKey || localStorage.getItem('adminKey') || 'dev_admin_key';
+  const res = await fetch(`${API_BASE}/admin/raw/woo/${encodeURIComponent(id)}`, {
+    headers: key ? { 'x-admin-key': key } : {}
+  });
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
