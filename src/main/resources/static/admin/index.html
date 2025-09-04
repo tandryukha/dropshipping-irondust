@@ -5,18 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
-    h1 { font-size: 20px; }
+    :root { --bg:#f6f7fb; --surface:#ffffff; --text:#0f172a; --muted:#64748b; --border:#e2e8f0; --primary:#6366f1; --primary-600:#5458e8; --success:#10b981; --danger:#ef4444; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; color: var(--text); background: radial-gradient(1200px 600px at 10% -10%, #eef2ff, transparent), radial-gradient(1000px 500px at 80% -20%, #ecfeff, transparent), var(--bg); }
+    .container { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 24px; margin: 8px 0 20px; letter-spacing: -0.01em; }
+    .subtle { color: var(--muted); font-size: 13px; }
     .row { display: flex; gap: 16px; flex-wrap: wrap; }
-    .card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; min-width: 280px; }
-    button { padding: 8px 12px; cursor: pointer; }
-    pre { background: #111; color: #0f0; padding: 8px; border-radius: 6px; height: 240px; overflow: auto; }
-    label { display: block; margin: 8px 0 4px; }
-    input[type="text"] { width: 100%; padding: 8px; }
-    .small { color: #666; font-size: 12px; }
+    .card { border: 1px solid var(--border); padding: 16px; border-radius: 12px; min-width: 280px; background: var(--surface); box-shadow: 0 6px 20px rgba(2,6,23,0.06); }
+    .card h3 { margin: 0 0 10px; font-size: 16px; }
+    button { padding: 10px 12px; cursor: pointer; border-radius: 10px; border: 1px solid transparent; background: var(--primary); color: white; font-weight: 600; letter-spacing: 0.01em; }
+    button:hover { background: var(--primary-600); }
+    button.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+    button.ghost:hover { border-color: #cbd5e1; }
+    pre { background: #0b1020; color: #d1fae5; padding: 10px; border-radius: 10px; height: 260px; overflow: auto; border: 1px solid #0b1530; }
+    label { display: block; margin: 8px 0 6px; }
+    input[type="text"], textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: #fbfdff; }
+    .small { color: var(--muted); font-size: 12px; }
     .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .muted { color:#666; font-size:12px; }
+    .muted { color:var(--muted); font-size:12px; }
     .toolbar { display:flex; gap:8px; align-items:center; }
+    .spacer { height: 8px; }
+    /* Fancy switches */
+    .switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
+    .switch .toggle-input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .switch .toggle-slider { position: relative; width: 44px; height: 24px; background: #cbd5e1; border-radius: 999px; transition: background .18s ease; box-shadow: inset 0 0 0 1px rgba(15,23,42,0.06); }
+    .switch .toggle-slider::before { content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; background:#ffffff; border-radius:999px; transition: transform .18s ease; box-shadow: 0 1px 2px rgba(2,6,23,0.15); }
+    .switch .toggle-input:checked + .toggle-slider { background: var(--success); }
+    .switch .toggle-input:checked + .toggle-slider::before { transform: translateX(20px); }
+    .switch .toggle-label { font-size: 12px; color: var(--muted); }
+    /* Flags list */
+    #flags { display: grid; gap: 10px; }
+    .flag { display:flex; align-items:center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+    .flag .flag-info { display:flex; flex-direction:column; }
+    .flag .flag-name { font-weight: 600; font-size: 14px; }
+    .flag .flag-status { font-size: 12px; color: var(--muted); }
   </style>
   <script>
     async function startIngest() {
@@ -54,10 +77,17 @@
       container.innerHTML = '';
       Object.entries(js).forEach(([k, v]) => {
         const div = document.createElement('div');
-        div.className = 'row';
-        div.innerHTML = '<label>' + k + '</label>' +
-          '<button onclick="toggleFlag(\'' + k + '\',' + (!v) + ')">' + (v ? 'Disable' : 'Enable') + '</button>' +
-          '<span class="small">current: ' + v + '</span>';
+        div.className = 'flag';
+        const id = 'flag_' + k.replace(/[^a-z0-9_\-]/gi, '_');
+        div.innerHTML =
+          '<div class="flag-info">' +
+            '<div class="flag-name">' + k + '</div>' +
+            '<div class="flag-status ' + (v ? 'on' : 'off') + '">' + (v ? 'Enabled' : 'Disabled') + '</div>' +
+          '</div>' +
+          '<label class="switch" style="margin-left:auto">' +
+            '<input id="' + id + '" class="toggle-input" type="checkbox" ' + (v ? 'checked' : '') + ' onchange="toggleFlag(\'' + k + '\', this.checked)">' +
+            '<span class="toggle-slider"></span>' +
+          '</label>';
         container.appendChild(div);
       });
     }
@@ -192,92 +222,103 @@
   </script>
   </head>
 <body>
-  <h1>Admin Dashboard</h1>
-  <div class="row">
-    <div class="card">
-      <h3>Ingest</h3>
-      <button onclick="startIngest()">Start Reingest</button>
-      <div>Latest status: <b id="ingestStatus">-</b></div>
-      <div>Latest runId: <code id="ingestRunId"></code></div>
-    </div>
-    <div class="card">
-      <h3>Index</h3>
-      <button onclick="startReindex()">Start Reindex</button>
-      <div>Latest status: <b id="indexStatus">-</b></div>
-      <div>Latest runId: <code id="indexRunId"></code></div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:16px;">
-    <h3>Feature Flags</h3>
-    <div id="flags"></div>
-  </div>
-
-  <div class="card" style="margin-top:16px; width: 100%;">
-    <h3>Blacklist</h3>
+  <div class="container">
+    <h1>Admin Dashboard <span class="subtle">maintenance + controls</span></h1>
     <div class="row">
-      <div style="min-width:320px;">
-        <label>IDs (wc_123 or just 123, comma/newline separated)</label>
-        <textarea id="blIds" style="width:100%; height:80px;"></textarea>
-        <label>Reason</label>
-        <input id="blReason" type="text" placeholder="manual" />
-        <div style="margin-top:8px;">
-          <button onclick="addToBlacklist()">Blacklist + Deindex</button>
+      <div class="card">
+        <h3>Ingest</h3>
+        <div class="toolbar">
+          <button onclick="startIngest()">Start Reingest</button>
+          <button class="ghost" onclick="refreshLatest('ingest')">Refresh</button>
         </div>
+        <div class="spacer"></div>
+        <div class="small">Latest status: <b id="ingestStatus">-</b></div>
+        <div class="small">Latest runId: <code id="ingestRunId"></code></div>
       </div>
-      <div style="flex:1; min-width:320px;">
-        <label>Current Blacklist</label>
-        <div id="blList"></div>
+      <div class="card">
+        <h3>Index</h3>
+        <div class="toolbar">
+          <button onclick="startReindex()">Start Reindex</button>
+          <button class="ghost" onclick="refreshLatest('index')">Refresh</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="small">Latest status: <b id="indexStatus">-</b></div>
+        <div class="small">Latest runId: <code id="indexRunId"></code></div>
       </div>
     </div>
-  </div>
 
-  <div class="card" style="margin-top:16px; width: 100%;">
-    <h3>Targeted Reingest</h3>
-    <div class="row">
-      <div style="min-width:360px; flex:1;">
-        <label>IDs to reingest (comma/newline; accepts 123, wc123, wc_123)</label>
-        <textarea id="tgIds" style="width:100%; height:88px;"></textarea>
-        <div class="toolbar" style="margin-top:6px;">
-          <label class="small"><input id="tgClearAi" type="checkbox" /> clear AI cache</label>
-          <label class="small"><input id="tgClearTr" type="checkbox" /> clear translation cache</label>
-          <button id="tgBtn" onclick="targetedReingest()">Reingest</button>
-        </div>
-      </div>
-      <div style="min-width:360px; flex:1;">
-        <label class="small">Ingest report</label>
-        <pre id="tgOut"></pre>
-      </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>Feature Flags</h3>
+      <div id="flags"></div>
     </div>
-  </div>
 
-  <div class="card" style="margin-top:16px; width: 100%;">
-    <h3>Raw Inspect</h3>
-    <div class="row" style="align-items:flex-start;">
-      <div style="min-width:260px;">
-        <label>Product ID (wc_123 or 123)</label>
-        <input id="rawId" type="text" placeholder="wc_31476" />
-        <div class="toolbar" style="margin-top:8px;">
-          <button onclick="fetchSystemRaw()">Fetch System</button>
-          <button onclick="fetchWooRaw()">Fetch Woo</button>
+    <div class="card" style="margin-top:16px; width: 100%;">
+      <h3>Blacklist</h3>
+      <div class="row">
+        <div style="min-width:320px;">
+          <label>IDs (wc_123 or just 123, comma/newline separated)</label>
+          <textarea id="blIds" style="width:100%; height:80px;"></textarea>
+          <label>Reason</label>
+          <input id="blReason" type="text" placeholder="manual" />
+          <div style="margin-top:8px;">
+            <button onclick="addToBlacklist()">Blacklist + Deindex</button>
+          </div>
         </div>
-      </div>
-      <div class="grid" style="flex:1; min-width:480px;">
-        <div>
-          <div class="toolbar"><span class="small">System Raw</span><button style="margin-left:auto" onclick="copyEl('sysRaw')">Copy</button></div>
-          <pre id="sysRaw"></pre>
-        </div>
-        <div>
-          <div class="toolbar"><span class="small">Woo Raw</span><button style="margin-left:auto" onclick="copyEl('wooRaw')">Copy</button></div>
-          <pre id="wooRaw"></pre>
+        <div style="flex:1; min-width:320px;">
+          <label>Current Blacklist</label>
+          <div id="blList"></div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="card" style="margin-top:16px; width: 100%;">
-    <h3>Live Logs</h3>
-    <pre id="logs"></pre>
+    <div class="card" style="margin-top:16px; width: 100%;">
+      <h3>Targeted Reingest</h3>
+      <div class="row">
+        <div style="min-width:360px; flex:1;">
+          <label>IDs to reingest (comma/newline; accepts 123, wc123, wc_123)</label>
+          <textarea id="tgIds" style="width:100%; height:88px;"></textarea>
+          <div class="toolbar" style="margin-top:6px; gap:14px;">
+            <label class="switch"><input id="tgClearAi" class="toggle-input" type="checkbox" /><span class="toggle-slider"></span><span class="toggle-label">Clear AI cache</span></label>
+            <label class="switch"><input id="tgClearTr" class="toggle-input" type="checkbox" /><span class="toggle-slider"></span><span class="toggle-label">Clear translation cache</span></label>
+            <span style="flex:1"></span>
+            <button id="tgBtn" onclick="targetedReingest()">Reingest</button>
+          </div>
+        </div>
+        <div style="min-width:360px; flex:1;">
+          <label class="small">Ingest report</label>
+          <pre id="tgOut"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px; width: 100%;">
+      <h3>Raw Inspect</h3>
+      <div class="row" style="align-items:flex-start;">
+        <div style="min-width:260px;">
+          <label>Product ID (wc_123 or 123)</label>
+          <input id="rawId" type="text" placeholder="wc_31476" />
+          <div class="toolbar" style="margin-top:8px;">
+            <button onclick="fetchSystemRaw()">Fetch System</button>
+            <button class="ghost" onclick="fetchWooRaw()">Fetch Woo</button>
+          </div>
+        </div>
+        <div class="grid" style="flex:1; min-width:480px;">
+          <div>
+            <div class="toolbar"><span class="small">System Raw</span><button style="margin-left:auto" class="ghost" onclick="copyEl('sysRaw')">Copy</button></div>
+            <pre id="sysRaw"></pre>
+          </div>
+          <div>
+            <div class="toolbar"><span class="small">Woo Raw</span><button style="margin-left:auto" class="ghost" onclick="copyEl('wooRaw')">Copy</button></div>
+            <pre id="wooRaw"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px; width: 100%;">
+      <h3>Live Logs</h3>
+      <pre id="logs"></pre>
+    </div>
   </div>
 </body>
 </html>
