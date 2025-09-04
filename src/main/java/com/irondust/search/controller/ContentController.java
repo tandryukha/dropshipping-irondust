@@ -67,11 +67,8 @@ public class ContentController {
             )));
         }
 
-        ContentRenderService.RenderResult rr = contentRenderService.render(doc);
-        return Mono.just(ResponseEntity.ok(Map.of(
-                "html", rr.html(),
-                "meta", rr.meta()
-        )));
+        return contentRenderService.renderRichAsync(doc)
+                .map(rr -> ResponseEntity.ok(Map.of("html", rr.html(), "meta", rr.meta())));
     }
 }
 

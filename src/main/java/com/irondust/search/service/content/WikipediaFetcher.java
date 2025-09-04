@@ -6,8 +6,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -63,6 +61,37 @@ public class WikipediaFetcher {
                     doc.setUpdatedAt(OffsetDateTime.now());
                     return doc;
                 });
+    }
+
+    /**
+     * Fetches the full article HTML (body only) for on-site rendering.
+     * Uses action=parse (formatversion=2) which returns sanitized article body HTML.
+     */
+    public Mono<String> fetchFullHtml(String title, String lang) {
+        String language = (lang == null || lang.isBlank()) ? "en" : lang;
+        String wikiHost = language.equals("en") ? "https://en.wikipedia.org" : ("https://" + language + ".wikipedia.org");
+        WebClient client = language.equals("en") ? http : http.mutate().baseUrl(wikiHost).build();
+        String normalized = title.replace(' ', '_');
+        return client.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/w/api.php")
+                        .queryParam("action", "parse")
+                        .queryParam("page", normalized)
+                        .queryParam("prop", "text")
+                        .queryParam("formatversion", "2")
+                        .queryParam("format", "json")
+                        .build())
+                .retrieve()
+                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.Map<String, Object>>() {})
+                .map(map -> {
+                    Object parse = map.get("parse");
+                    if (parse instanceof java.util.Map<?,?> p) {
+                        Object text = p.get("text");
+                        return text != null ? String.valueOf(text) : "";
+                    }
+                    return "";
+                })
+                .onErrorReturn("");
     }
 }
 
