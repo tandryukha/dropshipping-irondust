@@ -1894,14 +1894,15 @@ function renderContentRailItem(hit){
   const lang = escapeHtml(String(hit?.language||''));
   const badges = [source||'', license||'', lang||''].filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join(' ');
   return `
-    <div class="content-card" data-hit='${JSON.stringify({id:hit?.id,source:hit?.source,license:hit?.license,title:hit?.title,excerpt:hit?.excerpt,url:hit?.url,language:hit?.language})}'>
+    <div class="content-card content-rail-item" data-hit='${JSON.stringify({id:hit?.id,source:hit?.source,license:hit?.license,title:hit?.title,excerpt:hit?.excerpt,url:hit?.url,language:hit?.language})}'>
       <div style="font-weight:800">${title}</div>
-      ${excerpt?`<div class="muted" style="font-size:12px;margin-top:2px">${excerpt.length>140?escapeHtml(excerpt.slice(0,137))+'…':excerpt}</div>`:''}
+      ${excerpt?`<div class="muted" style="font-size:12px;margin-top:2px">${excerpt.length>200?escapeHtml(excerpt.slice(0,197))+'…':excerpt}</div>`:''}
       <div class="muted" style="font-size:12px;margin-top:6px">${badges}</div>
       <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-ghost js-open-reader">Open on-site</button>
-        ${url?`<a class=\"btn-ghost\" href=\"${url}\" target=\"_blank\" rel=\"noopener\">Read more →</a>`:''}
+        <button class="btn-ghost js-expand-reader">Read full summary</button>
+        ${url?`<a class=\"btn-ghost\" href=\"${url}\" target=\"_blank\" rel=\"noopener\">View source</a>`:''}
       </div>
+      <div class="content-inline" style="display:none;margin-top:8px;border-top:1px solid #eee;padding-top:8px"></div>
     </div>`;
 }
 
@@ -1916,7 +1917,46 @@ async function refreshContentRail(query){
     const hits = Array.isArray(res?.hits) ? res.hits : [];
     if (hits.length === 0) { box.innerHTML = '<div class="content-card">No content yet</div>'; return; }
     box.innerHTML = hits.map(renderContentRailItem).join('');
-    // Bind reader open buttons
+    // Bind inline expand buttons
+    box.querySelectorAll('.js-expand-reader').forEach(btn=>{
+      if (btn.__bound) return; btn.__bound = true;
+      btn.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const card = btn.closest('.content-rail-item');
+        if (!card) return;
+        const expand = card.querySelector('.content-inline');
+        if (!expand) return;
+        // Toggle collapse if already open
+        if (expand.style.display !== 'none' && expand.innerHTML) {
+          expand.style.display = 'none';
+          return;
+        }
+        let hit = {};
+        try{ hit = JSON.parse(card.getAttribute('data-hit')||'{}'); }catch(_e){ hit = {}; }
+        expand.style.display = '';
+        expand.innerHTML = '<div class="content-card" aria-busy="true">Loading…</div>';
+        try{
+          const res = await renderContent(hit);
+          const html = String(res?.html||'');
+          const meta = res?.meta||{};
+          const topic = String(hit?.title||'');
+          const upsell = renderInlineUpsells(topic);
+          const metaText = [String(meta?.source||'').toUpperCase(), String(meta?.license||'')].filter(Boolean).join(' • ');
+          const footer = `<div class="muted" style="font-size:12px;margin-top:8px">${metaText}</div>`;
+          expand.innerHTML = `<div class="content-body">${html}</div>${upsell}${footer}`;
+          // Bind upsell clicks
+          expand.querySelectorAll('[data-pid]').forEach(el=>{
+            if (el.__bound) return; el.__bound = true;
+            el.addEventListener('click', ()=>{
+              try{ navigate('/p/'+el.getAttribute('data-pid')); }catch(_e){}
+            });
+          });
+        }catch(_e){
+          expand.innerHTML = '<div class="content-card">Failed to load article.</div>';
+        }
+      });
+    });
+    // Backward compatibility: keep modal open on legacy buttons if present
     box.querySelectorAll('.js-open-reader').forEach(btn=>{
       if (btn.__bound) return; btn.__bound = true;
       btn.addEventListener('click', async (e)=>{
@@ -2006,6 +2046,25 @@ function renderUpsellCard(id, name, price){
   const safePrice = escapeHtml(String(price||''));
   return `
     <div class=\"box\" data-pid=\"${escapeHtml(String(id||''))}\">\n      <div style=\"display:flex;align-items:center;gap:10px\">\n        <img src=\"https://picsum.photos/seed/${encodeURIComponent(String(id||''))}/48/48\" alt=\"${safeName}\" width=\"48\" height=\"48\" style=\"border-radius:10px\">\n        <div>\n          <div style=\"font-weight:600\">${safeName}</div>\n          <div class=\"muted\" style=\"font-size:12px\">${safePrice}</div>\n        </div>\n        <button class=\"btn\" style=\"margin-left:auto\">View</button>\n      </div>\n    </div>`;
+}
+
+// Inline upsell renderer for expanded content (deterministic 2–4 slots)
+function renderInlineUpsells(topic){
+  try{
+    const t = String(topic||'').toLowerCase();
+    const cards = [];
+    if (/creatine/.test(t)){
+      cards.push(renderUpsellCard('wc_31489','Creatine Monohydrate 500g','€18.90'));
+      cards.push(renderUpsellCard('wc_50533','Creatine Capsules','€21.90'));
+      cards.push(`<a class=\"btn-ghost\" href=\"#/search?goal_tags=creatine\" style=\"text-align:center\">View all creatine →</a>`);
+    } else if (/protein|whey/.test(t)){
+      cards.push(renderUpsellCard('wc_30177','Whey Protein 1kg','€24.90'));
+      cards.push(renderUpsellCard('wc_30201','Isolate (lactose-light)','€32.90'));
+      cards.push(`<a class=\"btn-ghost\" href=\"#/search?q=protein\" style=\"text-align:center\">View all protein →</a>`);
+    }
+    if (cards.length === 0) return '';
+    return `<div class=\"mini\" style=\"margin-top:8px\">${cards.join('')}<div>`;
+  }catch(_e){ return ''; }
 }
 
 
