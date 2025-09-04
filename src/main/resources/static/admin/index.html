@@ -43,7 +43,14 @@
   </style>
   <script>
     async function startIngest() {
-      const res = await fetch('/admin/ingest/reingest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const clearAiEl = document.getElementById('ingClearAi');
+      const clearTrEl = document.getElementById('ingClearTr');
+      const clearAi = clearAiEl ? !!clearAiEl.checked : false;
+      const clearTr = clearTrEl ? !!clearTrEl.checked : false;
+      const payload = {};
+      if (clearAi) payload.clearAiCache = true;
+      if (clearTr) payload.clearTranslationCache = true;
+      const res = await fetch('/admin/ingest/reingest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const js = await res.json();
       document.getElementById('ingestRunId').textContent = js.runId || '';
       streamLogs(js.runId);
@@ -283,6 +290,10 @@
         <div class="toolbar">
           <button onclick="startIngest()">Start Reingest</button>
           <button class="ghost" onclick="refreshLatest('ingest')">Refresh</button>
+        </div>
+        <div class="toolbar" style="margin-top:6px; gap:14px;">
+          <label class="switch"><input id="ingClearAi" class="toggle-input" type="checkbox" /><span class="toggle-slider"></span><span class="toggle-label">Clear AI cache</span></label>
+          <label class="switch"><input id="ingClearTr" class="toggle-input" type="checkbox" /><span class="toggle-slider"></span><span class="toggle-label">Clear translation cache</span></label>
         </div>
         <div class="spacer"></div>
         <div class="small">Latest status: <b id="ingestStatus">-</b></div>
