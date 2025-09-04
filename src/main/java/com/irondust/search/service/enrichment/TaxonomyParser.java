@@ -27,8 +27,28 @@ public class TaxonomyParser implements EnricherStep {
     );
 
     // Diet tags patterns
+    /**
+     * Positive vegan cues across supported locales. We intentionally keep this
+     * pattern broad but rely on {@link #NEGATIVE_VEGAN_PATTERN} and explicit
+     * attribute checks to avoid false positives like "non-vegan".
+     */
     private static final Pattern VEGAN_PATTERN = Pattern.compile(
-        "vegan|veganii|веган", Pattern.CASE_INSENSITIVE);
+        "vegan|veganii|веган", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /**
+     * Negative vegan cues to guard against false positives in descriptions.
+     * Examples: "non-vegan", "not vegan", Estonian "mitte vegan"/"ei ... vegan",
+     * Russian "не веган".
+     */
+    private static final Pattern NEGATIVE_VEGAN_PATTERN = Pattern.compile(
+        "non[-\\s]?vegan|not[-\\s]?vegan|mitte[-\\s]?vegan|ei[^\n\r]{0,20}vegan|не[^\n\r]{0,20}веган",
+        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /**
+     * Strong non-vegan product cues. If these appear in name/description and
+     * there is no explicit positive vegan attribute, we avoid assigning vegan.
+     */
+    private static final Pattern DAIRY_CUES_PATTERN = Pattern.compile(
+        "whey|casein|milk|dairy|lactose|gelatin|gelatine|collagen",
+        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Pattern GLUTEN_FREE_PATTERN = Pattern.compile(
         "gluteenivaba|gluten.?free|без глютена", Pattern.CASE_INSENSITIVE);
     private static final Pattern LACTOSE_FREE_PATTERN = Pattern.compile(
@@ -163,29 +183,47 @@ public class TaxonomyParser implements EnricherStep {
 
     private List<String> parseDietTags(RawProduct raw) {
         Set<String> diets = new HashSet<>();
-        String searchText = raw.getSearch_text() != null ? raw.getSearch_text() : "";
+        String name = raw.getName() != null ? raw.getName() : "";
+        String desc = raw.getDescription() != null ? raw.getDescription() : "";
+        String text = (name + " " + desc);
 
-        // Check attributes first
+        // 1) Explicit attributes take precedence
+        boolean attrVeganYes = false;
+        boolean attrVeganNo = false;
         if (raw.getDynamic_attrs() != null) {
             List<String> veganAttrs = raw.getDynamic_attrs().get("attr_pa_kas-see-on-veganisobralik");
             if (veganAttrs != null && !veganAttrs.isEmpty()) {
-                if (veganAttrs.get(0).equals("jah") || veganAttrs.get(0).equals("yes")) {
-                    diets.add("vegan");
+                String v = veganAttrs.get(0);
+                if (v != null) {
+                    String vl = v.trim().toLowerCase(Locale.ROOT);
+                    attrVeganYes = vl.equals("jah") || vl.equals("yes") || vl.equals("true") || vl.equals("1") || vl.equals("vegan");
+                    attrVeganNo = vl.equals("ei") || vl.equals("no") || vl.equals("false") || vl.equals("0");
                 }
             }
         }
 
-        // Check text patterns
-        if (VEGAN_PATTERN.matcher(searchText).find()) {
+        if (attrVeganNo) {
+            // Explicit negative attribute overrides any textual hints
+            // Do not add vegan tag
+        } else if (attrVeganYes) {
             diets.add("vegan");
+        } else {
+            // 2) Text cues from name/description (guarded by negative and dairy cues)
+            if (!NEGATIVE_VEGAN_PATTERN.matcher(text).find()
+                    && !DAIRY_CUES_PATTERN.matcher(text).find()
+                    && VEGAN_PATTERN.matcher(text).find()) {
+                diets.add("vegan");
+            }
         }
-        if (GLUTEN_FREE_PATTERN.matcher(searchText).find()) {
+
+        // Other diet cues from text (independent of vegan logic)
+        if (GLUTEN_FREE_PATTERN.matcher(text).find()) {
             diets.add("gluten_free");
         }
-        if (LACTOSE_FREE_PATTERN.matcher(searchText).find()) {
+        if (LACTOSE_FREE_PATTERN.matcher(text).find()) {
             diets.add("lactose_free");
         }
-        if (SUGAR_FREE_PATTERN.matcher(searchText).find()) {
+        if (SUGAR_FREE_PATTERN.matcher(text).find()) {
             diets.add("sugar_free");
         }
 
