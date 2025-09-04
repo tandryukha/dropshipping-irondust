@@ -14,6 +14,9 @@
     label { display: block; margin: 8px 0 4px; }
     input[type="text"] { width: 100%; padding: 8px; }
     .small { color: #666; font-size: 12px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .muted { color:#666; font-size:12px; }
+    .toolbar { display:flex; gap:8px; align-items:center; }
   </style>
   <script>
     async function startIngest() {
@@ -98,6 +101,88 @@
       });
       loadBlacklist();
     }
+
+    // Helpers for targeted reingest and raw fetch
+    function parseIds(input) {
+      if (!input) return [];
+      return input
+        .split(/[\n,]+/)
+        .map(s => (s || '').trim())
+        .filter(Boolean)
+        .map(s => s.toLowerCase().startsWith('wc_') ? s.slice(3) : s.toLowerCase().startsWith('wc') ? s.slice(2) : s)
+        .map(s => s.replace(/[^0-9]/g, ''))
+        .filter(Boolean)
+        .map(s => Number(s))
+        .filter(n => Number.isFinite(n));
+    }
+
+    async function targetedReingest() {
+      const raw = document.getElementById('tgIds').value || '';
+      const ids = parseIds(raw);
+      const clearAi = document.getElementById('tgClearAi').checked;
+      const clearTr = document.getElementById('tgClearTr').checked;
+      const btn = document.getElementById('tgBtn');
+      const out = document.getElementById('tgOut');
+      if (ids.length === 0) { out.textContent = 'Provide at least one numeric ID'; return; }
+      btn.disabled = true; btn.textContent = 'Reingesting…';
+      out.textContent = '';
+      try {
+        const res = await fetch('/ingest/products', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': 'dev_admin_key',
+            'x-clear-ai-cache': clearAi ? 'true' : 'false',
+            'x-clear-translation-cache': clearTr ? 'true' : 'false'
+          },
+          body: JSON.stringify({ ids })
+        });
+        if (!res.ok) {
+          out.textContent = 'HTTP ' + res.status;
+          return;
+        }
+        const js = await res.json();
+        out.textContent = JSON.stringify(js, null, 2);
+      } catch (e) {
+        out.textContent = String(e);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Reingest';
+      }
+    }
+
+    async function fetchSystemRaw() {
+      const id = (document.getElementById('rawId').value || '').trim();
+      const out = document.getElementById('sysRaw');
+      out.textContent = '';
+      if (!id) { out.textContent = 'Enter an id'; return; }
+      try {
+        const res = await fetch('/admin/raw/system/' + encodeURIComponent(id), {
+          headers: { 'x-admin-key': 'dev_admin_key' }
+        });
+        if (!res.ok) { out.textContent = 'HTTP ' + res.status; return; }
+        const js = await res.json();
+        out.textContent = JSON.stringify(js, null, 2);
+      } catch (e) { out.textContent = String(e); }
+    }
+    async function fetchWooRaw() {
+      const id = (document.getElementById('rawId').value || '').trim();
+      const out = document.getElementById('wooRaw');
+      out.textContent = '';
+      if (!id) { out.textContent = 'Enter an id'; return; }
+      try {
+        // Accept numeric or wc_*; backend normalizes
+        const v = id.toLowerCase().startsWith('wc') ? id.replace(/^wc_?/i, '') : id;
+        const res = await fetch('/admin/raw/woo/' + encodeURIComponent(v), {
+          headers: { 'x-admin-key': 'dev_admin_key' }
+        });
+        if (!res.ok) { out.textContent = 'HTTP ' + res.status; return; }
+        const js = await res.json();
+        out.textContent = JSON.stringify(js, null, 2);
+      } catch (e) { out.textContent = String(e); }
+    }
+    function copyEl(id) {
+      try { navigator.clipboard.writeText(document.getElementById(id).textContent || ''); } catch {}
+    }
     window.addEventListener('load', () => {
       refreshLatest('ingest');
       refreshLatest('index');
@@ -143,6 +228,49 @@
       <div style="flex:1; min-width:320px;">
         <label>Current Blacklist</label>
         <div id="blList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px; width: 100%;">
+    <h3>Targeted Reingest</h3>
+    <div class="row">
+      <div style="min-width:360px; flex:1;">
+        <label>IDs to reingest (comma/newline; accepts 123, wc123, wc_123)</label>
+        <textarea id="tgIds" style="width:100%; height:88px;"></textarea>
+        <div class="toolbar" style="margin-top:6px;">
+          <label class="small"><input id="tgClearAi" type="checkbox" /> clear AI cache</label>
+          <label class="small"><input id="tgClearTr" type="checkbox" /> clear translation cache</label>
+          <button id="tgBtn" onclick="targetedReingest()">Reingest</button>
+        </div>
+      </div>
+      <div style="min-width:360px; flex:1;">
+        <label class="small">Ingest report</label>
+        <pre id="tgOut"></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px; width: 100%;">
+    <h3>Raw Inspect</h3>
+    <div class="row" style="align-items:flex-start;">
+      <div style="min-width:260px;">
+        <label>Product ID (wc_123 or 123)</label>
+        <input id="rawId" type="text" placeholder="wc_31476" />
+        <div class="toolbar" style="margin-top:8px;">
+          <button onclick="fetchSystemRaw()">Fetch System</button>
+          <button onclick="fetchWooRaw()">Fetch Woo</button>
+        </div>
+      </div>
+      <div class="grid" style="flex:1; min-width:480px;">
+        <div>
+          <div class="toolbar"><span class="small">System Raw</span><button style="margin-left:auto" onclick="copyEl('sysRaw')">Copy</button></div>
+          <pre id="sysRaw"></pre>
+        </div>
+        <div>
+          <div class="toolbar"><span class="small">Woo Raw</span><button style="margin-left:auto" onclick="copyEl('wooRaw')">Copy</button></div>
+          <pre id="wooRaw"></pre>
+        </div>
       </div>
     </div>
   </div>
