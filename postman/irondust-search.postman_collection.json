@@ -132,8 +132,7 @@
           "path": ["products","{{productId}}"]
         }
       }
-    }
-    ,
+    },
     {
       "name": "AI Quick Answer",
       "request": {
@@ -151,8 +150,7 @@
           "path": ["search","ai"]
         }
       }
-    }
-    ,
+    },
     {
       "name": "Feature Flags - Get all",
       "request": {
@@ -184,39 +182,29 @@
         "header": [ {"key": "x-admin-key", "value": "{{adminKey}}"} ],
         "url": { "raw": "{{baseUrl}}/feature-flags/ai_search?enabled=false", "host": ["{{baseUrl}}"], "path": ["feature-flags","ai_search"], "query": [{"key":"enabled","value":"false"}] }
       }
-    }
-    ,
+    },
     {
-      "name": "Product alternatives",
+      "name": "Content: Search",
       "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/products/{{productId}}/alternatives?limit=8&lang=en",
-          "host": ["{{baseUrl}}"],
-          "path": ["products","{{productId}}","alternatives"],
-          "query": [
-            { "key": "limit", "value": "8" },
-            { "key": "lang", "value": "en" }
-          ]
-        }
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"q\": \"Creatine\",\n  \"page\": 1,\n  \"size\": 6\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/content/search", "host": ["{{baseUrl}}"], "path": ["content","search"] }
       }
-    }
-    ,
+    },
     {
-      "name": "Product complements",
+      "name": "Content: Render (Wikipedia/FDA)",
       "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/products/{{productId}}/complements?limit=8&lang=en",
-          "host": ["{{baseUrl}}"],
-          "path": ["products","{{productId}}","complements"],
-          "query": [
-            { "key": "limit", "value": "8" },
-            { "key": "lang", "value": "en" }
-          ]
-        }
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hit\": {\n    \"id\": \"wikipedia_en_creatine\",\n    \"source\": \"wikipedia\",\n    \"license\": \"CC BY-SA 4.0\",\n    \"title\": \"Creatine\",\n    \"excerpt\": \"Creatine is an organic compound that helps supply energy...\",\n    \"url\": \"https://en.wikipedia.org/wiki/Creatine\",\n    \"language\": \"en\"\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/content/render", "host": ["{{baseUrl}}"], "path": ["content","render"] }
       }
     }
   ]

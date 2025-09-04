@@ -1,6 +1,6 @@
 import { $, $$ } from '../core/dom.js';
 import { bus } from '../core/bus.js';
-import { searchProducts, getFeatureFlag, getAiAnswer, searchContent } from '../api/api.js';
+import { searchProducts, getFeatureFlag, getAiAnswer, searchContent, renderContent } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
 import { derivePricePer100g, isCountBasedForm } from '../core/metrics.js';
 import { navigate } from '../core/router.js';
@@ -1894,11 +1894,14 @@ function renderContentRailItem(hit){
   const lang = escapeHtml(String(hit?.language||''));
   const badges = [source||'', license||'', lang||''].filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join(' ');
   return `
-    <div class="content-card">
+    <div class="content-card" data-hit='${JSON.stringify({id:hit?.id,source:hit?.source,license:hit?.license,title:hit?.title,excerpt:hit?.excerpt,url:hit?.url,language:hit?.language})}'>
       <div style="font-weight:800">${title}</div>
       ${excerpt?`<div class="muted" style="font-size:12px;margin-top:2px">${excerpt.length>140?escapeHtml(excerpt.slice(0,137))+'…':excerpt}</div>`:''}
       <div class="muted" style="font-size:12px;margin-top:6px">${badges}</div>
-      ${url?`<div style="margin-top:6px"><a class="btn-ghost" href="${url}" target="_blank" rel="noopener">Read more →</a></div>`:''}
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-ghost js-open-reader">Open on-site</button>
+        ${url?`<a class=\"btn-ghost\" href=\"${url}\" target=\"_blank\" rel=\"noopener\">Read more →</a>`:''}
+      </div>
     </div>`;
 }
 
@@ -1913,7 +1916,97 @@ async function refreshContentRail(query){
     const hits = Array.isArray(res?.hits) ? res.hits : [];
     if (hits.length === 0) { box.innerHTML = '<div class="content-card">No content yet</div>'; return; }
     box.innerHTML = hits.map(renderContentRailItem).join('');
+    // Bind reader open buttons
+    box.querySelectorAll('.js-open-reader').forEach(btn=>{
+      if (btn.__bound) return; btn.__bound = true;
+      btn.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const card = btn.closest('.content-card');
+        if (!card) return;
+        let hit = {};
+        try{ hit = JSON.parse(card.getAttribute('data-hit')||'{}'); }catch(_e){ hit = {}; }
+        openContentReader(hit).catch(()=>{});
+      });
+    });
   }catch(_e){ /* silent */ }
 }
+// Reader modal
+function ensureContentReaderDOM(){
+  let overlay = document.getElementById('contentReaderOverlay');
+  let modal = document.getElementById('contentReaderModal');
+  if (overlay && modal) return { overlay, modal };
+  overlay = document.createElement('div');
+  overlay.id = 'contentReaderOverlay';
+  overlay.className = 'modal-overlay';
+  overlay.style.display = 'none';
+  modal = document.createElement('div');
+  modal.id = 'contentReaderModal';
+  modal.className = 'modal';
+  modal.style.display = 'none';
+  modal.setAttribute('role','dialog');
+  modal.setAttribute('aria-modal','true');
+  modal.innerHTML = `
+    <div class=\"modal-header\">
+      <h3 id=\"contentReaderTitle\">Article</h3>
+      <button class=\"modal-close\" id=\"contentReaderClose\" aria-label=\"Close\">✕</button>
+    </div>
+    <div class=\"modal-body\"><div id=\"contentReaderBody\" class=\"content-body\"></div>
+      <div class=\"divider\"></div>
+      <div id=\"contentUpsell\" class=\"mini\"></div>
+    </div>
+    <div class=\"modal-footer\">
+      <span class=\"muted\" id=\"contentReaderMeta\" style=\"font-size:12px\"></span>
+      <button class=\"btn-apply\" id=\"contentReaderShopBtn\">Shop related</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.body.appendChild(modal);
+  // Close handlers
+  const close = ()=>{ overlay.style.display='none'; modal.style.display='none'; };
+  overlay.addEventListener('click', close);
+  modal.querySelector('#contentReaderClose')?.addEventListener('click', close);
+  return { overlay, modal };
+}
+
+async function openContentReader(hit){
+  const { overlay, modal } = ensureContentReaderDOM();
+  try{
+    const title = String(hit?.title||'Article');
+    modal.querySelector('#contentReaderTitle').textContent = title;
+    modal.querySelector('#contentReaderBody').innerHTML = '<div class=\"content-card\" aria-busy=\"true\">Loading…</div>';
+    modal.querySelector('#contentReaderMeta').textContent = '';
+    overlay.style.display='block'; modal.style.display='block';
+    const res = await renderContent(hit);
+    const html = String(res?.html||'');
+    const meta = res?.meta||{};
+    modal.querySelector('#contentReaderBody').innerHTML = html;
+    const src = meta?.source ? String(meta.source).toUpperCase() : '';
+    const license = meta?.license ? String(meta.license) : '';
+    modal.querySelector('#contentReaderMeta').textContent = [src, license].filter(Boolean).join(' • ');
+    // Insert simple upsell blocks based on topic keywords
+    const ups = modal.querySelector('#contentUpsell');
+    if (ups) {
+      const topic = String(hit?.title||'').toLowerCase();
+      const cards = [];
+      if (/creatine/.test(topic)) cards.push(renderUpsellCard('wc_31489','Creatine Monohydrate 500g','€18.90'));
+      if (/protein|whey/.test(topic)) cards.push(renderUpsellCard('wc_30177','Whey Protein 1kg','€24.90'));
+      ups.innerHTML = cards.join('');
+      // Bind click → navigate to PDP
+      ups.querySelectorAll('[data-pid]').forEach(el=>{
+        if (el.__bound) return; el.__bound = true;
+        el.addEventListener('click', ()=>{ try{ window.location.hash = '#/p/'+el.getAttribute('data-pid'); }catch(_e){} });
+      });
+    }
+  }catch(_e){
+    modal.querySelector('#contentReaderBody').innerHTML = '<div class=\"content-card\">Failed to load article.</div>';
+  }
+}
+
+function renderUpsellCard(id, name, price){
+  const safeName = escapeHtml(String(name||''));
+  const safePrice = escapeHtml(String(price||''));
+  return `
+    <div class=\"box\" data-pid=\"${escapeHtml(String(id||''))}\">\n      <div style=\"display:flex;align-items:center;gap:10px\">\n        <img src=\"https://picsum.photos/seed/${'${encodeURIComponent(String(id||""))}'} /48/48\" alt=\"${'${safeName}'}\" width=\"48\" height=\"48\" style=\"border-radius:10px\">\n        <div>\n          <div style=\"font-weight:600\">${'${safeName}'} </div>\n          <div class=\"muted\" style=\"font-size:12px\">${'${safePrice}'} </div>\n        </div>\n        <button class=\"btn\" style=\"margin-left:auto\">View</button>\n      </div>\n    </div>`;
+}
+
 
 

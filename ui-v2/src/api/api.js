@@ -75,4 +75,14 @@ export async function searchContent(q, { page=1, size=6, filter } = {}) {
   return res.json(); // Meili raw response: { hits, totalHits, facets, ... }
 }
 
+export async function renderContent(hit) {
+  const res = await fetch(API_BASE + '/content/render', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ hit })
+  });
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json(); // { html, meta }
+}
+
 

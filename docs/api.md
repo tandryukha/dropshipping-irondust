@@ -78,6 +78,18 @@ curl -X POST http://localhost:4000/ingest/products \
   - Returns Meilisearch response with facets: `source`, `license`, `language`, `topic`, `tags`
   - Each hit includes `source` and `license` for attribution
 
+- POST /content/render — Render on-site HTML for eligible sources
+  - Body: `{ "hit": { "id": string, "source": string, "license": string, "title": string, "excerpt": string, "url"?: string, "language"?: string } }`
+  - Returns `{ "html": string, "meta": { "source": string, "license": string, "url": string, "title": string, "language": string } }`
+  - 451 when the content is not eligible for on-site rendering (e.g., non-commercial or unknown licenses)
+  - Supported sources now: Wikipedia (CC BY-SA 4.0 lead text) and FDA (Public Domain)
+  - Always shows attribution and license box under the rendered body
+
+Licensing notes:
+- Wikipedia: Include attribution, link to the article and CC BY-SA 4.0. Mark modifications if any. The license applies to this block, not the whole page.
+- FDA/NIH/CDC: Public domain (U.S. federal). Avoid third-party images/logos.
+- NHS (OGL v3.0): Allowed with attribution; do not imply endorsement. (Future)
+
 ### UI: Ask AI
 
 - The UI includes an Ask AI button (header and in the search overlay) and an AI Answer card rendered above results when `ai_search` is enabled.
