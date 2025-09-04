@@ -1,6 +1,6 @@
 import { $, $$ } from '../core/dom.js';
 import { bus } from '../core/bus.js';
-import { searchProducts, getFeatureFlag, getAiAnswer } from '../api/api.js';
+import { searchProducts, getFeatureFlag, getAiAnswer, searchContent } from '../api/api.js';
 import { openFor } from './flavor-popover.js';
 import { derivePricePer100g, isCountBasedForm } from '../core/metrics.js';
 import { navigate } from '../core/router.js';
@@ -1667,6 +1667,8 @@ export function mountSearchPanel() {
     debounced(val);
     // Clear AI when query is empty
     if (!val || !val.trim()) hideAi();
+    // Refresh content rail alongside results
+    refreshContentRail(val).catch(()=>{});
   });
   overlayInput?.addEventListener('keydown', (e)=>{ 
     if(e.key==='Enter'){
@@ -1881,6 +1883,37 @@ function applyFiltersFromParams(params){
     updateAppliedBar();
     if (window.checkChipOverflow) window.checkChipOverflow();
   }catch(_e){ /* ignore */ }
+}
+
+function renderContentRailItem(hit){
+  const title = escapeHtml(String(hit?.title||''));
+  const excerpt = escapeHtml(String(hit?.excerpt||''));
+  const url = escapeHtml(String(hit?.url||''));
+  const source = escapeHtml(String(hit?.source||''));
+  const license = escapeHtml(String(hit?.license||''));
+  const lang = escapeHtml(String(hit?.language||''));
+  const badges = [source||'', license||'', lang||''].filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join(' ');
+  return `
+    <div class="content-card">
+      <div style="font-weight:800">${title}</div>
+      ${excerpt?`<div class="muted" style="font-size:12px;margin-top:2px">${excerpt.length>140?escapeHtml(excerpt.slice(0,137))+'…':excerpt}</div>`:''}
+      <div class="muted" style="font-size:12px;margin-top:6px">${badges}</div>
+      ${url?`<div style="margin-top:6px"><a class="btn-ghost" href="${url}" target="_blank" rel="noopener">Read more →</a></div>`:''}
+    </div>`;
+}
+
+async function refreshContentRail(query){
+  try{
+    const box = document.getElementById('contentRail');
+    if (!box) return;
+    const q = (query||'').trim();
+    // Prefer showing something relevant for empty queries too; use default topics
+    const payloadQ = q || 'creatine';
+    const res = await searchContent(payloadQ, { page:1, size:5 });
+    const hits = Array.isArray(res?.hits) ? res.hits : [];
+    if (hits.length === 0) { box.innerHTML = '<div class="content-card">No content yet</div>'; return; }
+    box.innerHTML = hits.map(renderContentRailItem).join('');
+  }catch(_e){ /* silent */ }
 }
 
 

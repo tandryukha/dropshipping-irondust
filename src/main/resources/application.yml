@@ -10,6 +10,7 @@ app:
   baseUrl: https://www.irondust.eu
   perPage: 100
   indexName: products_lex
+  contentIndexName: content
   ingestParallelism: 30
   meiliConcurrentUpdates: 25
   uploadChunkSize: 10000

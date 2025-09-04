@@ -63,4 +63,16 @@ export async function getAiAnswer(q, { page=1, size=6, filters={} } = {}){
   return res.json(); // { answer, items: [{ id, name, price_cents, price_per_serving, permalink }] }
 }
 
+export async function searchContent(q, { page=1, size=6, filter } = {}) {
+  const payload = { q, page, size };
+  if (typeof filter === 'string' && filter.trim()) payload.filter = filter;
+  const res = await fetch(API_BASE + '/content/search', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('HTTP '+res.status);
+  return res.json(); // Meili raw response: { hits, totalHits, facets, ... }
+}
+
 

@@ -66,6 +66,18 @@ curl -X POST http://localhost:4000/ingest/products \
 - POST /search/hybrid — Force Hybrid search (BM25 + vectors via RRF)
 - POST /search/ai — AI quick answer, grounded in top results (feature-flagged)
 
+## Content
+
+- POST /ingest/content/minimal — Admin-only seed of content index
+  - Headers: `x-admin-key: <key>`
+  - Seeds Wikipedia summaries (Creatine, Whey protein, Electrolyte) and recent FDA supplement recalls
+  - Response: `{ "indexed": <number> }`
+
+- POST /content/search — Search editorial/external content
+  - Body: `{ "q": string, "page": number, "size": number, "filter"?: string }`
+  - Returns Meilisearch response with facets: `source`, `license`, `language`, `topic`, `tags`
+  - Each hit includes `source` and `license` for attribution
+
 ### UI: Ask AI
 
 - The UI includes an Ask AI button (header and in the search overlay) and an AI Answer card rendered above results when `ai_search` is enabled.

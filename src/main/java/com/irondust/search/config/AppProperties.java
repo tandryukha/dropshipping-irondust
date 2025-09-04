@@ -8,6 +8,11 @@ public class AppProperties {
     private String baseUrl;
     private int perPage;
     private String indexName;
+    /**
+     * Separate Meilisearch index for editorial and external content (Wikipedia, FDA, etc.).
+     * Defaults to "content" when not set.
+     */
+    private String contentIndexName;
     // Ingest tuning
     private int ingestParallelism;
     private int meiliConcurrentUpdates;
@@ -48,6 +53,14 @@ public class AppProperties {
 
     public void setIndexName(String indexName) {
         this.indexName = indexName;
+    }
+
+    public String getContentIndexName() {
+        return contentIndexName;
+    }
+
+    public void setContentIndexName(String contentIndexName) {
+        this.contentIndexName = contentIndexName;
     }
 
     public int getIngestParallelism() {
