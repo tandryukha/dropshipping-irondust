@@ -21,12 +21,16 @@ echo "Opening index.html in default browser..."
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
     open "http://localhost:8011/index.html"
+    # Also print v2 URL for quick access
+    echo "New UI: http://localhost:8011/index-v2.html"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux
     xdg-open "http://localhost:8011/index.html" 2>/dev/null || sensible-browser "http://localhost:8011/index.html" 2>/dev/null || echo "Please open http://localhost:8011/index.html in your browser"
+    echo "New UI: http://localhost:8011/index-v2.html"
 else
     # Windows or other
     echo "Please open http://localhost:8011/index.html in your browser"
+    echo "New UI: http://localhost:8011/index-v2.html"
 fi
 
 echo "Server started! Press Ctrl+C to stop."

@@ -1,0 +1,56 @@
+---
+alwaysApply: false
+---
+
+Looks solid and very close! Here’s how I’d polish it like a senior UX pass—prioritized, specific, and easy to action.
+
+Top fixes (do these first)
+	1.	Pick a primary intent per query (Shop vs Learn).
+Right now products, goals, and wiki content fight for attention. Default to Products as the primary canvas; collapse “Content” into a compact inline chip (“What is creatine? →”) that opens a side sheet. Only auto-expand content for ambiguous queries (e.g., “what is creatine”). This reduces cognitive load and boosts add-to-cart.
+	2.	Make the product CTA obvious.
+The tiny floating cart icon looks secondary and a bit ambiguous. Use a full-width Add to cart button inside each card (with +/– quantity on hover or inline). Keep the price and price/serv side-by-side and bigger.
+	3.	Turn “Goals” into a real filter, not a separate block.
+Place Goals inside the filter chip row (as a multi-select “Goal” group). Users expect all constraints in one place. It also frees horizontal space.
+	4.	Unify active filters into a sticky chip bar.
+Show all selected filters (including goal, price, form, vegan) in a single row under the search field, sticky while scrolling. Add quick “×” to remove each. This makes state visible and reduces surprises.
+	5.	Clean up the right column or remove it by default.
+If you keep it, limit to a single content card with: 3 bullets, source label, “Read more”. De-duplicate the two content cards. “Read full summary” and “View source” are redundant—keep one primary link.
+
+Layout & hierarchy
+	6.	Column ratios. Give products ~70% width; tools/content ~30%. If content is collapsed, let products take full width. Maintain a consistent 8-point spacing system and align card heights so the eye can scan.
+	7.	Reduce visual noise in cards.
+	•	Clamp titles to 2 lines.
+	•	Consolidate badges (e.g., “Sugar-free, Vegan”) into a single capsule with a “+N” overflow.
+	•	Keep exactly one micro-metric row: serving size • g/serv • €/serv • €/100g (already good—just lock the order).
+	8.	Results count + actions.
+The “Show results (145)” button reads like a primary CTA but you’re already showing results. If this overlay is a pre-results step, keep a sticky footer with the count and a bold “Show products (145)”. If results are already live, remove the button.
+
+Filters & sorting
+	9.	Add counts and alignment.
+Show mini counts on filter options (e.g., “Capsules (34)”). Correct “≤€20” spacing (“≤ €20”). Consider a compact price slider.
+	10.	Sorting clarity.
+“Recommended” is fine, but reveal the sort key on hover (“Based on popularity + margin + stock”). Add “Price ↑/↓” and “Price per serving ↑/↓”.
+
+Micro-copy 
+	12.	Trust cues.
+Add rating stars (if available), delivery estimate (“1–2 days”), and return policy hint. Those drive conversion for supplements.
+
+Interactions & performance
+
+
+	14.	Empty & error states.
+For zero hits, show popular queries, a goal preset, and a “broaden filters” button.
+	15.	Speed feel.
+Use skeleton loaders for cards; prefetch first 12 product images; debounce search; keep recent queries capped to 5.
+
+Accessibility
+	16.	Targets & contrast.
+44px min tap targets; 4.5:1 contrast for all text on tinted cards. Provide ARIA live region for “145 results” updates. Icons need text labels for screen readers (“Add to cart”).
+
+
+Quick visual tweaks (1-hour wins)
+	•	Increase product image size ~10–15% for recognition.
+	•	Align price currency format consistently (€24.90, not €24,90 unless you localize everything).
+	•	Replace emoji in “Goals” with consistent icon set (keeps brand tone cleaner).
+	•	Tighten vertical rhythm in the left list (reduce micro-bullets to one line with separators).
+	•	Elevate “In stock” to a green check chip; move secondary text to tooltip.

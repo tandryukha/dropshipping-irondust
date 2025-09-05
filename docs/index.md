@@ -1,6 +1,9 @@
-# IronDust Dropshipping Search
+# IronDust-wrapped Dropshipping Search
 
-Spring Boot API that ingests WooCommerce Store API data into Meilisearch and provides enriched, searchable product information for irondust.eu.
+We’re building a product discovery layer tailored for our drop‑shipping store: a system that turns messy supplier/WooCommerce feeds into a clean, trustworthy, and highly searchable catalog. It standardizes forms, flavors, goals, diets, and brands; computes price intelligence (price per serving/100g); groups variations; and, when confident, adds concise AI content like benefit snippets and FAQs. The result is faster SKU onboarding, filterable browsing that matches shopper intent (goals, diets, in‑stock), and higher conversion/AOV via clear comparisons, alternatives, and complements—without you rewriting supplier data by hand.
+We build it deterministic‑first, with optional AI on top. A rule-based pipeline parses units, servings, and prices, extracts taxonomy, and records provenance so deterministic values win; AI is gated by confidence, timeouts, and caching to control cost and latency. The enriched catalog is indexed in Meilisearch (fast lexical) and optionally Qdrant (vectors) for hybrid search that only kicks in when it helps. Feature flags let you toggle AI and hybrid behavior, admin endpoints handle ingest/reindex, and the storefront consumes simple APIs for search, product detail, alternatives, and complements—all designed to handle supplier volatility and keep operations lean.
+
+
 
 ## Architecture at a Glance
 
