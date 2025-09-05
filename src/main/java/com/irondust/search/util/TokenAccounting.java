@@ -95,18 +95,24 @@ public final class TokenAccounting {
         Double embPer1k = getEnvDouble("OPENAI_COST_" + key + "_EMBED_PER_1K");
 
         // Defaults (approximate; override via env to keep up-to-date):
-        // gpt-4o-mini: $0.15 / 1K input, $0.60 / 1K output
+        // NOTE: All defaults below are expressed as cost per 1K tokens to match the
+        // PER_1K env var semantics. Official OpenAI prices are per 1M tokens, so we
+        // convert them here (divide by 1000).
+        // gpt-4o-mini: $0.15 / 1M input, $0.60 / 1M output => per 1K: 0.00015 / 0.00060
         if (inPer1k == null && outPer1k == null && embPer1k == null) {
             String m = model.toLowerCase();
             if (m.contains("gpt-4o-mini")) {
-                inPer1k = 0.15; outPer1k = 0.60;
+                inPer1k = 0.00015; outPer1k = 0.00060;
             } else if (m.contains("gpt-4o")) {
-                // Fallback conservative estimate; please override with env if you use this model
-                inPer1k = 5.00; outPer1k = 15.00; // per 1K tokens (approx)
+                // gpt-4o: $5.00 / 1M input, $15.00 / 1M output => per 1K: 0.005 / 0.015
+                // Please override with env if your account has different pricing.
+                inPer1k = 0.005; outPer1k = 0.015;
             } else if (m.contains("text-embedding-3-large")) {
-                embPer1k = 0.13; // per 1K tokens
+                // text-embedding-3-large: $0.13 / 1M => per 1K: 0.00013
+                embPer1k = 0.00013;
             } else if (m.contains("text-embedding-3-small")) {
-                embPer1k = 0.02;
+                // text-embedding-3-small: $0.02 / 1M => per 1K: 0.00002
+                embPer1k = 0.00002;
             } else {
                 // Unknown model: zero unless overridden by env
                 inPer1k = 0.0; outPer1k = 0.0; embPer1k = 0.0;

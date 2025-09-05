@@ -92,6 +92,17 @@
         }
         prog.textContent = txt;
       }
+      // Render a link to open JSON (persisted result)
+      const link = document.getElementById(type + 'OpenJson');
+      if (link) {
+        if (js && js.runId && js.resultPath && (js.status === 'completed' || js.status === 'failed')) {
+          link.style.display = '';
+          link.setAttribute('href', '/admin/runs/' + encodeURIComponent(js.runId) + '/result');
+        } else {
+          link.style.display = 'none';
+          link.removeAttribute('href');
+        }
+      }
     }
     async function waitForCompletion(runId) {
       if (!runId) return;
@@ -275,7 +286,9 @@
         try {
           const res = await fetch('/admin/runs/latest?type=ingest');
           const js = await res.json();
-          if (js && js.status === 'running') await refreshLatest('ingest');
+          if (js && (js.status === 'running' || js.status === 'completed' || js.status === 'failed')) {
+            await refreshLatest('ingest');
+          }
         } catch {}
       }, 1000);
     });
@@ -300,7 +313,10 @@
         <div class="small" id="ingestProgress"></div>
         <div class="small">Latest runId: <code id="ingestRunId"></code></div>
         <div class="spacer"></div>
-        <div class="small">Latest result</div>
+        <div class="toolbar" style="margin-top:6px; gap:10px; align-items:center;">
+          <div class="small">Latest result</div>
+          <a id="ingestOpenJson" class="small" style="margin-left:auto; text-decoration:underline; display:none" target="_blank">Open JSON</a>
+        </div>
         <pre id="ingestResult"></pre>
       </div>
       <div class="card">
@@ -314,7 +330,10 @@
         <div class="small" id="indexProgress"></div>
         <div class="small">Latest runId: <code id="indexRunId"></code></div>
         <div class="spacer"></div>
-        <div class="small">Latest result</div>
+        <div class="toolbar" style="margin-top:6px; gap:10px; align-items:center;">
+          <div class="small">Latest result</div>
+          <a id="indexOpenJson" class="small" style="margin-left:auto; text-decoration:underline; display:none" target="_blank">Open JSON</a>
+        </div>
         <pre id="indexResult"></pre>
       </div>
     </div>
