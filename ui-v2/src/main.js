@@ -10,6 +10,48 @@ import { mountLanguageSelector } from './ui/language-selector.js';
 import './ui/translations.js'; // Auto-applies translations
 import { mountAdmin } from './ui/admin.js';
 
+// Theme handling (sporty=default, minimal, dense)
+const THEME_KEY = 'theme';
+const THEMES = ['sporty','minimal','dense'];
+
+function applyTheme(theme){
+  const root = document.documentElement;
+  if (theme && theme !== 'sporty') {
+    root.setAttribute('data-theme', theme);
+  } else {
+    root.removeAttribute('data-theme');
+  }
+}
+
+function setTheme(theme, { persist=true, updateUrl=true } = {}){
+  const normalized = THEMES.includes(theme) ? theme : 'sporty';
+  applyTheme(normalized);
+  if (persist) try { localStorage.setItem(THEME_KEY, normalized); } catch(_){ }
+  if (updateUrl) {
+    try {
+      const url = new URL(window.location.href);
+      if (normalized === 'sporty') url.searchParams.delete('theme'); else url.searchParams.set('theme', normalized);
+      history.replaceState(null, '', url.toString());
+    } catch(_){ }
+  }
+  const btn = document.getElementById('themeBtn');
+  if (btn) {
+    btn.setAttribute('aria-label', `Theme: ${normalized} (click to switch)`);
+    btn.title = `Theme: ${normalized}`;
+  }
+}
+
+function initTheme(){
+  let fromQuery = null;
+  try {
+    const u = new URL(window.location.href);
+    fromQuery = u.searchParams.get('theme');
+  } catch(_){ }
+  const fromStorage = (()=>{ try { return localStorage.getItem(THEME_KEY); } catch(_){ return null; } })();
+  const initial = fromQuery || fromStorage || 'sporty';
+  setTheme(initial, { persist: !!fromQuery, updateUrl: true });
+}
+
 // Wire header bits that remain static
 function mountHeader() {
   // No command palette; only '/' shortcut handled in search-panel
@@ -37,6 +79,17 @@ function mountHeader() {
   cartBtn?.addEventListener('click', ()=> toggle(true));
   cartBtn?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' ') { e.preventDefault(); toggle(true);} });
   cartClose?.addEventListener('click', ()=> toggle(false));
+
+  // Theme switcher button cycles sporty -> minimal -> dense
+  const themeBtn = document.getElementById('themeBtn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', ()=>{
+      const current = (()=>{ try { return localStorage.getItem(THEME_KEY) || 'sporty'; } catch(_){ return 'sporty'; } })();
+      const idx = THEMES.indexOf(current);
+      const next = THEMES[(idx + 1) % THEMES.length];
+      setTheme(next);
+    });
+  }
 }
 
 // Routes
@@ -77,6 +130,7 @@ route('/p/:id', (id)=>{
 });
 
 // Boot
+initTheme();
 mountHeader();
 mountLanguageSelector();
 mountFlavorPopover();

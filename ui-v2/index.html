@@ -16,6 +16,27 @@
       --shadow:0 10px 20px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.05);
       --ring:0 0 0 3px rgba(22,168,201,.25);
     }
+    /* Theme variants via data-theme on <html> */
+    :root[data-theme="minimal"]{
+      --fp-primary:#0ea5b7;
+      --fp-dark:#1f2937;
+      --fp-muted:#6b7280;
+      --fp-bg:#ffffff;
+      --fp-accent:#f59e0b;
+      --radius:12px;
+      --shadow:none;
+      --ring:0 0 0 2px rgba(14,165,183,.25);
+    }
+    :root[data-theme="dense"]{
+      --fp-primary:#0f766e;
+      --fp-dark:#111827;
+      --fp-muted:#4b5563;
+      --fp-bg:#f3f4f6;
+      --fp-accent:#22c55e;
+      --radius:10px;
+      --shadow:0 6px 14px rgba(0,0,0,.06), 0 2px 4px rgba(0,0,0,.04);
+      --ring:0 0 0 2px rgba(15,118,110,.25);
+    }
     *{box-sizing:border-box}
     html,body{height:100%}
     html{-webkit-text-size-adjust:100%}
@@ -432,6 +453,7 @@
       <!-- Global sort removed by request (available in Popular section) -->
 
       <div class="actions">
+        <button class="lang-flag" id="themeBtn" aria-label="Theme switch" title="Switch theme">🎨</button>
         <div class="lang-wrap">
           <button class="lang-flag" id="langFlag" aria-label="Language">🇬🇧</button>
           <div id="langMenu" class="lang-menu" aria-label="Choose language"></div>

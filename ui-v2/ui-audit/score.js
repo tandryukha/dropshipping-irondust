@@ -150,6 +150,14 @@ async function run(url) {
     results.push(score);
   }
 
+  // Derive theme label from input URL (query param), fallback to 'sporty'
+  let themeLabel = 'sporty';
+  try {
+    const u = new URL(url);
+    const t = (u.searchParams.get('theme') || '').trim();
+    if (t) themeLabel = t;
+  } catch(_) { /* noop */ }
+
   const summary = {
     url,
     timestamps: { startedAt: new Date().toISOString() },
@@ -159,10 +167,12 @@ async function run(url) {
       cta: '>=120x40 and above fold',
       ergonomics: 'sticky CTA bottom 40%'
     },
+    theme: themeLabel,
     viewports: results,
   };
 
-  const outFile = path.join(outDir, `score-${url.includes('index-v2') ? 'index-v2' : 'index'}.json`);
+  const base = url.includes('index-v2') ? 'index-v2' : 'index';
+  const outFile = path.join(outDir, `score-${base}-theme-${themeLabel}.json`);
   fs.writeFileSync(outFile, JSON.stringify(summary, null, 2));
 
   await browser.close();
