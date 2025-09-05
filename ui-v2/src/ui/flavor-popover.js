@@ -22,8 +22,13 @@ export function mountFlavorPopover() {
   qtyPlus?.addEventListener('click', ()=>{ setQty(currentQty+1); });
 
   confirmAdd?.addEventListener('click', ()=>{
-    store.set('cartCount', store.get('cartCount') + currentQty);
-    $('#cartCount').textContent = String(store.get('cartCount'));
+    // Update cart counters and subtotal (assume price on trigger dataset if present)
+    const priceCents = Number(confirmAdd.getAttribute('data-price-cents')||'0') || 0;
+    const nextCount = store.get('cartCount') + currentQty;
+    const nextSubtotal = (Number(store.get('cartSubtotalCents')||0) + (priceCents*currentQty))|0;
+    store.set('cartCount', nextCount);
+    store.set('cartSubtotalCents', nextSubtotal);
+    updateCartDrawer();
     close();
   });
 }
@@ -34,6 +39,8 @@ export function openFor(button, { initialFlavor = null, initialQty = 1 } = {}) {
   pop.style.top  = (r.top + window.scrollY - 10 - pop.offsetHeight/2) + 'px';
 
   title.textContent = 'Add: ' + (button.dataset.name || 'Product');
+  // Pass price cents into confirm for subtotal math if provided by trigger
+  if (button.dataset.priceCents) confirmAdd.setAttribute('data-price-cents', String(button.dataset.priceCents));
   const list = JSON.parse(button.dataset.flavors || '[]');
   flavorWrap.innerHTML = '';
   currentFlavor = null;
@@ -69,5 +76,20 @@ export function openFor(button, { initialFlavor = null, initialQty = 1 } = {}) {
 
 export function close(){ pop.classList.remove('visible'); }
 function setQty(n){ currentQty = n; qtyVal.textContent = String(currentQty); }
+
+function updateCartDrawer(){
+  try{
+    const sub = document.getElementById('cartSubtotal');
+    const cents = Number(store.get('cartSubtotalCents')||0);
+    if (sub) sub.textContent = '€'+(cents/100).toFixed(2);
+    // Free shipping progress (threshold 50€)
+    const threshold = 5000;
+    const msg = document.getElementById('freeShipMsg');
+    const bar = document.getElementById('freeShipProg');
+    const remain = Math.max(0, threshold - cents);
+    if (msg) msg.textContent = remain>0 ? (`Add €${(remain/100).toFixed(2)} for free shipping`) : 'Free shipping unlocked!';
+    if (bar) bar.style.width = Math.min(100, Math.round((cents/threshold)*100)) + '%';
+  }catch(_e){}
+}
 
 

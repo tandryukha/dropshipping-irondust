@@ -139,7 +139,7 @@ function renderProductHTML(item, query){
       </div>
       <div style="display:grid;gap:10px;justify-items:end">
         <div class="price">${symbol?`<span class=\"cur\">${symbol}</span>`:''}${price?`<span class=\"maj\">${maj||''}</span><span class=\"min\">${min||''}</span>`:''}</div>
-        <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="${name}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>
+        <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="${name}" data-price-cents="${typeof item?.price_cents==='number'?item.price_cents:0}" data-flavors='${JSON.stringify((()=>{ const list=[]; if(Array.isArray(item?.dynamic_attrs?.flavors)) return item.dynamic_attrs.flavors; if(typeof item?.flavor === "string" && item.flavor.trim()) list.push(item.flavor.trim()); return list; })())}'>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
         </button>
       </div>

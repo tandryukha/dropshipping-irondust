@@ -24,6 +24,19 @@ function mountHeader() {
   // Sync cart pill from store
   const cartCount = $('#cartCount');
   bus.addEventListener('store:cartCount', ()=>{ cartCount.textContent = String(store.get('cartCount')); });
+
+  // Cart drawer open/close
+  const cartBtn = document.getElementById('cartBtn');
+  const drawer = document.getElementById('cartDrawer');
+  const cartClose = document.getElementById('cartClose');
+  const toggle = (on)=>{
+    if (!drawer) return;
+    drawer.classList.toggle('visible', !!on);
+    drawer.setAttribute('aria-hidden', on? 'false' : 'true');
+  };
+  cartBtn?.addEventListener('click', ()=> toggle(true));
+  cartBtn?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' ') { e.preventDefault(); toggle(true);} });
+  cartClose?.addEventListener('click', ()=> toggle(false));
 }
 
 // Routes

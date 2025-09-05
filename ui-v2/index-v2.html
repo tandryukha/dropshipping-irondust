@@ -6,7 +6,7 @@
   <title>Supplements UI v2</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{ --fp-primary:#16a8c9; --fp-muted:#6b7280; }
+    :root{ --fp-primary:#00819f; --fp-muted:#6b7280; }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;background:#f6f7f9;color:#222;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -20,6 +20,14 @@
     .lang-flag,.cart{width:36px;height:36px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;display:grid;place-items:center}
     .cart{position:relative}
     .cart-count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;background:#16a8c9;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:800}
+    /* Cart drawer */
+    .drawer{position:fixed;right:0;top:0;bottom:0;width:min(420px,92vw);background:#fff;border-left:1px solid #e5e7eb;box-shadow:0 0 40px rgba(0,0,0,.2);transform:translateX(100%);transition:transform .18s ease;z-index:60;display:flex;flex-direction:column}
+    .drawer.visible{transform:translateX(0)}
+    .drawer-head{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid #e5e7eb}
+    .drawer-body{flex:1;overflow:auto;padding:12px}
+    .drawer-foot{padding:12px;border-top:1px solid #e5e7eb;display:grid;gap:8px}
+    .progress{height:8px;background:#f3f4f6;border-radius:999px;overflow:hidden}
+    .progress > div{height:100%;background:#00819f;width:0%}
     /* Goal chips */
     #goalChips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
     .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:999px;background:#f9fafb;cursor:pointer}
@@ -30,7 +38,8 @@
     .panel-top{grid-column:1 / -1;position:sticky;top:0;background:#fff}
     #productsCol{overflow:auto}
     .btn{border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;background:#fff;cursor:pointer}
-    .btn-primary{background:#16a8c9;color:#fff;border-color:#16a8c9}
+    .btn-primary{background:#00819f;color:#fff;border-color:#00657c}
+    .btn-primary:hover{filter:brightness(1.02)}
     .applied-bar{display:flex;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid #eef1f4;border-bottom:1px solid #eef1f4}
     .applied-chip{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
     /* Home */
@@ -53,6 +62,7 @@
     .sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #e5e7eb;border-top-left-radius:16px;border-top-right-radius:16px;display:none}
     @media (max-width:900px){ .panel-inner{grid-template-columns:1fr;top:0;left:0;transform:none;width:100%;height:100dvh;border-radius:0;border:0} #goalsCol,#contentCol{display:none} .home-grid{grid-template-columns:repeat(2,1fr)} .pdp{grid-template-columns:1fr} }
     .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden;white-space:nowrap}
+    :focus-visible{outline:2px solid var(--fp-primary);outline-offset:2px}
   </style>
 </head>
 <body>
@@ -73,7 +83,7 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="lang-flag" id="langFlag" aria-label="Language">🇬🇧</button>
-        <div class="cart" aria-label="Cart"><span id="cartCount" class="cart-count">0</span>🛒</div>
+        <div class="cart" aria-label="Cart" id="cartBtn" role="button" tabindex="0"><span id="cartCount" class="cart-count">0</span>🛒</div>
       </div>
 
       <!-- Search Panel -->
@@ -91,7 +101,8 @@
             <div id="appliedBar" class="applied-bar"></div>
             <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
               <strong>Products</strong>
-              <select id="sortDropdown" class="btn">
+              <label for="sortDropdown" class="visually-hidden">Sort</label>
+              <select id="sortDropdown" class="btn" aria-label="Sort">
                 <option value="relevance">Best match</option>
                 <option value="price_asc">Price ↑</option>
                 <option value="price_desc">Price ↓</option>
@@ -156,7 +167,8 @@
         <span class="chip" data-home-preset="endurance">🏃 Endurance</span>
         <span class="chip" data-home-preset="wellness">🛡️ Wellness</span>
         <span class="chip" data-home-preset="sale">🏷️ On sale</span>
-        <select id="homeSort" class="btn" style="margin-left:auto">
+        <label for="homeSort" class="visually-hidden">Sort</label>
+        <select id="homeSort" class="btn" style="margin-left:auto" aria-label="Sort">
           <option value="rank">Featured</option>
           <option value="popular">Top Rated</option>
           <option value="price_asc">Price ↑</option>
@@ -175,7 +187,7 @@
     <section class="pdp" aria-label="Product detail with copilot">
       <div class="card">
         <img id="pdpImage" src="https://picsum.photos/seed/hero/720/360" alt="Product image" style="max-width:100%;height:auto;object-fit:contain;border-radius:12px">
-        <h2 style="margin:8px 0 0;font-size:20px"><span id="pdpProductName"></span> <span id="pdpFlavorLabel"></span></h2>
+        <h2 style="margin:8px 0 0;font-size:20px"><span id="pdpProductName">Product</span> <span id="pdpFlavorLabel"></span></h2>
         <div id="pdpBenefitSnippet" style="color:#6b7280;font-size:14px"></div>
         <div style="color:#6b7280"><span id="pdpStars"></span> <span id="pdpReviewCount"></span> <strong id="pdpPrice"></strong></div>
         <div class="flavors" id="pdpFlavors" role="group" aria-label="Choose flavor"></div>
@@ -232,6 +244,23 @@
       </aside>
     </section>
   </div>
+
+  <!-- Cart Drawer -->
+  <aside id="cartDrawer" class="drawer" aria-label="Cart drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <strong>Cart</strong>
+      <button class="btn" id="cartClose" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div id="freeShipMsg" style="margin-bottom:8px"></div>
+      <div class="progress"><div id="freeShipProg"></div></div>
+      <div id="cartItems" style="margin-top:12px"></div>
+    </div>
+    <div class="drawer-foot">
+      <div style="display:flex;justify-content:space-between"><span>Subtotal</span><strong id="cartSubtotal">€0.00</strong></div>
+      <button class="btn btn-primary">Checkout</button>
+    </div>
+  </aside>
 
   <!-- Flavor picker popover -->
   <div class="pop" id="flavorPop" role="dialog" aria-modal="true" aria-labelledby="flavorTitle">
@@ -292,7 +321,8 @@
         <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":4000}}'>≤€40</button>
         <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":6000}}'>≤€60</button>
       </div>
-      <input type="range" id="priceSlider" min="0" max="100" value="100" style="width:100%">
+      <label for="priceSlider" class="visually-hidden">Max price</label>
+      <input type="range" id="priceSlider" min="0" max="100" value="100" style="width:100%" aria-label="Max price">
       <div>€0 - €<span id="priceValue">100+</span></div>
       </div>
       <div style="margin-top:8px"><strong>Serving cost</strong><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">

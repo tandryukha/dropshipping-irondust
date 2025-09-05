@@ -527,6 +527,7 @@ export function mountPdp() {
         });
       }
       els.pdpAdd?.setAttribute('data-name', (prod?.display_title || prod?.name) || 'Product');
+      if (typeof prod?.price_cents === 'number') els.pdpAdd?.setAttribute('data-price-cents', String(prod.price_cents));
 
       // Load alternatives and complements separately
       const altIds = await fetchAndRenderAlternatives(prod);

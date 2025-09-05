@@ -108,7 +108,7 @@ function renderCardHTML(item){
         ${metrics}
         <div class="price-add">
           <div style="font-weight:800">${symbol}${price}</div>
-          <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="${name}" data-flavors='${JSON.stringify(flavorsList)}'>
+          <button class="add js-add" aria-label="Add to cart" title="Add to cart" data-name="${name}" data-price-cents="${typeof item?.price_cents==='number'?item.price_cents:0}" data-flavors='${JSON.stringify(flavorsList)}'>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
           </button>
         </div>
