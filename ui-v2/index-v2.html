@@ -1,1 +1,311 @@
-Please implement me...
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Supplements UI v2</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --fp-primary:#16a8c9; --fp-muted:#6b7280; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:#f6f7f9;color:#222;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .app{max-width:1200px;margin:0 auto;padding:16px}
+    /* Header */
+    .header{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+    .brand{display:flex;align-items:center;gap:10px}
+    .brand-badge{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#16a8c9,#67e0f5)}
+    .search-wrap{display:flex;gap:8px;align-items:center;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;background:#fff}
+    .search-input{border:0;outline:0;width:100%;background:transparent}
+    .lang-flag,.cart{width:36px;height:36px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;display:grid;place-items:center}
+    .cart{position:relative}
+    .cart-count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;background:#16a8c9;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:800}
+    /* Goal chips */
+    #goalChips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:999px;background:#f9fafb;cursor:pointer}
+    /* Overlay */
+    .panel{position:fixed;inset:0;display:none}
+    .panel.visible{display:block}
+    .panel-inner{position:absolute;left:50%;top:6%;transform:translateX(-50%);width:min(1100px,94vw);background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2);padding:12px;display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;max-height:80vh}
+    .panel-top{grid-column:1 / -1;position:sticky;top:0;background:#fff}
+    #productsCol{overflow:auto}
+    .btn{border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;background:#fff;cursor:pointer}
+    .btn-primary{background:#16a8c9;color:#fff;border-color:#16a8c9}
+    .applied-bar{display:flex;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid #eef1f4;border-bottom:1px solid #eef1f4}
+    .applied-chip{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
+    /* Home */
+    .home{display:none;margin-top:16px}
+    .home.visible{display:block}
+    .home-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    /* PDP */
+    .pdp{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-top:16px}
+    .card{border:1px solid #e5e7eb;border-radius:16px;padding:12px;background:#fff}
+    .flavors,.qa-chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+    .flavor{border:1px solid #e5e7eb;border-radius:999px;background:#f9fafb;padding:6px 10px}
+    .sub-toggle{display:flex;align-items:center;gap:10px;margin:8px 0;padding:8px;border:1px solid #e5e7eb;border-radius:12px;background:#fcfffe}
+    .sub-toggle button{border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;background:#fff;cursor:pointer}
+    .sub-toggle button[aria-pressed="true"]{background:#e6fffa;border-color:#99f6e4}
+    .badge-row{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:999px;background:#f9fafb;font-size:12px}
+    .tabpanel{display:none;border-top:1px solid #eef1f4;margin-top:10px;padding-top:10px}
+    .tabpanel.active{display:block}
+    .pop{position:fixed;display:none;z-index:60;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;min-width:260px}
+    .sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #e5e7eb;border-top-left-radius:16px;border-top-right-radius:16px;display:none}
+    @media (max-width:900px){ .panel-inner{grid-template-columns:1fr;top:0;left:0;transform:none;width:100%;height:100dvh;border-radius:0;border:0} #goalsCol,#contentCol{display:none} .home-grid{grid-template-columns:repeat(2,1fr)} .pdp{grid-template-columns:1fr} }
+    .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden;white-space:nowrap}
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Supplements">
+    <header class="header">
+      <div class="brand" aria-label="logo">
+        <div class="brand-badge" aria-hidden="true"></div>
+        <div>
+          <div style="font-weight:800" aria-label="SUPPLEMENTS.EE">SUPPLEMENTS<span style="color:#0e7490" aria-hidden="true">.EE</span></div>
+          <small style="color:#6b7280">Sports & Nutrition</small>
+        </div>
+      </div>
+      <div class="search-wrap" aria-label="Global search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.3-4.3m1.8-5.1a7 7 0 11-14 0 7 7 0 0114 0z" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/></svg>
+        <label for="search" class="visually-hidden">Search</label>
+        <input id="search" class="search-input" placeholder="Search whey, creatine, goals…" autocomplete="off" />
+        <button id="askAiHeader" class="btn" style="display:none">AI</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="lang-flag" id="langFlag" aria-label="Language">🇬🇧</button>
+        <div class="cart" aria-label="Cart"><span id="cartCount" class="cart-count">0</span>🛒</div>
+      </div>
+
+      <!-- Search Panel -->
+      <div id="searchPanel" class="panel" role="dialog" aria-label="Search" aria-modal="true" aria-hidden="true">
+        <div class="panel-inner" role="document">
+          <div id="panelTop" class="panel-top">
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="searchOverlayInput" class="search-input" placeholder="Search whey, creatine, goals…" autocomplete="off" aria-label="Search" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px" />
+              <button class="btn" id="overlayClearBtn">Clear</button>
+              <button class="btn" id="overlayFiltersBtn">Filters</button>
+              <button class="btn btn-primary" id="askAiOverlay" style="display:none">Ask AI</button>
+            </div>
+            <div id="chipsDock" class="applied-bar" aria-label="Quick filters dock"></div>
+            <div id="preInputSuggestions" style="display:none"></div>
+            <div id="appliedBar" class="applied-bar"></div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+              <strong>Products</strong>
+              <select id="sortDropdown" class="btn">
+                <option value="relevance">Best match</option>
+                <option value="price_asc">Price ↑</option>
+                <option value="price_desc">Price ↓</option>
+                <option value="popular">Popular</option>
+                <option value="new">New</option>
+              </select>
+              <span style="margin-left:auto;color:#6b7280"><span id="resultCount">0</span> items</span>
+              <button id="closeOverlayBtn" class="btn">Close</button>
+              <button id="applyFooterBtn" class="btn btn-primary" disabled>Apply</button>
+            </div>
+          </div>
+          <div class="col" id="productsCol" role="region" aria-label="Products results">
+            <div id="aiAnswerCard" class="card" style="display:none"></div>
+            <div id="productsList"></div>
+          </div>
+          <div class="col" id="goalsCol">
+            <h4>Goals</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <button class="chip preset-card" data-filters='{"goal_tags":["strength"]}' data-preset="strength">💪 Strength</button>
+              <button class="chip preset-card" data-filters='{"goal_tags":["preworkout"]}' data-preset="energy">⚡ Energy</button>
+              <button class="chip preset-card" data-filters='{"goal_tags":["recovery"]}' data-preset="recovery">🔄 Recovery</button>
+              <button class="chip preset-card" data-filters='{"goal_tags":["weight_loss"]}' data-preset="weight_loss">⚖️ Weight loss</button>
+            </div>
+            <button class="btn" id="moreGoalsBtn" style="margin-top:8px">More goals →</button>
+            <h4 style="margin-top:12px">Quick filters</h4>
+            <div id="quickFilters">
+              <button class="chip" role="switch" aria-pressed="true" data-filter='{"in_stock":true}'>In stock</button>
+              <button class="chip" role="switch" aria-pressed="false" data-filter='{"form":"powder"}' data-filter-group="form">🥄 Powder</button>
+              <button class="chip" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}' data-filter-group="form">💊 Capsules</button>
+              <button class="chip" role="switch" aria-pressed="false" data-filter='{"diet_tags":["vegan"]}'>🌿 Vegan</button>
+              <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":2000}}' data-filter-group="price">≤€20</button>
+              <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":0.5}}' data-filter-group="pps">≤€0.50/serv</button>
+              <button class="chip" id="quickOverflow" style="display:none">+<span>0</span></button>
+            </div>
+            <button class="btn" id="allFiltersBtn" style="margin-top:8px">All filters →</button>
+          </div>
+          <div class="col" id="contentCol">
+            <h4>Content</h4>
+            <div id="contentRail"></div>
+            <button class="btn" id="openCoachBtn" style="margin-top:6px;width:100%">Open Coach</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Goal chips under header for fast navigation -->
+    <div id="goalChips" aria-label="Shop by goal">
+      <button class="chip" data-preset="strength">💪 Strength</button>
+      <button class="chip" data-preset="energy">⚡ Energy</button>
+      <button class="chip" data-preset="recovery">🔄 Recovery</button>
+    </div>
+
+    <!-- Home grid -->
+    <section id="home" class="home" aria-label="Home product grid">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:800">Browse products</div>
+        <div style="color:#6b7280;font-size:12px">Secure checkout • Transparent pricing • Human support</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <span class="chip" data-home-preset="all">✨ All</span>
+        <span class="chip" data-home-preset="strength">💪 Strength</span>
+        <span class="chip" data-home-preset="endurance">🏃 Endurance</span>
+        <span class="chip" data-home-preset="wellness">🛡️ Wellness</span>
+        <span class="chip" data-home-preset="sale">🏷️ On sale</span>
+        <select id="homeSort" class="btn" style="margin-left:auto">
+          <option value="rank">Featured</option>
+          <option value="popular">Top Rated</option>
+          <option value="price_asc">Price ↑</option>
+          <option value="price_desc">Price ↓</option>
+        </select>
+      </div>
+      <div id="homeGrid" class="home-grid" role="list"></div>
+      <div style="display:grid;place-items:center;margin:12px 0"><button id="homeMore" class="btn">Load more</button></div>
+      <div id="homeSuggestions" style="display:none;margin-top:12px">
+        <div style="font-weight:800;margin-bottom:6px">Other products you might like</div>
+        <div id="homeSugGrid" class="home-grid" role="list"></div>
+      </div>
+    </section>
+
+    <!-- PDP -->
+    <section class="pdp" aria-label="Product detail with copilot">
+      <div class="card">
+        <img id="pdpImage" src="https://picsum.photos/seed/hero/720/360" alt="Product image" style="max-width:100%;height:auto;object-fit:contain;border-radius:12px">
+        <h2 style="margin:8px 0 0;font-size:20px"><span id="pdpProductName"></span> <span id="pdpFlavorLabel"></span></h2>
+        <div id="pdpBenefitSnippet" style="color:#6b7280;font-size:14px"></div>
+        <div style="color:#6b7280"><span id="pdpStars"></span> <span id="pdpReviewCount"></span> <strong id="pdpPrice"></strong></div>
+        <div class="flavors" id="pdpFlavors" role="group" aria-label="Choose flavor"></div>
+        <!-- Subscribe & Save toggle (default on) -->
+        <div class="sub-toggle" aria-label="Subscribe and save">
+          <button id="pdpSubToggle" aria-pressed="true">Subscribe & Save 10%</button>
+          <div id="pdpSubNote" style="color:#6b7280;font-size:12px">You can switch to one‑time purchase anytime.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin:8px 0">
+          <div style="display:flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:8px;padding:4px 8px">
+            <button id="pdpQtyMinus" class="btn" aria-label="Decrease">−</button>
+            <span id="pdpQtyVal" aria-live="polite">1</span>
+            <button id="pdpQtyPlus" class="btn" aria-label="Increase">+</button>
+          </div>
+          <button class="btn btn-primary js-add" id="pdpAdd" data-name="" data-flavors='[]'>Add to cart</button>
+        </div>
+        <!-- Trust badges row -->
+        <div class="badge-row" aria-label="Trust badges">
+          <span class="badge">✅ GMP</span>
+          <span class="badge">🏅 Informed‑Sport</span>
+          <span class="badge">🌿 Vegan‑friendly</span>
+          <span class="badge">🇪🇺 Ships from EU</span>
+        </div>
+        <!-- Why these ingredients -->
+        <div class="card" id="pdpWhy" style="margin-top:8px"></div>
+        <div class="qa-chips" role="group" aria-label="Quick questions"></div>
+        <div id="ans1" class="card" style="display:none"></div>
+        <div id="ans2" class="card" style="display:none"></div>
+        <div id="ans3" class="card" style="display:none"></div>
+        <div class="card facts" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><div class="card"></div><div class="card"></div></div>
+        <div class="card" style="margin-top:8px;display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center">
+          <img src="https://picsum.photos/seed/cr/60/60" alt="Creatine add-on" style="border-radius:10px">
+          <div><strong>Add Creatine Monohydrate</strong><div style="color:#6b7280;font-size:12px">for better strength gains</div></div>
+          <button class="btn">Add bundle €18.90</button>
+        </div>
+        <div style="margin-top:8px">
+          <div role="tablist" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" role="tab" aria-selected="true" aria-controls="tab-desc" id="tab-desc-btn">Description</button>
+            <button class="btn" role="tab" aria-selected="false" aria-controls="tab-comp" id="tab-comp-btn">Composition</button>
+            <button class="btn" role="tab" aria-selected="false" aria-controls="tab-rev" id="tab-rev-btn">Reviews</button>
+          </div>
+          <div class="tabpanel active" id="tab-desc" role="tabpanel" aria-labelledby="tab-desc-btn"><div id="pdpDescText"></div></div>
+          <div class="tabpanel" id="tab-comp" role="tabpanel" aria-labelledby="tab-comp-btn"></div>
+          <div class="tabpanel" id="tab-rev" role="tabpanel" aria-labelledby="tab-rev-btn"></div>
+        </div>
+      </div>
+      <aside class="card">
+        <h3 style="margin:0 0 8px">Alternatives <span id="altDietBadge" class="chip" style="display:none">🌿 Vegan</span></h3>
+        <div style="margin:6px 0 8px"><button id="altCheaperToggle" class="chip" role="button" aria-pressed="false">Cheaper than this</button></div>
+        <div id="pdpAltGrid" role="region" aria-label="Alternatives"></div>
+        <h3 style="margin:16px 0 8px">More picks</h3>
+        <div id="pdpMoreGrid" role="region" aria-label="More picks"></div>
+      </aside>
+    </section>
+  </div>
+
+  <!-- Flavor picker popover -->
+  <div class="pop" id="flavorPop" role="dialog" aria-modal="true" aria-labelledby="flavorTitle">
+    <button id="popClose" class="btn" aria-label="Close" style="position:absolute;right:6px;top:6px">✕</button>
+    <h5 id="flavorTitle" style="margin:0 0 8px">Choose options</h5>
+    <div id="flavorSubtitle" style="color:#6b7280;font-size:12px;margin-bottom:6px">Select flavor (required)</div>
+    <div id="flavorChips" class="flavors"></div>
+    <div style="display:flex;gap:8px;align-items:center"><span style="color:#6b7280;font-size:12px">Qty</span><button id="qtyMinus" class="btn" aria-label="Decrease">−</button><span id="qtyVal" aria-live="polite">1</span><button id="qtyPlus" class="btn" aria-label="Increase">+</button></div>
+    <button class="btn btn-primary" id="confirmAdd" disabled style="width:100%;margin-top:8px">Add to cart</button>
+  </div>
+
+  <!-- Reader sheet placeholder -->
+  <div class="sheet" id="helperSheet" role="dialog" aria-modal="true" aria-labelledby="helperSheetTitle" style="display:none"></div>
+
+  <!-- Filters/Goals modals (minimal placeholders wired by JS) -->
+  <div id="goalsOverlay" class="panel" style="display:none"></div>
+  <div id="goalsModal" class="card" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:640px;width:92vw;z-index:70">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 id="goalsTitle" style="margin:0">All Goals</h3><button id="goalsClose" class="btn">✕</button></div>
+    <div class="modal-body">
+      <div><strong>Build</strong><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px">
+        <button class="chip preset-card" data-filters='{"goal_tags":["strength"]}'>💪 Strength</button>
+        <button class="chip preset-card" data-filters='{"goal_tags":["lean_muscle"]}'>🏋️ Build muscle</button>
+        <button class="chip preset-card" data-filters='{"goal_tags":["recovery"]}'>🔄 Recovery</button>
+      </div></div>
+      <div style="margin-top:10px"><strong>Performance</strong><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px">
+        <button class="chip preset-card" data-filters='{"goal_tags":["preworkout"]}'>⚡ Pre-workout</button>
+        <button class="chip preset-card" data-filters='{"goal_tags":["endurance"]}'>🏃 Endurance</button>
+        <button class="chip preset-card" data-filters='{"goal_tags":["preworkout"]}'>🔥 Energy</button>
+      </div></div>
+      <div style="margin-top:10px"><strong>Wellness</strong><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px">
+        <button class="chip preset-card" data-filters='{"goal_tags":["wellness"]}'>🛡️ Wellness</button>
+        <button class="chip preset-card" data-filters='{"goal_tags":["weight_loss"]}'>⚖️ Weight loss</button>
+        <button class="chip preset-card" data-filters='{"goal_tags":["wellness"]}'>☀️ Daily essentials</button>
+      </div></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn" id="resetGoals">Reset</button><button class="btn btn-primary" id="applyGoals">Apply Goals</button></div>
+  </div>
+
+  <div id="filtersModal" class="card" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:640px;width:92vw;z-index:70">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 id="filtersTitle" style="margin:0">All Filters</h3><button id="filtersClose" class="btn">✕</button></div>
+    <div class="modal-body">
+      <div><strong>Availability</strong><label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" id="filterInStock" checked> <span>In stock only</span></label></div>
+      <div style="margin-top:8px"><strong>Form</strong><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"form":"powder"}'>🥄 Powder</button>
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"form":"capsules"}'>💊 Capsules</button>
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"form":"tabs"}'>💊 Tabs</button>
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"form":"liquid"}'>💧 Liquid</button>
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"form":"bar"}'>🍫 Bar</button>
+      </div></div>
+      <div style="margin-top:8px"><strong>Diet</strong><div>
+        <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="filterVegan"> 🌿 Vegan</label>
+        <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="filterGlutenFree"> 🚫🌾 Gluten-free</label>
+        <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="filterSugarFree"> 🚫🍬 Sugar-free</label>
+        <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="filterLactoseFree"> 🚫🥛 Lactose-free</label>
+      </div></div>
+      <div style="margin-top:8px"><strong>Price</strong><div style="display:flex;gap:6px;margin:6px 0 8px 0;flex-wrap:wrap">
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":2000}}'>≤€20</button>
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":4000}}'>≤€40</button>
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_cents":{"op":"<=","value":6000}}'>≤€60</button>
+      </div>
+      <input type="range" id="priceSlider" min="0" max="100" value="100" style="width:100%">
+      <div>€0 - €<span id="priceValue">100+</span></div>
+      </div>
+      <div style="margin-top:8px"><strong>Serving cost</strong><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":0.5}}'>≤€0.50/serv</button>
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":1}}'>≤€1/serv</button>
+        <button class="chip" role="switch" aria-pressed="false" data-filter='{"price_per_serving":{"op":"<=","value":2}}'>≤€2/serv</button>
+      </div></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn" id="resetFilters">Reset</button><button class="btn btn-primary" id="applyFilters">Apply</button></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
+
+

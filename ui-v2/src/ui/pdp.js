@@ -227,6 +227,8 @@ export function mountPdp() {
     pdpImage: $('#pdpImage'),
     pdpDescText: $('#pdpDescText'),
     pdpAdd: $('#pdpAdd'),
+    pdpSubToggle: document.querySelector('#pdpSubToggle'),
+    pdpWhy: document.querySelector('#pdpWhy'),
     pdpQtyMinus: $('#pdpQtyMinus'),
     pdpQtyPlus: $('#pdpQtyPlus'),
     pdpQtyVal: $('#pdpQtyVal'),
@@ -368,6 +370,25 @@ export function mountPdp() {
     const initialFlavor = els.pdpFlavorLabel?.textContent || null;
     openFor(els.pdpAdd, { initialFlavor, initialQty: store.get('pdpQty') });
   });
+
+  // Subscribe & Save toggle behavior (pure UI; business logic can hook later)
+  try{
+    const sub = els.pdpSubToggle;
+    if (sub && !sub.__bound){
+      sub.__bound = true;
+      sub.addEventListener('click', ()=>{
+        const on = sub.getAttribute('aria-pressed') === 'true';
+        const next = !on;
+        sub.setAttribute('aria-pressed', String(next));
+        // Optional: reflect in button label
+        sub.textContent = next ? 'Subscribe & Save 10%' : 'One‑time purchase';
+        // Persist lightweight UI preference
+        try{ localStorage.setItem('ui_subscribe_on', JSON.stringify(next)); }catch(_e){}
+      });
+      // Restore state
+      try{ const saved = JSON.parse(localStorage.getItem('ui_subscribe_on')||'true'); sub.setAttribute('aria-pressed', String(!!saved)); if(!saved) sub.textContent='One‑time purchase'; }catch(_e){}
+    }
+  }catch(_e){}
   
   // Store reference to current product for tabs
   store.set('currentProduct', null);
@@ -444,6 +465,20 @@ export function mountPdp() {
       // if (Array.isArray(prod?.goal_tags)) prod.goal_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
       if (Array.isArray(prod?.diet_tags)) prod.diet_tags.forEach(t=>{ if(typeof t==='string'&&t) facts.push(t); });
       els.pdpFacts.innerHTML = facts.map(x=>`<span class="fact">${x}</span>`).join('');
+
+      // Why these ingredients: show 3 bullets when benefit_snippet or search_text present
+      try{
+        if (els.pdpWhy){
+          const lines = [];
+          const snip = (typeof prod?.benefit_snippet==='string'?prod.benefit_snippet:'').trim();
+          if (snip) lines.push('Formulated for: '+snip);
+          const form = typeof prod?.form==='string'?prod.form:'';
+          if (form) lines.push('Form factor optimized: '+form);
+          const country = typeof prod?.origin_country==='string'?prod.origin_country:'';
+          if (country) lines.push('Traceable origin: '+country);
+          els.pdpWhy.innerHTML = lines.length?(`<strong>Why these ingredients?</strong><ul style="margin:6px 0 0 18px">${lines.slice(0,3).map(l=>`<li>${l}</li>`).join('')}</ul>`):'';
+        }
+      }catch(_e){}
     }
 
     // Update Dosage and Timing boxes dynamically
