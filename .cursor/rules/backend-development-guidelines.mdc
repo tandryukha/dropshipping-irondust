@@ -1,9 +1,7 @@
 ---
-description:
-globs:
-alwaysApply: true
+description: backend development guidelines
+alwaysApply: false
 ---
-
 Development guidelines
 - change is made
 - javadocs are addeed (wherever makes sense)
