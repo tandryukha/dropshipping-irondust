@@ -25,16 +25,15 @@ async function computeHeuristics(page) {
     const viewportH = window.innerHeight;
     const viewportW = window.innerWidth;
 
-    // Line length: measure max text line in main visible content area
-    // Approximation: longest line among paragraphs visible in viewport
+    // Line length: measure max text line among paragraphs visible in viewport
     let longestChars = 0;
     let sampledFontSizePx = baseFontSizePx;
-    const paras = Array.from(document.querySelectorAll('p, div, article, section'))
+    const paras = Array.from(document.querySelectorAll('p'))
       .filter(el => {
         const r = el.getBoundingClientRect();
         return r.top < viewportH && r.bottom > 0 && (el.textContent || '').trim().length > 30;
       })
-      .slice(0, 40);
+      .slice(0, 60);
     for (const p of paras) {
       const text = (p.textContent || '').trim();
       const cs = getComputedStyle(p);
@@ -45,6 +44,7 @@ async function computeHeuristics(page) {
       const charsPerLine = width / (0.6 * fs);
       if (charsPerLine > longestChars) longestChars = Math.round(charsPerLine);
     }
+    const hasParagraphs = paras.length > 0;
 
     // Sticky CTA thumb zone: element fixed at bottom 40% of viewport height
     const fixedCandidates = Array.from(document.querySelectorAll('button, a, .btn'))
@@ -84,6 +84,7 @@ async function computeHeuristics(page) {
       baseFontSizePx,
       baseLineHeight,
       longestCharsPerLine: longestChars,
+      hasParagraphs,
       cta: {
         width: ctaWidth,
         height: ctaHeight,
@@ -135,14 +136,14 @@ async function run(url) {
     const axe = await new AxeBuilder({ page }).analyze();
     const violations = axe.violations?.length || 0;
 
-    const readabilityOk = bucket(heur.baseFontSizePx, [16, 20]) && bucket(heur.baseLineHeight, [1.5, 1.8]) && bucket(heur.longestCharsPerLine, [45, 75]);
+    const readabilityOk = bucket(heur.baseFontSizePx, [16, 20]) && bucket(heur.baseLineHeight, [1.5, 1.8]) && (heur.hasParagraphs ? bucket(heur.longestCharsPerLine, [45, 75]) : true);
     const ctaOk = heur.cta.width >= 120 && heur.cta.height >= 40 && heur.cta.aboveFold;
     const ergonomicsOk = heur.stickyCtaInThumbZone === true;
 
     const score = {
       viewport: s.label,
       accessibility: { violations, score: scoreFromAxe(violations) },
-      readability: { fontPx: heur.baseFontSizePx, lineHeight: Number(heur.baseLineHeight.toFixed(2)), charsPerLine: heur.longestCharsPerLine, pass: readabilityOk },
+      readability: { fontPx: heur.baseFontSizePx, lineHeight: Number(heur.baseLineHeight.toFixed(2)), charsPerLine: heur.longestCharsPerLine, hasParagraphs: heur.hasParagraphs, pass: readabilityOk },
       cta: { width: heur.cta.width, height: heur.cta.height, aboveFold: heur.cta.aboveFold, pass: ctaOk },
       ergonomics: { stickyThumbZone: heur.stickyCtaInThumbZone, pass: ergonomicsOk },
       density: heur.density

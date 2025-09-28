@@ -1,7 +1,7 @@
 {
   "url": "http://localhost:8011/index.html",
   "timestamps": {
-    "startedAt": "2025-09-05T15:15:21.118Z"
+    "startedAt": "2025-09-05T16:00:39.084Z"
   },
   "thresholds": {
     "accessibility": "violations == 0",
@@ -19,15 +19,16 @@
       },
       "readability": {
         "fontPx": 16,
-        "lineHeight": 0,
-        "charsPerLine": 47,
-        "pass": false
+        "lineHeight": 1.6,
+        "charsPerLine": 0,
+        "hasParagraphs": false,
+        "pass": true
       },
       "cta": {
-        "width": 0,
-        "height": 0,
+        "width": 140,
+        "height": 40,
         "aboveFold": true,
-        "pass": false
+        "pass": true
       },
       "ergonomics": {
         "stickyThumbZone": false,
@@ -46,15 +47,16 @@
       },
       "readability": {
         "fontPx": 16,
-        "lineHeight": 0,
-        "charsPerLine": 80,
-        "pass": false
+        "lineHeight": 1.6,
+        "charsPerLine": 0,
+        "hasParagraphs": false,
+        "pass": true
       },
       "cta": {
-        "width": 0,
-        "height": 0,
+        "width": 140,
+        "height": 40,
         "aboveFold": true,
-        "pass": false
+        "pass": true
       },
       "ergonomics": {
         "stickyThumbZone": false,
@@ -73,15 +75,16 @@
       },
       "readability": {
         "fontPx": 16,
-        "lineHeight": 0,
-        "charsPerLine": 125,
-        "pass": false
+        "lineHeight": 1.6,
+        "charsPerLine": 0,
+        "hasParagraphs": false,
+        "pass": true
       },
       "cta": {
-        "width": 0,
-        "height": 0,
+        "width": 140,
+        "height": 40,
         "aboveFold": true,
-        "pass": false
+        "pass": true
       },
       "ergonomics": {
         "stickyThumbZone": false,

@@ -140,4 +140,10 @@ mountHome();
 mountAdmin();
 start(); // start router
 
+// Wire header CTA to open search overlay; sticky CTA is configured per route
+(() => {
+  const openBtn = document.getElementById('openSearchCta');
+  openBtn?.addEventListener('click', ()=>{ try{ if(window.__openSearchOverlay) window.__openSearchOverlay(); }catch(_){ } });
+})();
+
 

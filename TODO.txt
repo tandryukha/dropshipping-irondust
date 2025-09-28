@@ -4,3 +4,9 @@
 - test coverage to protect what we have now at least on the backend?
 - domain structure of the packages
 - make enrichment model configurable
+
+
+
+- api first - start with spec file, generate interfaces, controllers should implement them
+- documentation - in .md files only, keep it simple, remove docs server
+- create .http files instead of postman and keep them up-to-date

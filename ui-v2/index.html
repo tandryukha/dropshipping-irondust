@@ -44,6 +44,7 @@
       margin:0;background:var(--fp-bg);color:var(--fp-dark);
       font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
       overflow-x:hidden; /* contain accidental wide children */
+      line-height:1.6;
     }
     body.no-scroll{overflow:hidden}
     img{display:block;max-width:100%}
@@ -51,6 +52,7 @@
     a{text-decoration:none;color:inherit}
 
     .app{max-width:1200px;margin:0 auto;padding:20px 16px 96px;position:relative}
+    .notice{max-width:72ch;margin:0 auto}
 
     /* Header */
     .header{
@@ -102,6 +104,7 @@
     .panel-actions{display:flex;gap:8px}
     .btn{border:1px solid #e0e6ef;background:#f8fafc;border-radius:10px;padding:8px 10px;font-weight:700;cursor:pointer}
     .btn-primary{background:var(--fp-primary);border-color:var(--fp-primary);color:#fff}
+    .cta-primary{min-width:140px;min-height:40px}
     .panel-footer{position:sticky;bottom:-20px;margin:-10px -10px -10px -10px;padding:10px;border-top:1px solid #eef1f4;background:linear-gradient(180deg, rgba(255,255,255,.9), #fff);display:flex;justify-content:space-between;align-items:center}
     .panel-footer .muted{font-size:12px}
     .col h4{margin:6px 0 10px;font-size:14px;color:#374151;font-weight:800;letter-spacing:.2px}
@@ -426,11 +429,11 @@
   <div class="ref-img" id="refImage" aria-hidden="true"></div>
 
   <div class="app" role="application" aria-label="Supplements">
-    <div style="background:#fff8e1;border:1px solid #ffe4a6;padding:8px 12px;border-radius:10px;margin-bottom:10px">
+    <div class="notice" style="background:#fff8e1;border:1px solid #ffe4a6;padding:8px 12px;border-radius:10px;margin-bottom:10px">
       <strong>Notice:</strong> This legacy search UI is deprecated. Try the new layout at <a href="index-v2.html" style="color:#0ea5b7;font-weight:700">index-v2.html</a>.
     </div>
     <!-- Header -->
-    <header class="header">
+    <header class="header" role="banner">
       <div class="brand" aria-label="logo">
         <div class="brand-badge" aria-hidden="true"></div>
         <div class="brand-title">
@@ -453,6 +456,7 @@
       <!-- Global sort removed by request (available in Popular section) -->
 
       <div class="actions">
+        <button class="btn btn-primary cta-primary" id="openSearchCta" aria-label="Shop now">Shop now</button>
         <button class="lang-flag" id="themeBtn" aria-label="Theme switch" title="Switch theme">🎨</button>
         <div class="lang-wrap">
           <button class="lang-flag" id="langFlag" aria-label="Language">🇬🇧</button>
@@ -561,6 +565,8 @@
       </div>
     </header>
 
+    <main id="main" role="main">
+
     <!-- Home (grid-first) -->
     <section id="home" class="home" aria-label="Home product grid">
       <div class="home-hero">
@@ -667,6 +673,7 @@
         <div class="more" id="pdpMoreGrid" role="region" aria-roledescription="carousel" aria-label="More picks" tabindex="0"></div>
       </aside>
     </section>
+    </main>
   </div>
 
   <!-- Removed command palette UI -->
@@ -685,6 +692,8 @@
     </div>
     <button class="confirm" id="confirmAdd" disabled>Add to cart</button>
   </div>
+  
+  
   
   <!-- Helper reader bottom sheet -->
   <div class="sheet" id="helperSheet" role="dialog" aria-modal="true" aria-labelledby="helperSheetTitle" style="display:none">
