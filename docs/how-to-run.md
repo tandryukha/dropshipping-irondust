@@ -67,7 +67,23 @@ Once running, you'll have access to:
 
 ## Testing the System
 
-### Test Product Ingestion
+### Using HTTP Request Files
+
+The easiest way to test the API is using the provided `.http` files:
+
+- **`api-requests.http`**: Contains all public API endpoints (search, products, ingest, etc.)
+- **`admin-requests.http`**: Contains admin-only endpoints (blacklist, raw data, etc.)
+
+These files work with:
+- **IntelliJ IDEA / WebStorm** (built-in HTTP client)
+- **VS Code** (with REST Client extension)
+- **JetBrains HTTP Client** (standalone tool)
+
+See `README-http-files.md` for detailed usage instructions.
+
+### Manual Testing with curl
+
+#### Test Product Ingestion
 
 Ingest specific products to test the enrichment pipeline:
 
@@ -78,7 +94,7 @@ curl -X POST http://localhost:4000/ingest/products \
   -d '{"ids": [31476, 31477]}'
 ```
 
-### Test Search Functionality
+#### Test Search Functionality
 
 Search for products:
 
@@ -88,7 +104,7 @@ curl -X POST http://localhost:4000/search \
   -d '{"q": "citrulline", "page": 1, "size": 5}'
 ```
 
-### Test Hybrid Search
+#### Test Hybrid Search
 
 ```bash
 curl -X POST http://localhost:4000/search/hybrid \

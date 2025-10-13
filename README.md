@@ -272,7 +272,23 @@ logging.level.com.irondust.search.service.enrichment: DEBUG
 
 ## 🧪 Testing
 
-### Test Enrichment Pipeline
+### Using HTTP Request Files
+
+The easiest way to test the API is using the provided `.http` files:
+
+- **`api-requests.http`**: Contains all public API endpoints (search, products, ingest, etc.)
+- **`admin-requests.http`**: Contains admin-only endpoints (blacklist, raw data, etc.)
+
+These files work with:
+- **IntelliJ IDEA / WebStorm** (built-in HTTP client)
+- **VS Code** (with REST Client extension)
+- **JetBrains HTTP Client** (standalone tool)
+
+See `README-http-files.md` for detailed usage instructions.
+
+### Manual Testing with curl
+
+#### Test Enrichment Pipeline
 ```bash
 # Test specific products
 curl -X POST http://localhost:4000/ingest/products \
@@ -285,7 +301,7 @@ curl -X GET "http://localhost:7700/indexes/products_lex/documents/wc_31476" \
   -H "Authorization: Bearer local_dev_key"
 ```
 
-### Monitor Enrichment Logs
+#### Monitor Enrichment Logs
 ```bash
 # View enrichment pipeline logs
 docker-compose logs api | grep -i "enrich\|pipeline"
@@ -358,23 +374,8 @@ curl -X POST http://localhost:4000/ingest/products \
 # Create and activate a virtualenv (optional but recommended)
 python3 -m venv .venv && source .venv/bin/activate
 
-# Install docs dependencies
-pip install -r docs/requirements.txt
-
-# Serve the documentation
-mkdocs serve
-# Open http://127.0.0.1:8000
-```
-
-### Deploy Docs to GitHub Pages
-
-1. Ensure the repository has GitHub Pages enabled:
-   - Settings → Pages → Build and deployment → Source: GitHub Actions
-2. Push to `main` with changes under `docs/` or `mkdocs.yml`.
-3. The workflow `.github/workflows/gh-pages.yml` builds and deploys automatically.
-4. Your site will be available at:
-   - Organization/user site: `https://<org-or-user>.github.io/<repo>/`
-   - Custom domain if configured under Settings → Pages
+# Documentation is now simple .md files in the docs/ directory
+# No server needed - just read the .md files directly
 
 ## 🤝 Contributing
 

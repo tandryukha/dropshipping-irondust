@@ -16,6 +16,6 @@ Use this checklist when making changes.
 
 ### Docs / Postman
 - If API changed: update Postman collection in `postman/` and `/docs/api.md`.
-- Keep `/docs` current; run mkdocs locally if needed.
+- Keep `/docs` current; documentation is now simple .md files.
 
 

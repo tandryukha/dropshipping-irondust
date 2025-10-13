@@ -1,0 +1,206 @@
+### IronDust Search API - HTTP Requests
+### Base URL: http://localhost:4000
+### Admin Key: dev_admin_key
+
+### Variables (set these in your IDE or environment)
+@baseUrl = http://localhost:4000
+@adminKey = dev_admin_key
+@productId = wc_31476
+@wooId = 31476
+
+### ===========================================
+### HEALTH CHECKS
+### ===========================================
+
+### Health Check
+GET {{baseUrl}}/healthz
+
+### Meilisearch Health Check
+GET {{baseUrl}}/health/meili
+
+### Qdrant Health Check
+GET {{baseUrl}}/health/qdrant
+
+### ===========================================
+### SEARCH ENDPOINTS
+### ===========================================
+
+### Basic Search
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "citrulline",
+  "filters": {
+    "in_stock": true
+  },
+  "sort": ["price_cents:asc"],
+  "page": 1,
+  "size": 5
+}
+
+### Hybrid Search (Force)
+POST {{baseUrl}}/search/hybrid
+Content-Type: application/json
+
+{
+  "q": "vegan protein",
+  "filters": {
+    "in_stock": true
+  },
+  "page": 1,
+  "size": 6
+}
+
+### AI Search
+POST {{baseUrl}}/search/ai
+Content-Type: application/json
+
+{
+  "q": "cheap protein",
+  "filters": {
+    "in_stock": true
+  },
+  "page": 1,
+  "size": 6
+}
+
+### Search with Price Filters
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "",
+  "page": 1,
+  "size": 6,
+  "filters": {
+    "in_stock": true,
+    "price_per_serving": { "op": "<=", "value": 2 }
+  }
+}
+
+### Search with Price Range Filters
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "",
+  "page": 1,
+  "size": 6,
+  "filters": {
+    "in_stock": true,
+    "price_per_serving_max": { "op": "<=", "value": 2 }
+  }
+}
+
+### ===========================================
+### PRODUCT ENDPOINTS
+### ===========================================
+
+### Get Product by ID
+GET {{baseUrl}}/products/{{productId}}
+
+### Get Product with Language
+GET {{baseUrl}}/products/{{productId}}?lang=en
+
+### Get Product Alternatives
+GET {{baseUrl}}/products/{{productId}}/alternatives?limit=8&lang=en
+
+### Get Product Complements
+GET {{baseUrl}}/products/{{productId}}/complements?limit=8&lang=en
+
+### ===========================================
+### INGEST ENDPOINTS
+### ===========================================
+
+### Full Ingest
+POST {{baseUrl}}/ingest/full
+x-admin-key: {{adminKey}}
+x-clear-ai-cache: true
+x-clear-translation-cache: true
+
+### Ingest Specific Products
+POST {{baseUrl}}/ingest/products
+Content-Type: application/json
+x-admin-key: {{adminKey}}
+
+{
+  "ids": [31476, 31477]
+}
+
+### ===========================================
+### VECTOR ENDPOINTS (Admin)
+### ===========================================
+
+### Reindex All Vectors
+POST {{baseUrl}}/vectors/reindex/all
+x-admin-key: {{adminKey}}
+
+### Reindex Specific Vectors
+POST {{baseUrl}}/vectors/reindex
+Content-Type: application/json
+x-admin-key: {{adminKey}}
+
+{
+  "ids": ["wc_31476", "wc_31477"]
+}
+
+### ===========================================
+### CONTENT ENDPOINTS
+### ===========================================
+
+### Content Search
+POST {{baseUrl}}/content/search
+Content-Type: application/json
+
+{
+  "q": "Creatine",
+  "page": 1,
+  "size": 6
+}
+
+### Content Render (Wikipedia/FDA)
+POST {{baseUrl}}/content/render
+Content-Type: application/json
+
+{
+  "hit": {
+    "id": "wikipedia_en_creatine",
+    "source": "wikipedia",
+    "license": "CC BY-SA 4.0",
+    "title": "Creatine",
+    "excerpt": "Creatine is an organic compound that helps supply energy...",
+    "url": "https://en.wikipedia.org/wiki/Creatine",
+    "language": "en"
+  }
+}
+
+### Ingest Content (Admin)
+POST {{baseUrl}}/ingest/content/minimal
+x-admin-key: {{adminKey}}
+
+### ===========================================
+### FEATURE FLAGS
+### ===========================================
+
+### Get All Feature Flags
+GET {{baseUrl}}/feature-flags
+
+### Get Specific Feature Flag
+GET {{baseUrl}}/feature-flags/ai_search?defaultValue=true
+
+### Enable AI Search
+POST {{baseUrl}}/feature-flags/ai_search?enabled=true
+x-admin-key: {{adminKey}}
+
+### Disable AI Search
+POST {{baseUrl}}/feature-flags/ai_search?enabled=false
+x-admin-key: {{adminKey}}
+
+### Enable Normalize Titles
+POST {{baseUrl}}/feature-flags/normalize_titles?enabled=true
+x-admin-key: {{adminKey}}
+
+### Disable Normalize Titles
+POST {{baseUrl}}/feature-flags/normalize_titles?enabled=false
+x-admin-key: {{adminKey}}

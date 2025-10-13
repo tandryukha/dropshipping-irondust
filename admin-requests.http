@@ -1,0 +1,106 @@
+### IronDust Admin API - HTTP Requests
+### Base URL: http://localhost:4000
+### Admin Key: dev_admin_key
+### Admin Basic Auth: admin:admin (base64: YWRtaW46YWRtaW4=)
+
+### Variables (set these in your IDE or environment)
+@baseUrl = http://localhost:4000
+@adminKey = dev_admin_key
+@adminBasic = YWRtaW46YWRtaW4=
+@productId = wc_31476
+@wooId = 31476
+
+### ===========================================
+### ADMIN RAW DATA INSPECTION
+### ===========================================
+
+### Get Raw System Product by ID
+GET {{baseUrl}}/admin/raw/system/{{productId}}
+x-admin-key: {{adminKey}}
+
+### Get Raw WooCommerce Product by ID
+GET {{baseUrl}}/admin/raw/woo/{{wooId}}
+x-admin-key: {{adminKey}}
+
+### ===========================================
+### ADMIN BLACKLIST MANAGEMENT
+### ===========================================
+
+### List Blacklisted Products
+GET {{baseUrl}}/admin/blacklist
+x-admin-key: {{adminKey}}
+
+### Add Products to Blacklist
+POST {{baseUrl}}/admin/blacklist
+Content-Type: application/json
+x-admin-key: {{adminKey}}
+
+{
+  "ids": ["wc_31476", "31477"],
+  "reason": "manual"
+}
+
+### Remove Product from Blacklist
+DELETE {{baseUrl}}/admin/blacklist/{{productId}}
+x-admin-key: {{adminKey}}
+
+### ===========================================
+### ADMIN FEATURE FLAGS
+### ===========================================
+
+### Get All Admin Feature Flags
+GET {{baseUrl}}/admin/feature-flags
+Authorization: Basic {{adminBasic}}
+
+### Toggle AI Search Feature Flag
+PATCH {{baseUrl}}/admin/feature-flags/ai_search
+Content-Type: application/json
+Authorization: Basic {{adminBasic}}
+
+{
+  "enabled": true
+}
+
+### ===========================================
+### ADMIN INGEST & INDEX MANAGEMENT
+### ===========================================
+
+### Trigger Reingest
+POST {{baseUrl}}/admin/ingest/reingest
+Authorization: Basic {{adminBasic}}
+
+### Trigger Reindex
+POST {{baseUrl}}/admin/index/reindex
+Authorization: Basic {{adminBasic}}
+
+### Get Latest Ingest Run
+GET {{baseUrl}}/admin/runs/latest?type=ingest
+Authorization: Basic {{adminBasic}}
+
+### Get Latest Index Run
+GET {{baseUrl}}/admin/runs/latest?type=index
+Authorization: Basic {{adminBasic}}
+
+### Get Run Details by ID
+GET {{baseUrl}}/admin/runs/{{runId}}
+Authorization: Basic {{adminBasic}}
+
+### Stream Run Logs
+GET {{baseUrl}}/admin/runs/{{runId}}/logs/stream
+Authorization: Basic {{adminBasic}}
+
+### Get Run Result
+GET {{baseUrl}}/admin/runs/{{runId}}/result
+Authorization: Basic {{adminBasic}}
+
+### Get Latest Run Result
+GET {{baseUrl}}/admin/runs/latest/result?type=ingest
+Authorization: Basic {{adminBasic}}
+
+### ===========================================
+### ADMIN UI ACCESS
+### ===========================================
+
+### Admin UI Base (requires browser)
+GET {{baseUrl}}/admin-ui
+Authorization: Basic {{adminBasic}}

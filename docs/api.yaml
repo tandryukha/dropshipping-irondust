@@ -1,0 +1,974 @@
+openapi: 3.0.3
+info:
+  title: IronDust Dropshipping API
+  version: "0.1.0"
+  description: |
+    Spring Boot WebFlux API for ingestion, search, content rendering, and admin operations.
+servers:
+  - url: http://localhost:4000
+
+tags:
+  - name: Search
+  - name: HybridSearch
+  - name: AISearch
+  - name: Products
+  - name: Ingest
+  - name: Content
+  - name: FeatureFlags
+  - name: Vectors
+  - name: System
+  - name: Admin
+  - name: AdminRaw
+  - name: AdminBlacklist
+
+paths:
+  /search:
+    post:
+      tags: [Search]
+      operationId: search
+      summary: Adaptive search (lexical first, hybrid when beneficial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequestBody'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponseBody'
+
+  /search/hybrid:
+    post:
+      tags: [HybridSearch]
+      operationId: search
+      summary: Force hybrid lexical+vector search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequestBody'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponseBody'
+
+  /search/ai:
+    post:
+      tags: [AISearch]
+      operationId: ai
+      summary: AI-assisted answer with grounded products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequestBody'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductDoc'
+
+  /products/{id}:
+    get:
+      tags: [Products]
+      operationId: getById
+      summary: Get product by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lang
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Not Found
+
+  /products/{id}/alternatives:
+    get:
+      tags: [Products]
+      operationId: getAlternatives
+      summary: Recommended alternatives for product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lang
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 2
+            maximum: 24
+            default: 8
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponseBody'
+
+  /products/{id}/complements:
+    get:
+      tags: [Products]
+      operationId: getComplements
+      summary: Complementary products for product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lang
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 2
+            maximum: 24
+            default: 8
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponseBody'
+
+  /ingest/full:
+    post:
+      tags: [Ingest]
+      operationId: ingestFull
+      summary: Full reingest pipeline run
+      security:
+        - adminKey: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestReport'
+        '401':
+          description: Unauthorized
+
+  /ingest/products:
+    post:
+      tags: [Ingest]
+      operationId: ingestProducts
+      summary: Targeted ingest of product ids
+      security:
+        - adminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetedIngestRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestReport'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+
+  /ingest/content/minimal:
+    post:
+      tags: [Content]
+      operationId: ingestMinimal
+      summary: Ingest minimal seed content
+      security:
+        - adminKey: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  indexed:
+                    type: integer
+        '401':
+          description: Unauthorized
+
+  /content/search:
+    post:
+      tags: [Content]
+      operationId: search
+      summary: Search content index
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentSearchRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /content/render:
+    post:
+      tags: [Content]
+      operationId: render
+      summary: Render content hit (with licensing checks)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentRenderRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentRenderResponse'
+        '451':
+          description: Not eligible for on-site render (licensing)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  hint: { type: string }
+                  source: { type: string }
+                  license: { type: string }
+
+  /feature-flags:
+    get:
+      tags: [FeatureFlags]
+      operationId: getAll
+      summary: Get all feature flags
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlagsMap'
+
+  /feature-flags/{name}:
+    get:
+      tags: [FeatureFlags]
+      operationId: getOne
+      summary: Get a feature flag
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+        - name: defaultValue
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name: { type: string }
+                  enabled: { type: boolean }
+    post:
+      tags: [FeatureFlags]
+      operationId: setOne
+      summary: Set a feature flag
+      security:
+        - adminKey: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+        - name: enabled
+          in: query
+          required: true
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name: { type: string }
+                  enabled: { type: boolean }
+        '401':
+          description: Unauthorized
+
+  /vectors/reindex/all:
+    post:
+      tags: [Vectors]
+      operationId: reindexAll
+      summary: Rebuild all vectors
+      security:
+        - adminKey: []
+      parameters:
+        - name: batchSize
+          in: query
+          required: false
+          schema: { type: integer, default: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+
+  /vectors/reindex:
+    post:
+      tags: [Vectors]
+      operationId: reindex
+      summary: Reindex vectors for specific ids
+      security:
+        - adminKey: []
+      parameters:
+        - name: batchSize
+          in: query
+          required: false
+          schema: { type: integer, default: 100 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VectorReindexByIdsRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  count: { type: integer }
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+
+  /healthz:
+    get:
+      tags: [System]
+      operationId: health
+      summary: Liveness/readiness check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        '500':
+          description: Unhealthy
+
+  /admin/ingest/reingest:
+    post:
+      tags: [Admin]
+      operationId: triggerReingest
+      summary: Trigger full reingest (async, tracked as a run)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clearAiCache: { type: boolean }
+                clearTranslationCache: { type: boolean }
+      responses:
+        '200':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRunSummary'
+
+  /admin/index/reindex:
+    post:
+      tags: [Admin]
+      operationId: triggerReindex
+      summary: Trigger lexical index reindex (async)
+      parameters:
+        - name: batchSize
+          in: query
+          required: false
+          schema: { type: integer, default: 100 }
+      responses:
+        '200':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRunSummary'
+
+  /admin/runs/latest:
+    get:
+      tags: [Admin]
+      operationId: getLatestRun
+      summary: Get latest run summary (optionally by type)
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/runs/{runId}:
+    get:
+      tags: [Admin]
+      operationId: getRun
+      summary: Get run summary by id
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Not Found
+
+  /admin/runs/{runId}/result:
+    get:
+      tags: [Admin]
+      operationId: getRunResult
+      summary: Get persisted run result payload
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Not Found
+
+  /admin/runs/latest/result:
+    get:
+      tags: [Admin]
+      operationId: getLatestRunResult
+      summary: Get latest run result (optionally by type)
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/runs/{runId}/logs/stream:
+    get:
+      tags: [Admin]
+      operationId: streamLogs
+      summary: Stream logs for a run (SSE)
+      responses:
+        '200':
+          description: OK (Server-Sent Events)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /admin/raw/woo/{id}:
+    get:
+      tags: [Admin Raw]
+      operationId: getWooRaw
+      summary: Get raw product JSON from WooCommerce by numeric id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      security:
+        - adminKey: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /admin/raw/system/{id}:
+    get:
+      tags: [Admin Raw]
+      operationId: getSystemRaw
+      summary: Get raw product document from Meilisearch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      security:
+        - adminKey: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /admin/blacklist:
+    get:
+      tags: [Admin Blacklist]
+      operationId: listBlacklist
+      summary: List blacklist entries
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlacklistEntry'
+    post:
+      tags: [Admin Blacklist]
+      operationId: addBlacklistEntry
+      summary: Add ids to blacklist, deindex from Meili and Qdrant
+      security:
+        - adminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items: { type: string }
+                id:
+                  type: string
+                raw:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  ids:
+                    type: array
+                    items: { type: string }
+                  action: { type: string }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /admin/blacklist/{id}:
+    delete:
+      tags: [Admin Blacklist]
+      operationId: removeBlacklistEntry
+      summary: Remove id from blacklist
+      security:
+        - adminKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: string }
+                  removed: { type: integer }
+        '401': { description: Unauthorized }
+
+components:
+  securitySchemes:
+    adminKey:
+      type: apiKey
+      in: header
+      name: x-admin-key
+
+  schemas:
+    SearchRequestBody:
+      type: object
+      properties:
+        q: { type: string }
+        filters:
+          type: object
+          additionalProperties: true
+        sort:
+          type: array
+          items: { type: string }
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        size:
+          type: integer
+          minimum: 1
+          default: 24
+        lang:
+          type: string
+
+    SearchResponseBody:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductDoc'
+        total:
+          type: integer
+          format: int64
+        facets:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+
+    TargetedIngestRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: integer, format: int64 }
+
+    IngestReport:
+      type: object
+      properties:
+        indexed: { type: integer }
+        warnings_total: { type: integer }
+        conflicts_total: { type: integer }
+        ignored_count: { type: integer }
+        ignored_ids:
+          type: array
+          items: { type: string }
+        products:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              warnings:
+                type: array
+                items: { type: string }
+              conflicts:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        ai_usage_per_model:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: true
+        ai_cost_total_usd: { type: number, format: double }
+
+    ProductDoc:
+      type: object
+      description: Canonical product document (subset shown; fields are nullable)
+      properties:
+        id: { type: string }
+        parent_id: { type: string }
+        type: { type: string }
+        sku: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        permalink: { type: string }
+        price_cents: { type: integer }
+        regular_price_cents: { type: integer }
+        sale_price_cents: { type: integer }
+        currency: { type: string }
+        in_stock: { type: boolean }
+        low_stock_remaining: { type: integer }
+        rating: { type: number, format: double }
+        review_count: { type: integer }
+        images:
+          type: array
+          items: { type: string }
+        categories_ids:
+          type: array
+          items: { type: integer }
+        categories_slugs:
+          type: array
+          items: { type: string }
+        categories_names:
+          type: array
+          items: { type: string }
+        brand_slug: { type: string }
+        brand_name: { type: string }
+        dynamic_attrs:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+        search_text: { type: string }
+        form: { type: string }
+        flavor: { type: string }
+        net_weight_g: { type: number, format: double }
+        servings: { type: integer }
+        servings_min: { type: integer }
+        servings_max: { type: integer }
+        serving_size_g: { type: number, format: double }
+        price: { type: number, format: double }
+        price_per_serving: { type: number, format: double }
+        price_per_serving_min: { type: number, format: double }
+        price_per_serving_max: { type: number, format: double }
+        price_per_100g: { type: number, format: double }
+        discount_pct: { type: number, format: double }
+        is_on_sale: { type: boolean }
+        unit_count: { type: integer }
+        units_per_serving: { type: integer }
+        unit_mass_g: { type: number, format: double }
+        price_per_unit: { type: number, format: double }
+        goal_tags:
+          type: array
+          items: { type: string }
+        diet_tags:
+          type: array
+          items: { type: string }
+        ingredients_key:
+          type: array
+          items: { type: string }
+        goal_preworkout_score: { type: number, format: double }
+        goal_strength_score: { type: number, format: double }
+        goal_endurance_score: { type: number, format: double }
+        goal_lean_muscle_score: { type: number, format: double }
+        goal_recovery_score: { type: number, format: double }
+        goal_weight_loss_score: { type: number, format: double }
+        goal_wellness_score: { type: number, format: double }
+        synonyms_en:
+          type: array
+          items: { type: string }
+        synonyms_ru:
+          type: array
+          items: { type: string }
+        synonyms_et:
+          type: array
+          items: { type: string }
+        benefit_snippet: { type: string }
+        faq:
+          type: array
+          items:
+            type: object
+            additionalProperties: { type: string }
+        dosage_text: { type: string }
+        timing_text: { type: string }
+        display_title: { type: string }
+        name_i18n:
+          type: object
+          additionalProperties: { type: string }
+        description_i18n:
+          type: object
+          additionalProperties: { type: string }
+        short_description_i18n:
+          type: object
+          additionalProperties: { type: string }
+        benefit_snippet_i18n:
+          type: object
+          additionalProperties: { type: string }
+        categories_names_i18n:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+        form_i18n:
+          type: object
+          additionalProperties: { type: string }
+        flavor_i18n:
+          type: object
+          additionalProperties: { type: string }
+        search_text_i18n:
+          type: object
+          additionalProperties: { type: string }
+        faq_i18n:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              additionalProperties: { type: string }
+        dosage_text_i18n:
+          type: object
+          additionalProperties: { type: string }
+        timing_text_i18n:
+          type: object
+          additionalProperties: { type: string }
+
+    ContentSearchRequest:
+      type: object
+      properties:
+        q: { type: string }
+        filter: { type: string }
+        page: { type: integer, default: 1 }
+        size: { type: integer, default: 10 }
+
+    ContentRenderRequest:
+      type: object
+      required: [hit]
+      properties:
+        hit:
+          type: object
+          properties:
+            id: { type: string }
+            source: { type: string }
+            license: { type: string }
+            title: { type: string }
+            excerpt: { type: string }
+            url: { type: string }
+            language: { type: string }
+
+    ContentRenderResponse:
+      type: object
+      properties:
+        html: { type: string }
+        meta:
+          type: object
+          additionalProperties: true
+
+    FeatureFlagsMap:
+      type: object
+      additionalProperties: { type: boolean }
+
+    VectorReindexByIdsRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: string }
+
+    AdminRunSummary:
+      type: object
+      properties:
+        runId: { type: string }
+        type: { type: string }
+        status: { type: string }
+        processed: { type: integer }
+        total: { type: integer }
+        startedAt: { type: string }
+        updatedAt: { type: string }
+        endedAt: { type: string }
+        message: { type: string }
+        resultPath: { type: string }
+
+    BlacklistEntry:
+      type: object
+      properties:
+        id: { type: string }
+        reason: { type: string }
+        created_at: { type: string }
+
+

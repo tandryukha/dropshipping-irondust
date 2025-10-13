@@ -1,0 +1,26 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# macOS
+.DS_Store
+
+# Playwright run artifacts (keep baselines under tests/**-snapshots)
+playwright-report/
+blob-report/
+test-results/
+
+# Explicit (redundant) ignore for report index
+playwright-report/index.html
+
+# Playwright local caches (if created)
+playwright/.cache/
+
+# Playwright last run cache
+.last-run.json
+
+# Keep snapshot baselines committed
+!tests/**/*.spec.ts-snapshots/**

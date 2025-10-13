@@ -1,0 +1,21 @@
+{
+  "name": "supplements-mockup",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:update": "playwright test --update-snapshots",
+    "test:desktop": "playwright test --project=Desktop-Chromium",
+    "test:mobile": "playwright test --project=Mobile-Chromium",
+    "test:json": "node tools/evaluate-json.js",
+    "mcp": "node tools/mcp-server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.19.1",
+    "@playwright/test": "^1.56.0"
+  }
+}
