@@ -90,6 +90,18 @@ x-admin-key: {{adminKey}}
 
 These `.http` files contain all the requests from the original Postman collection (`postman/irondust-search.postman_collection.json`) plus additional endpoints from the API documentation. The Postman collection can be deprecated in favor of these files.
 
+## OpenAPI (auto-generated)
+
+- JSON: `GET http://localhost:4000/v3/api-docs`
+- YAML: `GET http://localhost:4000/v3/api-docs.yaml`
+- Swagger UI: `http://localhost:4000/swagger-ui.html`
+
+Admin-secured endpoints require header:
+
+```
+x-admin-key: dev_admin_key
+```
+
 ## Benefits
 
 - **Version Control**: `.http` files are text-based and can be easily versioned
