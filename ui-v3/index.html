@@ -1525,7 +1525,243 @@
     </div>
 
     <div id="ariaLive" aria-live="polite" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
+    <script src="api.js"></script>
     <script>
+      // Step 2: Minimal real search integration (initial render only)
+      const REAL_PAGE_SIZE = 32;
+      const realState = { q: '', page: 1, size: REAL_PAGE_SIZE, sort: null, filters: { in_stock: true } };
+      const realProductCache = new Map(); // id -> product from API
+
+      function fmtPriceEu(n, cents){
+        const v = (typeof n === 'number' && !isNaN(n)) ? n : (typeof cents === 'number' ? (cents/100) : null);
+        if (v == null) return null;
+        const s = v.toFixed(2);
+        const i = s.indexOf('.');
+        return { whole: s.slice(0, i), fraction: s.slice(i+1) };
+      }
+
+      function buildProductCard(p){
+        const priceParts = fmtPriceEu(p.price, p.price_cents);
+        const brand = p.brand_name || p.brand_slug || '';
+        const cat = Array.isArray(p.categories_names) && p.categories_names.length ? p.categories_names[0] : '';
+        const title = (p.display_title && p.display_title.trim()) ? p.display_title : (p.name || '');
+        const variants = ((p.dynamic_attrs && Array.isArray(p.dynamic_attrs.flavors)) ? p.dynamic_attrs.flavors : []).slice(0,3).map(f=>`<span class="chip small">${esc(f)}</span>`).join(' ');
+        const allFlavors = (p.dynamic_attrs && Array.isArray(p.dynamic_attrs.flavors)) ? p.dynamic_attrs.flavors : [];
+        const more = allFlavors.length>3 ? `<span class="chip small">+${allFlavors.length-3} more</span>` : '';
+        const deliveryStr = deliveryDatePlusFour();
+        const firstImg = Array.isArray(p.images) && p.images.length ? p.images[0] : null;
+        return (
+          `<div class="product" data-id="${esc(p.id)}">`
+            + `<div class="thumb">${firstImg?`<img src="${esc(firstImg)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain;">`:'IMG'}</div>`
+            + `<div class="p-title">${esc(title)}</div>`
+            + `<div class="small"><span class="p-brand">${esc(brand)}</span>${cat?` • <span>${esc(cat)}</span>`:''}</div>`
+            + `<div class="small"><span class="p-stars">${p.rating ? stars(p.rating) : ''}</span> <span class="muted">(${p.review_count||0})</span></div>`
+            + (priceParts ? `<div class="price"><span class="currency">€</span><span class="whole">${priceParts.whole}</span><span class="fraction">${priceParts.fraction}</span></div>` : '')
+            + (p.in_stock ? `<div class="small">FREE delivery <b>${deliveryStr}</b> if you spend €59</div>` : `<div class="small muted">Out of stock</div>`)
+            + `<div class="small">${variants} ${more}</div>`
+            + `<div class="p-cta">`
+              + `<button class="btn small add">Add to Basket</button>`
+            + `</div>`
+          + `</div>`
+        );
+      }
+
+      async function fetchRealResults(){
+        try {
+          const resp = await (window.apiV3 && window.apiV3.searchProducts ? window.apiV3.searchProducts(realState.q, { page: realState.page, size: realState.size, filters: realState.filters, sort: realState.sort }) : Promise.resolve(null));
+          return resp;
+        } catch(e){
+          console.error('Real search failed', e);
+          return null;
+        }
+      }
+
+      function renderReal(resp){
+        if (!resp || !Array.isArray(resp.items)) return;
+        const items = resp.items;
+        try { items.forEach(p => { if (p && p.id != null) realProductCache.set(String(p.id), p); }); } catch(e){}
+        const total = typeof resp.total === 'number' ? resp.total : 0;
+        const grid = document.getElementById('grid');
+        if (grid) grid.innerHTML = items.map(buildProductCard).join('');
+        const count = document.getElementById('count');
+        if (count) count.textContent = `${total} results${realState.q?` for ${esc(realState.q)}`:''}`;
+        // basic pager
+        const pager = document.getElementById('pager');
+        if (pager){
+          const totalPages = Math.max(1, Math.ceil(total / realState.size));
+          pager.innerHTML = '';
+          if (totalPages>1){
+            for(let p=1; p<=totalPages && p<=10; p++){ // cap visible buttons to 10
+              const b = document.createElement('button');
+              b.className = 'btn small' + (p===realState.page?' current':'');
+              b.textContent = String(p);
+              b.addEventListener('click', async ()=>{
+                realState.page = p;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                const r = await fetchRealResults();
+                renderReal(r);
+              });
+              pager.appendChild(b);
+            }
+            const next = document.createElement('button');
+            next.className = 'btn small';
+            next.textContent = 'Next >';
+            next.addEventListener('click', async ()=>{
+              const totalPages2 = Math.max(1, Math.ceil(total / realState.size));
+              if (realState.page < totalPages2){
+                realState.page++;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                const r = await fetchRealResults();
+                renderReal(r);
+              }
+            });
+            pager.appendChild(next);
+          }
+        }
+        // wire add buttons to basket UI (real products)
+        $$('#grid .product .add').forEach(btn => btn.addEventListener('click', e => {
+          const id = String(e.target.closest('.product').getAttribute('data-id'));
+          try {
+            if (!state || !state.basket) return;
+            state.basket.set(id, (state.basket.get(id)||0)+1);
+            renderBasketReal();
+            openBasket();
+            const totalQty = Array.from(state.basket.values()).reduce((s,n)=>s+n,0);
+            $('#ariaLive').textContent = `Added to basket. Basket ${totalQty} items.`;
+          } catch(err){ /* noop */ }
+        }));
+      }
+
+      async function initRealMode(){
+        const resp = await fetchRealResults();
+        if (resp) renderReal(resp);
+      }
+
+      function renderBasketReal(){
+        try {
+          const entries = Array.from(state.basket.entries());
+          const items = entries.map(([id,qty])=>{
+            const p = realProductCache.get(String(id));
+            return p ? { p, qty } : null;
+          }).filter(Boolean);
+          const host = document.getElementById('basketItems');
+          if (host){
+            if (!items.length){
+              host.innerHTML = '<div class="muted" style="padding: 10px 0; text-align: center; font-size: 10px;">No items yet</div>';
+            } else {
+              host.innerHTML = items.map(({p,qty}) => {
+                const price = (typeof p.price === 'number') ? p.price : (typeof p.price_cents === 'number' ? p.price_cents/100 : 0);
+                const firstImg = Array.isArray(p.images) && p.images.length ? p.images[0] : null;
+                return (
+                  `<div class="item-block" data-id="${esc(p.id)}">`
+                  + `<div class="pimg">${firstImg?`<img src=\"${esc(firstImg)}\" alt=\"\" style=\"max-width:100%;max-height:100%;object-fit:contain;\">`:'IMG'}</div>`
+                  + `<div class="price"><span class="val">€${(price||0).toFixed(2)}</span></div>`
+                  + `<div class="qty-ctrl">`
+                    + `<button class="trash" title="Remove">🗑</button>`
+                    + `<span class="count">${qty}</span>`
+                    + `<button class="plus" title="Add">+</button>`
+                  + `</div>`
+                  + `</div>`
+                );
+              }).join('');
+              $$('#basketItems .item-block .plus').forEach(b => b.addEventListener('click', (e)=>{
+                const id = String(e.target.closest('.item-block').getAttribute('data-id'));
+                state.basket.set(id, (state.basket.get(id)||0)+1);
+                renderBasketReal();
+              }));
+              $$('#basketItems .item-block .trash').forEach(b => b.addEventListener('click', (e)=>{
+                const id = String(e.target.closest('.item-block').getAttribute('data-id'));
+                state.basket.delete(id);
+                renderBasketReal();
+              }));
+            }
+          }
+          const subtotal = items.reduce((s,{p,qty})=>{
+            const price = (typeof p.price === 'number') ? p.price : (typeof p.price_cents === 'number' ? p.price_cents/100 : 0);
+            return s + (price||0) * qty;
+          },0);
+          const subtotalEl = document.getElementById('subtotal'); if (subtotalEl) subtotalEl.textContent = `€${subtotal.toFixed(2)}`;
+          const qty = entries.reduce((s,[_id,q])=>s+q,0);
+          const badge = document.getElementById('cartBadge'); if (badge) badge.textContent = String(qty);
+          const THRESH = 35;
+          const freeMsg = document.getElementById('freeMsg');
+          if (freeMsg){
+            const diff = THRESH - subtotal;
+            freeMsg.innerHTML = diff > 0 ? `Add <b>€${diff.toFixed(2)}</b> of eligible items to qualify for <b>FREE</b> Delivery.` : `Your order qualifies for <b>FREE</b> Delivery.`;
+          }
+        } catch(e){ /* noop */ }
+      }
+
+      function assembleRealSort(val){
+        if (val === 'price-asc') return ["price:asc"];
+        if (val === 'price-desc') return ["price:desc"];
+        if (val === 'rating-desc') return ["rating:desc","review_count:desc"];
+        // 'relevance' and 'newest' fall back to default (no sort)
+        return null;
+      }
+
+      function wireRealSearchInput(){
+        const goBtn = document.getElementById('go');
+        const qEl = document.getElementById('q');
+        if (goBtn){
+          goBtn.addEventListener('click', async (e)=>{
+            e.preventDefault();
+            e.stopPropagation();
+            realState.q = (qEl && qEl.value ? qEl.value.trim() : '');
+            realState.page = 1;
+            const r = await fetchRealResults();
+            if (r) renderReal(r);
+          }, true);
+        }
+        if (qEl){
+          qEl.addEventListener('keydown', async (e)=>{
+            if (e.key === 'Enter'){
+              e.preventDefault();
+              e.stopPropagation();
+              realState.q = (qEl.value || '').trim();
+              realState.page = 1;
+              const r = await fetchRealResults();
+              if (r) renderReal(r);
+            }
+          }, true);
+        }
+      }
+
+      function wireRealSorting(){
+        const sortEl = document.getElementById('sort');
+        if (!sortEl) return;
+        sortEl.addEventListener('change', async (e)=>{
+          e.preventDefault();
+          e.stopPropagation();
+          const val = sortEl.value;
+          realState.sort = assembleRealSort(val);
+          realState.page = 1;
+          const r = await fetchRealResults();
+          if (r) renderReal(r);
+        }, true);
+      }
+
+      function wireRealAvailability(){
+        const avail = document.getElementById('availToggle');
+        if (!avail) return;
+        avail.addEventListener('click', async (e)=>{
+          // capture and prevent mock render
+          e.preventDefault();
+          e.stopPropagation();
+          // Toggle include OOS: when active include both true and false
+          const isActive = avail.classList.contains('active');
+          if (!isActive){
+            // will become active -> include OOS
+            realState.filters.in_stock = [true, false];
+          } else {
+            // will become inactive -> only in-stock
+            realState.filters.in_stock = true;
+          }
+          realState.page = 1;
+          const r = await fetchRealResults();
+          if (r) renderReal(r);
+        }, true);
+      }
       // Minimal dataset for desktop wireframe
       const COUNTRY = 'Estonia';
       // Freeze dates to stabilize visual snapshots (keeps lengths identical across runs)
@@ -2258,19 +2494,24 @@
         setupCarouselNav();
         setupLanguageSelector();
         updatePriceSlider();
-        render();
-        renderBasket();
-        renderBrowsingHistory();
+        // Disable initial mock render in favor of real search flow
+        try { renderBasket(); } catch(e) {}
+        try { renderBrowsingHistory(); } catch(e) {}
+        // Wire real integrations
+        wireRealSearchInput();
+        wireRealSorting();
+        wireRealAvailability();
+        initRealMode();
         
         // Wire basket controls
         $('.cart-nav').addEventListener('click', toggleBasket);
         $('#closeBasket').addEventListener('click', closeBasket);
         
         // Wire mobile filters modal
-        $('#openFilters').addEventListener('click', openFiltersModal);
+        $('#openFilters').addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openFiltersModal(); });
         $('#closeFilters').addEventListener('click', closeFiltersModal);
-        $('#applyFilters').addEventListener('click', applyFiltersModal);
-        $('#clearFilters').addEventListener('click', clearFiltersModal);
+        $('#applyFilters').addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); applyFiltersModal(); });
+        $('#clearFilters').addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); clearFiltersModal(); });
         // Set dynamic country strings
         const label = $('#mobileDeliveryLabel');
         if(label) label.textContent = `Deliver to ${COUNTRY} ⌵`;

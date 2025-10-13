@@ -227,6 +227,18 @@ curl -X POST http://localhost:4000/search \
 - **Meilisearch**: http://localhost:7700
 - **UI**: http://localhost:3000 (if running)
 
+## OpenAPI & Swagger
+
+- OpenAPI JSON: `http://localhost:4000/v3/api-docs`
+- OpenAPI YAML: `http://localhost:4000/v3/api-docs.yaml`
+- Swagger UI: `http://localhost:4000/swagger-ui.html`
+
+Admin endpoints require header:
+
+```
+x-admin-key: dev_admin_key
+```
+
 ## 📈 Enrichment Results
 
 ### Example: MST Citrulline RAW 250g (Product ID: 31476)
