@@ -1576,6 +1576,69 @@
         }
       }
 
+      function slugifyLabelToSlug(s){
+        if (!s) return s;
+        const ascii = s.normalize('NFKD').replace(/[^\w\s-]/g,'');
+        return ascii.trim().toLowerCase().replace(/\s+/g,'-');
+      }
+
+      function assembleApiFiltersFromUi(){
+        const f = {};
+        // Availability: default in_stock true; when including OOS, send [true,false]
+        if (state && state.filters) {
+          if (state.filters.available === null) {
+            f.in_stock = [true, false];
+          } else {
+            f.in_stock = true;
+          }
+          if (state.filters.brand && state.filters.brand.size) {
+            f.brand_slug = Array.from(state.filters.brand).map(slugifyLabelToSlug);
+          }
+          if (state.filters.form && state.filters.form.size) {
+            f.form = Array.from(state.filters.form);
+          }
+          if (state.filters.diet && state.filters.diet.size) {
+            f.diet_tags = Array.from(state.filters.diet).map(v => String(v).toLowerCase());
+          }
+          if (state.filters.flavour && state.filters.flavour.size) {
+            // API accepts 'flavor' equality
+            f.flavor = Array.from(state.filters.flavour);
+          }
+          if (state.filters.category && state.filters.category.size) {
+            // Best-effort: map label to slug
+            f.categories_slugs = Array.from(state.filters.category).map(slugifyLabelToSlug);
+          }
+          // Price via slider bounds
+          if (Number.isFinite(state.filters.priceMin)) {
+            f.price_min = { op: ">=", value: state.filters.priceMin };
+          }
+          if (Number.isFinite(state.filters.priceMax)) {
+            f.price_max = { op: "<=", value: state.filters.priceMax };
+          }
+          // Quick price chip overrides slider
+          if (state.filters.price) {
+            const parts = String(state.filters.price).split('-');
+            const lo = parts[0] ? Number(parts[0]) : null;
+            const hi = parts[1] ? Number(parts[1]) : null;
+            if (Number.isFinite(lo)) f.price_min = { op: ">=", value: lo };
+            if (Number.isFinite(hi)) f.price_max = { op: "<=", value: hi };
+          }
+        }
+        return f;
+      }
+
+      let refreshTimer = null;
+      async function refreshRealFromUi(){
+        realState.filters = assembleApiFiltersFromUi();
+        realState.page = 1;
+        const r = await fetchRealResults();
+        if (r) renderReal(r);
+      }
+      function refreshRealFromUiDebounced(){
+        if (refreshTimer) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(()=>{ refreshRealFromUi(); }, 150);
+      }
+
       function renderReal(resp){
         if (!resp || !Array.isArray(resp.items)) return;
         const items = resp.items;
@@ -1748,18 +1811,10 @@
           // capture and prevent mock render
           e.preventDefault();
           e.stopPropagation();
-          // Toggle include OOS: when active include both true and false
+          // Toggle UI state, real fetch will be driven by UI -> API mapping
           const isActive = avail.classList.contains('active');
-          if (!isActive){
-            // will become active -> include OOS
-            realState.filters.in_stock = [true, false];
-          } else {
-            // will become inactive -> only in-stock
-            realState.filters.in_stock = true;
-          }
-          realState.page = 1;
-          const r = await fetchRealResults();
-          if (r) renderReal(r);
+          state.filters.available = isActive ? true : null;
+          refreshRealFromUi();
         }, true);
       }
       // Minimal dataset for desktop wireframe
@@ -1935,11 +1990,16 @@
       // Render products
       function render(){
         // Build left filter Checkboxes + Chips
+        // Keep rendering mock-derived options visually, but drive results via real API
         buildChecks('#fCategory', unique(DATA.map(p=>p.category)), 'category', 8);
         buildChecks('#fBrand', unique(DATA.map(p=>p.brand)), 'brand', brandLimit);
         buildChips('#fFlavour', unique(DATA.flatMap(p=>p.flavours)), 'flavour');
         buildChips('#fDiet', unique(DATA.flatMap(p=>p.diet||[])), 'diet');
         buildChecks('#fForm', unique(DATA.map(p=>p.form)), 'form', formLimit);
+        // Re-query real results when UI filter sets change
+        $$('#fCategory .chip, #fBrand .chip, #fFlavour .chip, #fDiet .chip, #fForm .chip').forEach(el => {
+          el.addEventListener('click', ()=>{ refreshRealFromUiDebounced(); }, { once: false, capture: false });
+        });
         buildChecks('#fContainer', unique(DATA.map(p=>p.container)), 'container', 8);
         buildChips('#fSize', unique(DATA.flatMap(p=>p.sizes||[])), 'size');
 
@@ -2013,7 +2073,7 @@
         if(state.sort==='rating-desc') list.sort((a,b)=>b.rating-a.rating);
         if(state.sort==='newest') list.sort((a,b)=>b.dateAdded-a.dateAdded);
 
-        // Render grid
+        // Render grid (mock)
         const qtext = state.q ? ` for ${esc(state.q)}` : '';
         $('#count').textContent = `${list.length} results${qtext}`;
         const pageSize = 32; // Increased from 24 to match 4-column layout
@@ -2043,7 +2103,7 @@
           );
         }).join('');
 
-        // Wire add buttons
+        // Wire add buttons (mock)
         $$('#grid .product .add').forEach(btn => btn.addEventListener('click', e => {
           const id = +e.target.closest('.product').getAttribute('data-id');
           state.basket.set(id, (state.basket.get(id)||0)+1);
@@ -2054,16 +2114,16 @@
         }));
 
         // Wire filter chips for price/rating
-        $$('#fPrice .chip').forEach(el => el.onclick = () => { state.filters.price = state.filters.price===el.getAttribute('data-val')?null:el.getAttribute('data-val'); render(); });
-        $$('#fRating .chip').forEach(el => el.onclick = () => { const v=+el.getAttribute('data-val'); state.filters.ratingMin = state.filters.ratingMin===v?null:v; render(); });
-        // Availability toggle
+        $$('#fPrice .chip').forEach(el => el.onclick = () => { state.filters.price = state.filters.price===el.getAttribute('data-val')?null:el.getAttribute('data-val'); render(); refreshRealFromUiDebounced(); });
+        $$('#fRating .chip').forEach(el => el.onclick = () => { const v=+el.getAttribute('data-val'); state.filters.ratingMin = state.filters.ratingMin===v?null:v; render(); /* rating not mapped to API yet */ });
+        // Availability toggle (mock path retained for UI state; real path wires separately)
         const availToggle = $('#availToggle');
         if (availToggle) {
           if(state.filters.available === null) availToggle.classList.add('active'); else availToggle.classList.remove('active');
-          availToggle.onclick = ()=>{ state.filters.available = (state.filters.available === null) ? true : null; render(); };
+          availToggle.onclick = ()=>{ state.filters.available = (state.filters.available === null) ? true : null; render(); refreshRealFromUiDebounced(); };
         }
 
-        // Build pager
+        // Build pager (mock path)
         const pager = $('#pager');
         pager.innerHTML = '';
         if(totalPages>1){
@@ -2180,7 +2240,7 @@
         if(e.key==='ArrowUp'){ e.preventDefault(); moveSugg(-1); }
         if(e.key==='Enter'){ chooseSugg(); }
       });
-      $('#go').addEventListener('click', ()=>{ state.q = q.value.trim(); $('#sugg').style.display='none'; render(); });
+        $('#go').addEventListener('click', ()=>{ state.q = q.value.trim(); $('#sugg').style.display='none'; render(); refreshRealFromUiDebounced(); });
       document.addEventListener('click', (e)=>{ if(!e.target.closest('.sugg') && !e.target.closest('.searchbar')) $('#sugg').style.display='none'; });
       window.addEventListener('resize', positionSugg);
       window.addEventListener('scroll', positionSugg, { passive: true });
@@ -2248,6 +2308,7 @@
           state.filters.priceMin = tempPriceMin;
           state.filters.priceMax = tempPriceMax;
           render();
+          refreshRealFromUiDebounced();
         });
       }
 

@@ -12,9 +12,44 @@ public class FilterStringBuilder {
             String field = entry.getKey();
             Object value = entry.getValue();
 
+            // Support synthetic suffix keys like price_min/price_max → map to base field with comparison
+            if (field != null && field.endsWith("_min")) {
+                String base = field.substring(0, field.length() - 4); // drop _min
+                if (value instanceof Map<?,?> mv) {
+                    Object v = mv.get("value");
+                    if (v != null) andClauses.add(comparisonExpr(base, ">=", v));
+                } else if (value != null) {
+                    andClauses.add(comparisonExpr(base, ">=", value));
+                }
+                continue;
+            }
+            if (field != null && field.endsWith("_max")) {
+                String base = field.substring(0, field.length() - 4); // drop _max
+                if (value instanceof Map<?,?> mv) {
+                    Object v = mv.get("value");
+                    if (v != null) andClauses.add(comparisonExpr(base, "<=", v));
+                } else if (value != null) {
+                    andClauses.add(comparisonExpr(base, "<=", value));
+                }
+                continue;
+            }
+
             if (value instanceof List<?> listVal) {
-                String inList = toInList(listVal);
-                if (inList != null) andClauses.add(field + " IN " + inList);
+                // If this is a list of comparison maps, AND each comparison for the same field
+                if (!listVal.isEmpty() && listVal.get(0) instanceof Map<?,?>) {
+                    for (Object o : listVal) {
+                        if (o instanceof Map<?,?> mv) {
+                            Object op = mv.get("op");
+                            Object val = mv.get("value");
+                            if (op != null && val != null) {
+                                andClauses.add(comparisonExpr(field, String.valueOf(op), val));
+                            }
+                        }
+                    }
+                } else {
+                    String inList = toInList(listVal);
+                    if (inList != null) andClauses.add(field + " IN " + inList);
+                }
             } else if (value instanceof Map<?, ?> mapVal) {
                 Object op = mapVal.get("op");
                 Object val = mapVal.get("value");
