@@ -2033,6 +2033,7 @@
           const text = r.getAttribute('data-text');
           q.value = text; state.q = text;
           render(); $('#sugg').style.display='none';
+          try { refreshRealFromUiDebounced(); } catch(e) { /* noop */ }
         }));
         suggIndex = -1;
       }
@@ -2093,6 +2094,7 @@
           else if(k==='available') state.filters.available=true; 
           else state.filters[k].delete(v);
           render();
+          try { refreshRealFromUiDebounced(); } catch(e) { /* noop */ }
         }));
 
         // Filter pipeline
@@ -2275,6 +2277,7 @@
         tempPriceMax = 390;
         updatePriceSlider();
         render();
+        try { refreshRealFromUiDebounced(); } catch(e) { /* noop */ }
       });
 
       // Brand show more
@@ -2499,6 +2502,7 @@
       function applyFiltersModal() {
         closeFiltersModal();
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        try { refreshRealFromUiDebounced(); } catch(e) { /* noop */ }
       }
       
       function clearFiltersModal() {
@@ -2520,6 +2524,7 @@
         tempPriceMax = 390;
         updatePriceSlider();
         render();
+        try { refreshRealFromUiDebounced(); } catch(e) { /* noop */ }
       }
 
       // Build two-pane filters UI in the modal
@@ -2576,6 +2581,7 @@
             if(state.filters[key].has(val)) state.filters[key].delete(val); else state.filters[key].add(val);
           }
           render();
+          try { refreshRealFromUiDebounced(); } catch(e) { /* noop */ }
         }, { capture: false });
         updateModalResultsCount();
       }
@@ -2662,7 +2668,8 @@
               tempPriceMin = lo; tempPriceMax = hi; updatePriceSlider();
               state.filters.price = null;
               state.filters.priceMin = lo; state.filters.priceMax = hi;
-              render();
+          render();
+          try { refreshRealFromUiDebounced(); } catch(e) { /* noop */ }
             });
           });
         }
