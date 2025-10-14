@@ -1566,6 +1566,8 @@
         );
       }
 
+      let __lastRealResp = null;
+
       async function fetchRealResults(){
         try {
           const resp = await (window.apiV3 && window.apiV3.searchProducts ? window.apiV3.searchProducts(realState.q, { page: realState.page, size: realState.size, filters: realState.filters, sort: realState.sort }) : Promise.resolve(null));
@@ -1641,6 +1643,7 @@
 
       function renderReal(resp){
         if (!resp || !Array.isArray(resp.items)) return;
+        __lastRealResp = resp;
         const items = resp.items;
         try { items.forEach(p => { if (p && p.id != null) realProductCache.set(String(p.id), p); }); } catch(e){}
         const total = typeof resp.total === 'number' ? resp.total : 0;
@@ -1681,6 +1684,9 @@
             pager.appendChild(next);
           }
         }
+        // Render facets from API response
+        try { renderFacetsFromReal(resp); } catch(e) { /* noop */ }
+
         // wire add buttons to basket UI (real products)
         $$('#grid .product .add').forEach(btn => btn.addEventListener('click', e => {
           const id = String(e.target.closest('.product').getAttribute('data-id'));
@@ -1696,8 +1702,58 @@
       }
 
       async function initRealMode(){
+        window.__REAL_MODE__ = true;
         const resp = await fetchRealResults();
         if (resp) renderReal(resp);
+      }
+
+      function renderFacetsFromReal(resp){
+        if (!resp || !resp.facets) return;
+        // Helper to render chips with counts from facet map
+        function renderFacetChips(hostSel, facetMap, key, limit){
+          const host = document.querySelector(hostSel);
+          if (!host || !facetMap) return;
+          host.innerHTML = '';
+          const entries = Object.entries(facetMap).sort((a,b)=>b[1]-a[1]);
+          const max = typeof limit === 'number' ? limit : entries.length;
+          for (let i=0; i<entries.length && i<max; i++){
+            const [val, cnt] = entries[i];
+            const btn = document.createElement('button');
+            btn.className = 'chip' + (state.filters[key] && state.filters[key].has(val) ? ' active' : '');
+            btn.type = 'button';
+            btn.setAttribute('data-val', val);
+            btn.textContent = cnt != null ? `${val} (${cnt})` : val;
+            btn.addEventListener('click', ()=>{
+              if (!state.filters[key]) state.filters[key] = new Set();
+              if (state.filters[key].has(val)) state.filters[key].delete(val); else state.filters[key].add(val);
+              // Update immediately
+              refreshRealFromUiDebounced();
+              // Reflect active state
+              btn.classList.toggle('active');
+            });
+            host.appendChild(btn);
+          }
+        }
+        const f = resp.facets || {};
+        renderFacetChips('#fBrand', f['brand_slug'], 'brand', brandLimit);
+        renderFacetChips('#fCategory', f['categories_slugs'], 'category', 8);
+        renderFacetChips('#fForm', f['form'], 'form', formLimit);
+        renderFacetChips('#fDiet', f['diet_tags'], 'diet', 12);
+        // Flavour chips: derive from current items
+        try {
+          const flavors = Array.from(new Set((resp.items||[]).flatMap(p => ((p.dynamic_attrs && Array.isArray(p.dynamic_attrs.flavors)) ? p.dynamic_attrs.flavors : []).filter(Boolean))));
+          const host = document.querySelector('#fFlavour');
+          if (host) {
+            host.innerHTML = flavors.map(v => `<div class="chip ${state.filters.flavour && state.filters.flavour.has(v)?'active':''}" data-val="${v}">${v}</div>`).join('');
+            $$('#fFlavour .chip').forEach(el => el.addEventListener('click', ()=>{
+              const v = el.getAttribute('data-val');
+              if (!state.filters.flavour) state.filters.flavour = new Set();
+              if (state.filters.flavour.has(v)) state.filters.flavour.delete(v); else state.filters.flavour.add(v);
+              el.classList.toggle('active');
+              refreshRealFromUiDebounced();
+            }));
+          }
+        } catch(e) { /* noop */ }
       }
 
       function renderBasketReal(){
