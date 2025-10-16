@@ -1,97 +1,96 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Topbar } from './components/Topbar'
+import { Toolbar } from './components/Toolbar'
+import { Results } from './components/Results'
+import { FiltersModal } from './components/FiltersModal'
+import { BasketSidebar } from './components/BasketSidebar'
+
+function assembleApiFiltersFromUi(state){
+  const f = {};
+  if (state.filters.available === null) f.in_stock = [true, false]; else f.in_stock = true;
+  if (state.filters.brand && state.filters.brand.size) f.brand_slug = Array.from(state.filters.brand).map(slugifyLabelToSlug);
+  if (state.filters.form && state.filters.form.size) f.form = Array.from(state.filters.form);
+  if (state.filters.diet && state.filters.diet.size) f.diet_tags = Array.from(state.filters.diet).map(v => String(v).toLowerCase());
+  if (state.filters.flavour && state.filters.flavour.size) f.flavor = Array.from(state.filters.flavour);
+  if (state.filters.category && state.filters.category.size) f.categories_slugs = Array.from(state.filters.category).map(slugifyLabelToSlug);
+  // Only include price bounds if user changed from defaults or picked a quick chip
+  const DEFAULT_MIN = 4, DEFAULT_MAX = 390;
+  const userChangedSlider = (Number.isFinite(state.filters.priceMin) && state.filters.priceMin !== DEFAULT_MIN) || (Number.isFinite(state.filters.priceMax) && state.filters.priceMax !== DEFAULT_MAX);
+  if (userChangedSlider) {
+    if (Number.isFinite(state.filters.priceMin)) f.price_min = { op: ">=", value: state.filters.priceMin };
+    if (Number.isFinite(state.filters.priceMax)) f.price_max = { op: "<=", value: state.filters.priceMax };
+  }
+  if (state.filters.price){
+    const parts = String(state.filters.price).split('-');
+    const lo = parts[0] ? Number(parts[0]) : null;
+    const hi = parts[1] ? Number(parts[1]) : null;
+    if (Number.isFinite(lo)) f.price_min = { op: ">=", value: lo };
+    if (Number.isFinite(hi)) f.price_max = { op: "<=", value: hi };
+  }
+  return f;
+}
+function slugifyLabelToSlug(s){
+  if (!s) return s;
+  const ascii = s.normalize('NFKD').replace(/[^\w\s-]/g,'');
+  return ascii.trim().toLowerCase().replace(/\s+/g,'-');
+}
+function assembleRealSort(val){
+  if (val === 'price-asc') return ["price:asc"];
+  if (val === 'price-desc') return ["price:desc"];
+  if (val === 'rating-desc') return ["rating:desc","review_count:desc"];
+  return null;
+}
+
 export default function App() {
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState('relevance');
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({ category:new Set(), brand:new Set(), flavour:new Set(), diet:new Set(), form:new Set(), container:new Set(), size:new Set(), price:null, priceMin:4, priceMax:390, ratingMin:null, available:true });
+  const [results, setResults] = useState({ items: [], total: 0, facets: {} });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const apiFilters = useMemo(()=>assembleApiFiltersFromUi({ filters }), [filters]);
+  const apiSort = useMemo(()=>assembleRealSort(sort), [sort]);
+
+  const lastReqRef = useRef('');
+  useEffect(() => {
+    const key = JSON.stringify({ q, page, filters: apiFilters, sort: apiSort });
+    if (key === lastReqRef.current) return;
+    lastReqRef.current = key;
+    fetchResults(q, page, apiFilters, apiSort);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, page, apiFilters, apiSort]);
+
+  async function fetchResults(qIn, pageIn, filtersIn, sortIn){
+    try {
+      const fn = (window.apiV4 && window.apiV4.searchProducts) || (window.apiV3 && window.apiV3.searchProducts);
+      if (!fn) return;
+      const resp = await fn(qIn, { page: pageIn, size: 32, filters: filtersIn, sort: sortIn });
+      if (resp && Array.isArray(resp.items)) setResults(resp);
+    } catch(e){
+      // console error is okay in dev
+      console.error('search failed', e);
+    }
+  }
+
+  function onSearch(){
+    setPage(1);
+  }
+
+  function openFiltersModal(){ setFiltersOpen(true); }
+  function closeFiltersModal(){ setFiltersOpen(false); }
+
+  function fmtPriceEu(n, cents){
+    const v = (typeof n === 'number' && !isNaN(n)) ? n : (typeof cents === 'number' ? (cents/100) : null);
+    if (v == null) return null;
+    const s = v.toFixed(2);
+    const i = s.indexOf('.');
+    return { whole: s.slice(0, i), fraction: s.slice(i+1) };
+  }
+
   return (
     <>
-      <div className="topbar">
-        <button className="burger" id="burgerBtn" aria-label="Menu">≡</button>
-        <div className="mobile-signin" id="mobileSignin"><span className="mi">👤</span><span>Sign in ›</span></div>
-        <div className="logo">health<span className="tld">.ee</span></div>
-
-        <div className="location-picker" id="openLocationDesktop">
-          <span className="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 21c-4.6-4.9-7-8.2-7-11.2a7 7 0 1 1 14 0c0 3-2.4 6.3-7 11.2z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-          </span>
-          <div className="text">
-            <div className="label">Deliver to</div>
-            <div className="city">Estonia</div>
-          </div>
-        </div>
-
-        <div className="searchbar">
-          <select id="catSelect">
-            <option>All</option>
-            <option>Protein</option>
-            <option>Creatine</option>
-            <option>Pre-Workout</option>
-            <option>Amino Acids</option>
-            <option>Vitamins & Health</option>
-          </select>
-          <div className="search">
-            <input id="q" placeholder="Search protein, creatine, vanilla…" autoComplete="off" />
-          </div>
-          <button className="search-btn" id="go">
-            <span className="icon">🔍</span>
-          </button>
-        </div>
-
-        <div className="nav-right">
-          <div className="lang-selector">
-            <span className="flag">🇪🇪</span>
-            <span className="lang" id="currentLang">EN</span>
-            <span> ⌵</span>
-            <div className="lang-dropdown">
-              <div className="lang-option active" data-lang="EN">English</div>
-              <div className="lang-option" data-lang="RU">Русский</div>
-              <div className="lang-option" data-lang="EE">Eesti</div>
-            </div>
-          </div>
-
-          <div className="nav-item">
-            <div className="top">Hello, sign in</div>
-            <div className="bottom">Account & Lists ⌵</div>
-            <div className="account-dropdown">
-              <a href="#" className="signin-btn">Sign in</a>
-              <div className="new-customer">New customer? <a href="#">Start here.</a></div>
-              <div className="dropdown-header">Your Account</div>
-              <div className="dropdown-section">
-                <a href="#" className="dropdown-item">Your Account</a>
-                <a href="#" className="dropdown-item">Your Orders</a>
-                <a href="#" className="dropdown-item">Your Wish List</a>
-                <a href="#" className="dropdown-item">Your Recommendations</a>
-                <a href="#" className="dropdown-item">Your Subscribe & Save Items</a>
-                <a href="#" className="dropdown-item">Memberships & Subscriptions</a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="cart-nav">
-          <span className="badge-top" id="cartBadge">0</span>
-          <div className="cart-icon">
-            <svg viewBox="0 0 40 32" xmlns="http://www.w3.org/2000/svg">
-              <path d="M 8 8 L 12 8 L 16 24 L 34 24 M 16 24 L 18 28 L 32 28" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="20" cy="30" r="1.5" fill="#fff"/>
-              <circle cx="30" cy="30" r="1.5" fill="#fff"/>
-            </svg>
-          </div>
-          <div className="label">Shopping-<br/>Basket</div>
-        </div>
-
-        <div className="mobile-delivery" id="openLocation">
-          <span className="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 21c-4.6-4.9-7-8.2-7-11.2a7 7 0 1 1 14 0c0 3-2.4 6.3-7 11.2z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-          </span>
-          <span id="mobileDeliveryLabel">Deliver to Estonia ⌵</span>
-          <span className="chev" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"></path></svg>
-          </span>
-        </div>
-      </div>
+      <Topbar q={q} setQ={setQ} onSearch={onSearch} />
 
       <div className="sugg" id="sugg" style={{display:'none'}}>
         <div className="box" id="suggBox"></div>
@@ -105,30 +104,10 @@ export default function App() {
           <button className="mf-chip" data-range="35-">Over 35 EUR</button>
         </div>
         <div className="mf-divider"></div>
-        <span className="mf-right" id="openFilters2">Filters ⌵</span>
+        <span className="mf-right" id="openFilters2" onClick={openFiltersModal}>Filters ⌵</span>
       </div>
 
-      <div className="toolbar">
-        <div className="left">
-          <div id="count">0 results</div>
-          <div className="small muted meta" id="meta">Fast shipping • Free returns</div>
-        </div>
-        <div className="right">
-          <button className="mobile-filters-btn" id="openFilters">
-            <span>☰</span>
-            <span>Filters ⌵</span>
-            <span className="badge" id="filtersBadge">0</span>
-          </button>
-          <span className="sort-label">Sort by:</span>
-          <select id="sort">
-            <option value="relevance">Featured</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-            <option value="rating-desc">Avg. Customer Review</option>
-            <option value="newest">Newest</option>
-          </select>
-        </div>
-      </div>
+      <Toolbar total={results.total} query={q} sort={sort} setSort={setSort} openFilters={openFiltersModal} />
 
       <div className="shell">
         <aside className="filters">
@@ -204,7 +183,7 @@ export default function App() {
 
         <main className="main">
           <div className="active-pills" id="pills"></div>
-          <div className="grid" id="grid"></div>
+          <Results items={results.items} />
           <div className="pager" id="pager"></div>
           <div className="panel" id="relatedPanel" style={{display:'none', marginTop: 8}}>
             <div className="h">Related searches</div>
@@ -224,36 +203,16 @@ export default function App() {
           </div>
         </main>
 
-        <aside className="basket" id="basketPanel">
-          <button className="close-btn" id="closeBasket" aria-label="Close basket">✕</button>
-          <div className="panel summary">
-            <div className="subhead">Subtotal</div>
-            <div className="subtotal"><span className="price" id="subtotal" aria-live="polite">€0.00</span></div>
-            <div className="free-msg" id="freeMsg">Add <b>€0.00</b> of eligible items to your order to qualify for <b>FREE</b> Delivery.</div>
-            <div className="free-link"><a href="#">Delivery Details</a></div>
-            <button className="go" id="goBasket">Go to Basket</button>
-          </div>
-          <div className="panel items">
-            <div id="basketItems">
-              <div className="muted" style={{padding: '10px 0', textAlign: 'center', fontSize: 10}}>No items yet</div>
-            </div>
-          </div>
-        </aside>
+        <BasketSidebar />
       </div>
 
-      <div className="filters-modal" id="filtersModal">
-        <div className="filters-modal-content">
-          <div className="filters-modal-header">
-            <h2>Filters ⌵</h2>
-            <button className="filters-modal-close" id="closeFilters">✕</button>
-          </div>
-          <div className="filters-modal-body" id="filtersModalBody"></div>
-          <div className="filters-modal-footer">
-            <button className="btn" id="clearFilters">Clear all</button>
-            <button className="btn primary" id="applyFilters">Apply</button>
-          </div>
-        </div>
-      </div>
+      <FiltersModal 
+        open={filtersOpen}
+        onClose={closeFiltersModal}
+        onClear={()=>{ setFilters({ category:new Set(), brand:new Set(), flavour:new Set(), diet:new Set(), form:new Set(), container:new Set(), size:new Set(), price:null, priceMin:4, priceMax:390, ratingMin:null, available:true }); }}
+        onApply={()=>{ closeFiltersModal(); fetchResults(q, 1, apiFilters, apiSort); }}
+      />
+      {/* end */}
 
       <div className="location-modal" id="locationModal" aria-hidden="true">
         <div className="location-modal-content" role="dialog" aria-modal="true" aria-labelledby="locTitle">
