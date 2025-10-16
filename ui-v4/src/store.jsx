@@ -19,6 +19,7 @@ const initialState = {
     available: true
   },
   results: { items: [], total: 0, facets: {} },
+  productsById: new Map(),
   basket: new Map(),
   ui: { isBasketOpen: false, isFiltersModalOpen: false, isLocationModalOpen: false }
 };
@@ -33,7 +34,12 @@ function reducer(state, action){
     case 'updateFilters': return { ...state, filters: action.update(state.filters), page: 1 };
     case 'basketAdd': {
       const b = new Map(state.basket); b.set(action.id, (b.get(action.id)||0)+1);
-      return { ...state, basket: b, ui: { ...state.ui, isBasketOpen: true } };
+      let productsById = state.productsById;
+      if (action.product) {
+        productsById = new Map(state.productsById);
+        productsById.set(action.id, action.product);
+      }
+      return { ...state, basket: b, productsById, ui: { ...state.ui, isBasketOpen: true } };
     }
     case 'basketRemove': {
       const b = new Map(state.basket); b.delete(action.id);

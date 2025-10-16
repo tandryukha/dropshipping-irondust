@@ -1,7 +1,8 @@
 import { useStore } from '../store.jsx'
 
 export function Topbar({ q, setQ, onSearch }){
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
+  const badgeCount = Array.from(state.basket.values()).reduce((a, b) => a + b, 0);
   return (
     <div className="topbar">
       <button className="burger" id="burgerBtn" aria-label="Menu">≡</button>
@@ -70,7 +71,7 @@ export function Topbar({ q, setQ, onSearch }){
       </div>
 
       <div className="cart-nav" onClick={()=>dispatch({type:'toggleBasket'})}>
-        <span className="badge-top" id="cartBadge">0</span>
+        <span className="badge-top" id="cartBadge">{badgeCount}</span>
         <div className="cart-icon">
           <svg viewBox="0 0 40 32" xmlns="http://www.w3.org/2000/svg">
             <path d="M 8 8 L 12 8 L 16 24 L 34 24 M 16 24 L 18 28 L 32 28" strokeLinecap="round" strokeLinejoin="round"/>

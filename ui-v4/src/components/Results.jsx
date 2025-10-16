@@ -18,11 +18,14 @@ export function ProductCard({ p, onAdd }){
   );
 }
 
+import { useStore } from '../store.jsx'
+
 export function Results({ items }){
+  const { dispatch } = useStore();
   return (
     <div className="grid" id="grid">
       {(items||[]).map(p => (
-        <ProductCard key={String(p.id)} p={p} onAdd={()=>{}} />
+        <ProductCard key={String(p.id)} p={p} onAdd={()=>dispatch({ type: 'basketAdd', id: p.id, product: p })} />
       ))}
     </div>
   );

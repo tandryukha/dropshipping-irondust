@@ -211,6 +211,19 @@ export default function App() {
         onClose={closeFiltersModal}
         onClear={()=>{ setFilters({ category:new Set(), brand:new Set(), flavour:new Set(), diet:new Set(), form:new Set(), container:new Set(), size:new Set(), price:null, priceMin:4, priceMax:390, ratingMin:null, available:true }); }}
         onApply={()=>{ closeFiltersModal(); fetchResults(q, 1, apiFilters, apiSort); }}
+        results={results}
+        filters={filters}
+        onToggle={(key, val)=>{
+          setFilters(prev => {
+            const next = { ...prev };
+            if (!next[key]) next[key] = new Set();
+            if (next[key].has(val)) next[key].delete(val); else next[key].add(val);
+            return { ...next };
+          });
+        }}
+        onToggleAvailability={()=>{
+          setFilters(prev => ({ ...prev, available: prev.available===null ? true : null }));
+        }}
       />
       {/* end */}
 
