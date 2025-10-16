@@ -82,7 +82,7 @@ export function FiltersModal({ open, onClose, onClear, onApply, results, filters
         </div>
         <div className="filters-modal-footer">
           <button className="btn" id="clearFilters" onClick={onClear}>Clear all</button>
-          <button className="btn primary" id="applyFilters" onClick={onApply}>Apply</button>
+          <button className="btn primary" id="applyFilters" onClick={onApply}>Show {(results?.total||0)} results</button>
         </div>
       </div>
     </div>

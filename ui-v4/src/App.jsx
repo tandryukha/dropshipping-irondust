@@ -220,9 +220,15 @@ export default function App() {
             if (next[key].has(val)) next[key].delete(val); else next[key].add(val);
             return { ...next };
           });
+          // Instant apply
+          setPage(1);
+          // Use updated filters in next tick
+          setTimeout(()=>{ fetchResults(q, 1, assembleApiFiltersFromUi({ filters: { ...filters, [key]: new Set([...(filters[key]||new Set()), val]) } }), apiSort); }, 0);
         }}
         onToggleAvailability={()=>{
           setFilters(prev => ({ ...prev, available: prev.available===null ? true : null }));
+          setPage(1);
+          setTimeout(()=>{ fetchResults(q, 1, assembleApiFiltersFromUi({ filters: { ...filters, available: filters.available===null ? true : null } }), apiSort); }, 0);
         }}
       />
       {/* end */}
