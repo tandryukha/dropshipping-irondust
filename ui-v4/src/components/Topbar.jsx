@@ -1,6 +1,6 @@
 import { useStore } from '../store.jsx'
 
-export function Topbar({ q, setQ, onSearch }){
+export function Topbar({ q, setQ, onSearch, onInputChange, onInputKeyDown, onOpenLocation }){
   const { state, dispatch } = useStore();
   const badgeCount = Array.from(state.basket.values()).reduce((a, b) => a + b, 0);
   return (
@@ -9,7 +9,7 @@ export function Topbar({ q, setQ, onSearch }){
       <div className="mobile-signin" id="mobileSignin"><span className="mi">👤</span><span>Sign in ›</span></div>
       <div className="logo">health<span className="tld">.ee</span></div>
 
-      <div className="location-picker" id="openLocationDesktop">
+      <div className="location-picker" id="openLocationDesktop" onClick={()=>onOpenLocation && onOpenLocation()}>
         <span className="icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 21c-4.6-4.9-7-8.2-7-11.2a7 7 0 1 1 14 0c0 3-2.4 6.3-7 11.2z"></path>
@@ -32,7 +32,7 @@ export function Topbar({ q, setQ, onSearch }){
           <option>Vitamins & Health</option>
         </select>
         <div className="search">
-          <input id="q" placeholder="Search protein, creatine, vanilla…" autoComplete="off" value={q} onChange={(e)=>setQ(e.target.value)} onKeyDown={(e)=>{ if(e.key==='Enter') onSearch(); }} />
+          <input id="q" placeholder="Search protein, creatine, vanilla…" autoComplete="off" value={q} onChange={(e)=>{ setQ(e.target.value); onInputChange && onInputChange(e.target.value); }} onKeyDown={(e)=>{ if(onInputKeyDown) onInputKeyDown(e); if(e.key==='Enter') onSearch(); }} />
         </div>
         <button className="search-btn" id="go" onClick={onSearch}>
           <span className="icon">🔍</span>
@@ -82,7 +82,7 @@ export function Topbar({ q, setQ, onSearch }){
         <div className="label">Shopping-<br/>Basket</div>
       </div>
 
-      <div className="mobile-delivery" id="openLocation">
+      <div className="mobile-delivery" id="openLocation" onClick={()=>onOpenLocation && onOpenLocation()}>
         <span className="icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 21c-4.6-4.9-7-8.2-7-11.2a7 7 0 1 1 14 0c0 3-2.4 6.3-7 11.2z"></path>

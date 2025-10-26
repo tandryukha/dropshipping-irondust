@@ -12,7 +12,7 @@ export function ProductCard({ p, onAdd }){
       <div className="small"><span className="p-stars">{'★★★★★'.slice(0, Math.round(p.rating || 0))}</span> <span className="muted">({p.review_count||0})</span></div>
       {priceParts ? <div className="price"><span className="currency">€</span><span className="whole">{priceParts.whole}</span><span className="fraction">{priceParts.fraction}</span></div> : null}
       <div className="p-cta">
-        <button className="btn small add" onClick={onAdd}>Add to Basket</button>
+        <button className="btn small add" onClick={()=>onAdd && onAdd(String(p.id))}>Add to Basket</button>
       </div>
     </div>
   );
@@ -20,12 +20,12 @@ export function ProductCard({ p, onAdd }){
 
 import { useStore } from '../store.jsx'
 
-export function Results({ items }){
+export function Results({ items, onAdd }){
   const { dispatch } = useStore();
   return (
     <div className="grid" id="grid">
       {(items||[]).map(p => (
-        <ProductCard key={String(p.id)} p={p} onAdd={()=>dispatch({ type: 'basketAdd', id: p.id, product: p })} />
+        <ProductCard key={String(p.id)} p={p} onAdd={onAdd || ((id)=>dispatch({ type: 'basketAdd', id: p.id, product: p }))} />
       ))}
     </div>
   );

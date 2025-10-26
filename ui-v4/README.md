@@ -1,16 +1,50 @@
-# React + Vite
+# ui-v4 (React + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Quickstart
 
-Currently, two official plugins are available:
+### Start the API and services (recommended)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+From repo root:
 
-## React Compiler
+```bash
+cd /Users/tandryukha/dropshipping-irondust
+./rebuild-and-watch.sh
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This starts the Spring Boot API at http://localhost:4000 (Meilisearch 7700, Qdrant 6333). Verify:
 
-## Expanding the ESLint configuration
+```bash
+curl :4000/healthz
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Start ui-v4 in dev (HMR)
+
+```bash
+cd /Users/tandryukha/dropshipping-irondust/ui-v4
+npm install
+npm run dev -- --host
+```
+
+Open http://localhost:5173
+
+### Build and preview (production-like)
+
+```bash
+cd /Users/tandryukha/dropshipping-irondust/ui-v4
+npm run build
+npm run preview -- --host
+```
+
+Open http://localhost:4173
+
+## Notes
+
+- ui-v4 calls the API at http://localhost:4000. Ensure the API is running for search/basket to work.
+- If you want to compare visuals with the mock (ui-v3):
+
+```bash
+cd /Users/tandryukha/dropshipping-irondust/ui-v3
+./serve.sh
+```
+
+Open http://localhost:8011

@@ -29,20 +29,29 @@ function reducer(state, action){
     case 'setQuery': return { ...state, query: action.query, page: 1 };
     case 'setSort': return { ...state, sort: action.sort, page: 1 };
     case 'setPage': return { ...state, page: action.page };
-    case 'setResults': return { ...state, results: action.results };
+    case 'setResults': {
+      let productsById = state.productsById;
+      try {
+        const map = new Map(state.productsById);
+        (action.results?.items||[]).forEach(p=>{ if(p && p.id!=null) map.set(p.id, p); });
+        productsById = map;
+      } catch(e){}
+      return { ...state, results: action.results, productsById };
+    }
     case 'replaceFilters': return { ...state, filters: action.filters, page: 1 };
     case 'updateFilters': return { ...state, filters: action.update(state.filters), page: 1 };
     case 'basketAdd': {
-      const b = new Map(state.basket); b.set(action.id, (b.get(action.id)||0)+1);
+      const key = String(action.id);
+      const b = new Map(state.basket); b.set(key, (b.get(key)||0)+1);
       let productsById = state.productsById;
       if (action.product) {
         productsById = new Map(state.productsById);
-        productsById.set(action.id, action.product);
+        productsById.set(key, action.product);
       }
       return { ...state, basket: b, productsById, ui: { ...state.ui, isBasketOpen: true } };
     }
     case 'basketRemove': {
-      const b = new Map(state.basket); b.delete(action.id);
+      const b = new Map(state.basket); b.delete(String(action.id));
       return { ...state, basket: b };
     }
     case 'toggleBasket': return { ...state, ui: { ...state.ui, isBasketOpen: !state.ui.isBasketOpen } };

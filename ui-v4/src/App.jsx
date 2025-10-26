@@ -48,9 +48,13 @@ export default function App() {
   const [filters, setFilters] = useState({ category:new Set(), brand:new Set(), flavour:new Set(), diet:new Set(), form:new Set(), container:new Set(), size:new Set(), price:null, priceMin:4, priceMax:390, ratingMin:null, available:true });
   const [results, setResults] = useState({ items: [], total: 0, facets: {} });
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
 
   const apiFilters = useMemo(()=>assembleApiFiltersFromUi({ filters }), [filters]);
   const apiSort = useMemo(()=>assembleRealSort(sort), [sort]);
+  const [suggOpen, setSuggOpen] = useState(false);
+  const [suggRows, setSuggRows] = useState([]);
+  const [suggIndex, setSuggIndex] = useState(-1);
 
   const lastReqRef = useRef('');
   useEffect(() => {
@@ -77,6 +81,45 @@ export default function App() {
     setPage(1);
   }
 
+  // --- Price slider state ---
+  const PRICE_MIN = 0, PRICE_MAX = 400;
+  const [tempPriceMin, setTempPriceMin] = useState(4);
+  const [tempPriceMax, setTempPriceMax] = useState(390);
+  function applyPrice(){
+    setFilters(prev => ({ ...prev, price: null, priceMin: tempPriceMin, priceMax: tempPriceMax }));
+    setPage(1);
+  }
+
+  // Debounced refresh
+  const debTimer = useRef(null);
+  function debouncedRefresh(){
+    if (debTimer.current) clearTimeout(debTimer.current);
+    debTimer.current = setTimeout(()=>{ fetchResults(q, 1, assembleApiFiltersFromUi({ filters }), apiSort); }, 150);
+  }
+
+  // Toolbar auto-hide on scroll past topbar
+  useEffect(() => {
+    let lastScrollTop = 0; let hasAutoScrolled = false;
+    function onScroll(){
+      const topbar = document.querySelector('.topbar');
+      const toolbar = document.querySelector('.toolbar');
+      if(!topbar || !toolbar) return;
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      if(scrollTop < lastScrollTop){ hasAutoScrolled = false; }
+      if(scrollTop > lastScrollTop && !hasAutoScrolled){
+        const topbarBottom = topbar.offsetTop + topbar.offsetHeight;
+        const toolbarHeight = toolbar.offsetHeight;
+        if(scrollTop >= topbarBottom && scrollTop < topbarBottom + toolbarHeight){
+          window.scrollTo({ top: topbarBottom + toolbarHeight, behavior: 'smooth' });
+          hasAutoScrolled = true;
+        }
+      }
+      lastScrollTop = scrollTop;
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   function openFiltersModal(){ setFiltersOpen(true); }
   function closeFiltersModal(){ setFiltersOpen(false); }
 
@@ -90,7 +133,20 @@ export default function App() {
 
   return (
     <>
-      <Topbar q={q} setQ={setQ} onSearch={onSearch} />
+      <Topbar q={q} setQ={setQ} onSearch={onSearch} onInputChange={(val)=>{
+        // Build simple suggestions (suffixes + from facets if available)
+        const base = val.trim();
+        if (!base){ setSuggOpen(false); setSuggRows([]); setSuggIndex(-1); return; }
+        const suffixes = ['powder','capsules','tablets','1kg','vegan','vanilla','chocolate','best'];
+        const rows = Array.from(new Set([base, ...suffixes.map(s=>`${base} ${s}`)])).slice(0,10);
+        setSuggRows(rows); setSuggOpen(true); setSuggIndex(-1);
+      }} onInputKeyDown={(e)=>{
+        if(!suggOpen) return;
+        if(e.key==='ArrowDown'){ e.preventDefault(); setSuggIndex(i=>Math.min((i+1),(suggRows.length-1))); }
+        if(e.key==='ArrowUp'){ e.preventDefault(); setSuggIndex(i=>Math.max((i-1),0)); }
+        if(e.key==='Enter' && suggIndex>=0){ const text = suggRows[suggIndex]; setQ(text); setSuggOpen(false); onSearch(); }
+        if(e.key==='Escape'){ setSuggOpen(false); }
+      }} onOpenLocation={()=>{ setLocationOpen(true); }} />
 
       <div className="sugg" id="sugg" style={{display:'none'}}>
         <div className="box" id="suggBox"></div>
@@ -98,10 +154,10 @@ export default function App() {
 
       <div className="mobile-filterbar" id="mobileFilterbar">
         <div className="mf-scroll">
-          <button className="mf-chip" data-range="0-20">Up to 20 EUR</button>
-          <button className="mf-chip" data-range="20-30">20 - 30 EUR</button>
-          <button className="mf-chip" data-range="30-35">30 - 35 EUR</button>
-          <button className="mf-chip" data-range="35-">Over 35 EUR</button>
+          <button className="mf-chip" data-range="0-20" onClick={()=>{ setTempPriceMin(0); setTempPriceMax(20); setFilters(prev=>({ ...prev, price:'0-20', priceMin:0, priceMax:20 })); debouncedRefresh(); }}>Up to 20 EUR</button>
+          <button className="mf-chip" data-range="20-30" onClick={()=>{ setTempPriceMin(20); setTempPriceMax(30); setFilters(prev=>({ ...prev, price:'20-30', priceMin:20, priceMax:30 })); debouncedRefresh(); }}>20 - 30 EUR</button>
+          <button className="mf-chip" data-range="30-35" onClick={()=>{ setTempPriceMin(30); setTempPriceMax(35); setFilters(prev=>({ ...prev, price:'30-35', priceMin:30, priceMax:35 })); debouncedRefresh(); }}>30 - 35 EUR</button>
+          <button className="mf-chip" data-range="35-" onClick={()=>{ setTempPriceMin(35); setTempPriceMax(PRICE_MAX); setFilters(prev=>({ ...prev, price:'35-', priceMin:35, priceMax:PRICE_MAX })); debouncedRefresh(); }}>Over 35 EUR</button>
         </div>
         <div className="mf-divider"></div>
         <span className="mf-right" id="openFilters2" onClick={openFiltersModal}>Filters ⌵</span>
@@ -135,20 +191,27 @@ export default function App() {
                 <div className="price-display" id="priceDisplay">€4–€390+</div>
                 <div className="price-slider-container">
                   <div className="price-slider-wrapper">
-                    <div className="price-slider" id="priceSlider">
-                      <div className="price-slider-track" id="priceTrack"></div>
-                      <div className="price-slider-thumb" id="priceThumbMin" data-thumb="min"></div>
-                      <div className="price-slider-thumb" id="priceThumbMax" data-thumb="max"></div>
+                  <div className="price-slider" id="priceSlider" onMouseMove={(e)=>{
+                    if(!dragRef.current) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                    const percent = x / rect.width; const value = Math.round(percent * PRICE_MAX);
+                    if(dragRef.current==='min') setTempPriceMin(v=>Math.min(value, tempPriceMax-1));
+                    else setTempPriceMax(v=>Math.max(value, tempPriceMin+1));
+                  }} onMouseLeave={()=>{ dragRef.current=null; }}>
+                      <div className="price-slider-track" id="priceTrack" style={{ left: `${(tempPriceMin/PRICE_MAX)*100}%`, width: `${((tempPriceMax-tempPriceMin)/PRICE_MAX)*100}%` }}></div>
+                      <div className="price-slider-thumb" id="priceThumbMin" data-thumb="min" style={{ left: `${(tempPriceMin/PRICE_MAX)*100}%` }} onMouseDown={()=>{ dragRef.current='min'; }}></div>
+                      <div className="price-slider-thumb" id="priceThumbMax" data-thumb="max" style={{ left: `${(tempPriceMax/PRICE_MAX)*100}%` }} onMouseDown={()=>{ dragRef.current='max'; }}></div>
                     </div>
                   </div>
-                  <button className="price-go-btn" id="priceGo">Go</button>
+                  <button className="price-go-btn" id="priceGo" onClick={()=>{ applyPrice(); debouncedRefresh(); }}>Go</button>
                 </div>
               </div>
               <div className="chips">
-                <div className="chip" data-val="0-20">€0–20</div>
-                <div className="chip" data-val="20-40">€20–40</div>
-                <div className="chip" data-val="40-80">€40–80</div>
-                <div className="chip" data-val="80-">€80+</div>
+                <div className="chip" data-val="0-20" onClick={()=>{ setFilters(prev=>({ ...prev, price:'0-20' })); setTempPriceMin(0); setTempPriceMax(20); debouncedRefresh(); }}>€0–20</div>
+                <div className="chip" data-val="20-40" onClick={()=>{ setFilters(prev=>({ ...prev, price:'20-40' })); setTempPriceMin(20); setTempPriceMax(40); debouncedRefresh(); }}>€20–40</div>
+                <div className="chip" data-val="40-80" onClick={()=>{ setFilters(prev=>({ ...prev, price:'40-80' })); setTempPriceMin(40); setTempPriceMax(80); debouncedRefresh(); }}>€40–80</div>
+                <div className="chip" data-val="80-" onClick={()=>{ setFilters(prev=>({ ...prev, price:'80-' })); setTempPriceMin(80); setTempPriceMax(PRICE_MAX); debouncedRefresh(); }}>€80+</div>
               </div>
             </div>
           </div>
@@ -184,7 +247,15 @@ export default function App() {
         <main className="main">
           <div className="active-pills" id="pills"></div>
           <Results items={results.items} />
-          <div className="pager" id="pager"></div>
+          <div className="pager" id="pager">
+            {Array.from({length: Math.max(1, Math.ceil((results.total||0)/32))}).slice(0,10).map((_,i)=>{
+              const p = i+1; const isCurrent = p===page;
+              return <button key={p} className={'btn small'+(isCurrent?' current':'')} onClick={()=>{ setPage(p); window.scrollTo({ top:0, behavior:'smooth' }); }}>{p}</button>;
+            })}
+            {page < Math.max(1, Math.ceil((results.total||0)/32)) && (
+              <button className="btn small" onClick={()=>{ setPage(page+1); window.scrollTo({ top:0, behavior:'smooth' }); }}>Next &gt;</button>
+            )}
+          </div>
           <div className="panel" id="relatedPanel" style={{display:'none', marginTop: 8}}>
             <div className="h">Related searches</div>
             <div className="chips" id="relatedChips"></div>
@@ -231,7 +302,41 @@ export default function App() {
           setTimeout(()=>{ fetchResults(q, 1, assembleApiFiltersFromUi({ filters: { ...filters, available: filters.available===null ? true : null } }), apiSort); }, 0);
         }}
       />
+
+      {/* Suggestions dropdown */}
+      {suggOpen && (
+        <div className="sugg" id="sugg" style={{display:'block'}}>
+          <div className="box" id="suggBox">
+            {suggRows.map((text, idx)=>(
+              <div key={idx} className="row" data-idx={idx} data-text={text} style={{ background: idx===suggIndex? '#fafafa':'' }} onMouseDown={(e)=>{ e.preventDefault(); setQ(text); setSuggOpen(false); onSearch(); }}>
+                🔎 <span className="txt">{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* end */}
+
+      {/* Location modal wiring with ESC close */}
+      <div className={"location-modal" + (locationOpen ? ' active' : '')} id="locationModal" aria-hidden={!locationOpen}
+        onKeyDown={(e)=>{ if (e.key==='Escape') setLocationOpen(false); }} onClick={(e)=>{ if((e.target).id==='locationModal') setLocationOpen(false); }}>
+        <div className="location-modal-content" role="dialog" aria-modal="true" aria-labelledby="locTitle" tabIndex={-1}>
+          <button className="floating-done" id="closeLocationTop" onClick={()=>setLocationOpen(false)}>DONE</button>
+          <div className="location-modal-header">
+            <div className="title" id="locTitle">Choose your location</div>
+          </div>
+          <div className="location-modal-body">
+            <div className="desc">Delivery options and delivery speeds may vary for different locations</div>
+            <button className="signin">Sign in to see your addresses</button>
+            <div className="divider"></div>
+            <div className="actions">
+              <button className="row"><span className="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21c-4.6-4.9-7-8.2-7-11.2a7 7 0 1 1 14 0c0 3-2.4 6.3-7 11.2z"></path><circle cx="12" cy="10" r="3"></circle></svg></span>Enter a postal code</button>
+              <button className="row"><span className="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v2"></path><path d="M12 17v2"></path><path d="M5 12h2"></path><path d="M17 12h2"></path><circle cx="12" cy="12" r="4"></circle></svg></span>Use my current location</button>
+              <button className="row" id="deliverOutsideBtn"><span className="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"></circle></svg></span>Deliver outside Estonia</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="location-modal" id="locationModal" aria-hidden="true">
         <div className="location-modal-content" role="dialog" aria-modal="true" aria-labelledby="locTitle">
