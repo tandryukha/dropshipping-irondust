@@ -1,9 +1,0 @@
-- refactor to components (react?)
-- remove taste labels, rate
-
-- remove show more/less in the filter panel
-- when filter bar on desktop is hiding due to width, filters icon should be visible and open same filters on the left side
-image.png
-
-fix 1 column desktop layout
-image.png

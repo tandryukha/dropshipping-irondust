@@ -54,3 +54,6 @@ EXAMPLE COMMANDS (quick)
 - Search: curl -X POST :4000/search -H 'Content-Type: application/json' -d '{"q":"citrulline","page":1,"size":5}'
 - Hybrid: curl -X POST :4000/search/hybrid -H 'Content-Type: application/json' -d '{"q":"vegan protein","filters":{"in_stock":true},"page":1,"size":6}'
 - Toggle AI: curl -X POST ':4000/feature-flags/ai_search?enabled=true'
+
+
+UI: copies amazon (at least that's the goal), but only has food supplements
