@@ -5,21 +5,92 @@ import { Results } from './components/Results'
 import { FiltersModal } from './components/FiltersModal'
 import { BasketSidebar } from './components/BasketSidebar'
 
+// Feature flag for flavor filtering
+const ENABLE_FLAVOR_FILTER = false;
+
+// Label helpers for human-readable display
+function titleCase(str) {
+  if (!str) return '';
+  return str.split(/[\s-]+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function getBrandLabel(slug, brandMap) {
+  // First try to get from brandMap if available
+  if (brandMap && brandMap[slug]) {
+    return brandMap[slug];
+  }
+  // Fallback to Title Case of slug
+  return titleCase(slug);
+}
+
+function getCategoryLabel(slug) {
+  if (!slug) return '';
+  // Handle slashes - get last segment
+  const parts = slug.split('/');
+  const lastSegment = parts[parts.length - 1] || slug;
+  return titleCase(lastSegment);
+}
+
+function getFormLabel(value) {
+  return titleCase(value);
+}
+
+function getDietLabel(value) {
+  return titleCase(value);
+}
+
 function assembleApiFiltersFromUi(state){
   const f = {};
-  if (state.filters.available === null) f.in_stock = [true, false]; else f.in_stock = true;
-  if (state.filters.brand && state.filters.brand.size) f.brand_slug = Array.from(state.filters.brand).map(slugifyLabelToSlug);
-  if (state.filters.form && state.filters.form.size) f.form = Array.from(state.filters.form);
-  if (state.filters.diet && state.filters.diet.size) f.diet_tags = Array.from(state.filters.diet).map(v => String(v).toLowerCase());
-  if (state.filters.flavour && state.filters.flavour.size) f.flavor = Array.from(state.filters.flavour);
-  if (state.filters.category && state.filters.category.size) f.categories_slugs = Array.from(state.filters.category).map(slugifyLabelToSlug);
-  // Only include price bounds if user changed from defaults or picked a quick chip
+  
+  // Availability: default in_stock = true, toggle removes filter (omit key)
+  if (state.filters.available === true) {
+    f.in_stock = true;
+  }
+  // When available === null, omit in_stock entirely (not send it)
+  
+  // Brand
+  if (state.filters.brand && state.filters.brand.size) {
+    f.brand_slug = Array.from(state.filters.brand).map(slugifyLabelToSlug);
+  }
+  
+  // Category
+  if (state.filters.category && state.filters.category.size) {
+    f.categories_slugs = Array.from(state.filters.category).map(slugifyLabelToSlug);
+  }
+  
+  // Form
+  if (state.filters.form && state.filters.form.size) {
+    f.form = Array.from(state.filters.form);
+  }
+  
+  // Diet
+  if (state.filters.diet && state.filters.diet.size) {
+    f.diet_tags = Array.from(state.filters.diet).map(v => String(v).toLowerCase());
+  }
+  
+  // Flavor - only send if feature flag is enabled
+  if (ENABLE_FLAVOR_FILTER && state.filters.flavour && state.filters.flavour.size) {
+    f.flavor = Array.from(state.filters.flavour);
+  }
+  
+  // Deals - On Sale toggle
+  if (state.filters.onSale === true) {
+    f.is_on_sale = true;
+  }
+  
+  // Price bounds - Only include if user changed from defaults or picked a quick chip
   const DEFAULT_MIN = 4, DEFAULT_MAX = 390;
-  const userChangedSlider = (Number.isFinite(state.filters.priceMin) && state.filters.priceMin !== DEFAULT_MIN) || (Number.isFinite(state.filters.priceMax) && state.filters.priceMax !== DEFAULT_MAX);
+  const userChangedSlider = (Number.isFinite(state.filters.priceMin) && state.filters.priceMin !== DEFAULT_MIN) || 
+                           (Number.isFinite(state.filters.priceMax) && state.filters.priceMax !== DEFAULT_MAX);
+  
   if (userChangedSlider) {
     if (Number.isFinite(state.filters.priceMin)) f.price_min = { op: ">=", value: state.filters.priceMin };
     if (Number.isFinite(state.filters.priceMax)) f.price_max = { op: "<=", value: state.filters.priceMax };
   }
+  
+  // Price quick chips
   if (state.filters.price){
     const parts = String(state.filters.price).split('-');
     const lo = parts[0] ? Number(parts[0]) : null;
@@ -27,11 +98,14 @@ function assembleApiFiltersFromUi(state){
     if (Number.isFinite(lo)) f.price_min = { op: ">=", value: lo };
     if (Number.isFinite(hi)) f.price_max = { op: "<=", value: hi };
   }
+  
   return f;
 }
 function slugifyLabelToSlug(s){
   if (!s) return s;
-  const ascii = s.normalize('NFKD').replace(/[^\w\s-]/g,'');
+  // First replace slashes with dashes, then normalize
+  const withDashes = s.replace(/\//g, '-');
+  const ascii = withDashes.normalize('NFKD').replace(/[^\w\s-]/g,'');
   return ascii.trim().toLowerCase().replace(/\s+/g,'-');
 }
 function assembleRealSort(val){
@@ -45,7 +119,21 @@ export default function App() {
   const [q, setQ] = useState('');
   const [sort, setSort] = useState('relevance');
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ category:new Set(), brand:new Set(), flavour:new Set(), diet:new Set(), form:new Set(), container:new Set(), size:new Set(), price:null, priceMin:4, priceMax:390, ratingMin:null, available:true });
+  const [filters, setFilters] = useState({ 
+    category: new Set(), 
+    brand: new Set(), 
+    flavour: new Set(), 
+    diet: new Set(), 
+    form: new Set(), 
+    container: new Set(), 
+    size: new Set(), 
+    price: null, 
+    priceMin: 4, 
+    priceMax: 390, 
+    ratingMin: null, 
+    available: true,
+    onSale: false 
+  });
   const [results, setResults] = useState({ items: [], total: 0, facets: {} });
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
@@ -85,6 +173,7 @@ export default function App() {
   const PRICE_MIN = 0, PRICE_MAX = 400;
   const [tempPriceMin, setTempPriceMin] = useState(4);
   const [tempPriceMax, setTempPriceMax] = useState(390);
+  const dragRef = useRef(null);
   function applyPrice(){
     setFilters(prev => ({ ...prev, price: null, priceMin: tempPriceMin, priceMax: tempPriceMax }));
     setPage(1);
@@ -188,7 +277,7 @@ export default function App() {
             <div className="h"><span>Price</span></div>
             <div>
               <div className="price-range">
-                <div className="price-display" id="priceDisplay">€4–€390+</div>
+                <div className="price-display" id="priceDisplay">{tempPriceMin !== 4 || tempPriceMax !== 390 ? `€${tempPriceMin}–€${tempPriceMax}+` : 'Price'}</div>
                 <div className="price-slider-container">
                   <div className="price-slider-wrapper">
                   <div className="price-slider" id="priceSlider" onMouseMove={(e)=>{
@@ -280,7 +369,21 @@ export default function App() {
       <FiltersModal 
         open={filtersOpen}
         onClose={closeFiltersModal}
-        onClear={()=>{ setFilters({ category:new Set(), brand:new Set(), flavour:new Set(), diet:new Set(), form:new Set(), container:new Set(), size:new Set(), price:null, priceMin:4, priceMax:390, ratingMin:null, available:true }); }}
+        onClear={()=>{ setFilters({ 
+          category: new Set(), 
+          brand: new Set(), 
+          flavour: new Set(), 
+          diet: new Set(), 
+          form: new Set(), 
+          container: new Set(), 
+          size: new Set(), 
+          price: null, 
+          priceMin: 4, 
+          priceMax: 390, 
+          ratingMin: null, 
+          available: true,
+          onSale: false 
+        }); }}
         onApply={()=>{ closeFiltersModal(); fetchResults(q, 1, apiFilters, apiSort); }}
         results={results}
         filters={filters}
@@ -300,6 +403,11 @@ export default function App() {
           setFilters(prev => ({ ...prev, available: prev.available===null ? true : null }));
           setPage(1);
           setTimeout(()=>{ fetchResults(q, 1, assembleApiFiltersFromUi({ filters: { ...filters, available: filters.available===null ? true : null } }), apiSort); }, 0);
+        }}
+        onToggleOnSale={()=>{
+          setFilters(prev => ({ ...prev, onSale: !prev.onSale }));
+          setPage(1);
+          setTimeout(()=>{ fetchResults(q, 1, assembleApiFiltersFromUi({ filters: { ...filters, onSale: !filters.onSale } }), apiSort); }, 0);
         }}
       />
 

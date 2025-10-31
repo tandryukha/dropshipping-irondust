@@ -204,3 +204,115 @@ x-admin-key: {{adminKey}}
 ### Disable Normalize Titles
 POST {{baseUrl}}/feature-flags/normalize_titles?enabled=false
 x-admin-key: {{adminKey}}
+
+### ===========================================
+### FILTER TESTS (UI-focused)
+### ===========================================
+
+### Baseline facets: sample values for brand/category/form/diet
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "",
+  "page": 1,
+  "size": 1,
+  "filters": { "in_stock": true }
+}
+
+### Brand AND Category (replace values with ones from baseline facetDistribution)
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "",
+  "page": 1,
+  "size": 12,
+  "filters": {
+    "in_stock": true,
+    "brand_slug": ["optimum-nutrition"],
+    "categories_slugs": ["protein-powders"]
+  }
+}
+
+### Form + Dietary tags
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "protein",
+  "page": 1,
+  "size": 12,
+  "filters": {
+    "in_stock": true,
+    "form": ["powder"],
+    "diet_tags": ["vegan"]
+  }
+}
+
+### On sale only
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "",
+  "page": 1,
+  "size": 12,
+  "filters": {
+    "is_on_sale": true
+  }
+}
+
+### Price range via synthetic _min/_max (maps to price >= / <=)
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "whey",
+  "page": 1,
+  "size": 12,
+  "filters": {
+    "in_stock": true,
+    "price_min": { "op": ">=", "value": 20 },
+    "price_max": { "op": "<=", "value": 35 }
+  },
+  "sort": ["price:asc"]
+}
+
+### Include out of stock (opt-in) — omit in_stock
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "creatine",
+  "page": 1,
+  "size": 12,
+  "filters": { }
+}
+
+### Flavor filter (optional; use only if backend made 'flavor' filterable)
+POST {{baseUrl}}/search
+Content-Type: application/json
+
+{
+  "q": "",
+  "page": 1,
+  "size": 12,
+  "filters": {
+    "in_stock": true,
+    "flavor": ["vanilla", "chocolate"]
+  }
+}
+
+### Hybrid forced with basic filter
+POST {{baseUrl}}/search/hybrid
+Content-Type: application/json
+
+{
+  "q": "vegan protein without soy",
+  "page": 1,
+  "size": 12,
+  "filters": {
+    "in_stock": true
+  }
+}

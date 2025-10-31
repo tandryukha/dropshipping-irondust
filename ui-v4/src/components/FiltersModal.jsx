@@ -1,6 +1,38 @@
 import { useEffect, useMemo, useState } from 'react'
 
-export function FiltersModal({ open, onClose, onClear, onApply, results, filters, onToggle, onToggleAvailability }){
+// Label helper functions for human-readable display
+function titleCase(str) {
+  if (!str) return '';
+  return str.split(/[\s-]+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function getBrandLabel(slug, brandNameMap) {
+  // Try to get brand name from results if available, fallback to Title Case
+  if (brandNameMap && brandNameMap[slug]) {
+    return brandNameMap[slug];
+  }
+  return titleCase(slug);
+}
+
+function getCategoryLabel(slug) {
+  if (!slug) return '';
+  // Handle slashes - get last segment
+  const parts = slug.split('/');
+  const lastSegment = parts[parts.length - 1] || slug;
+  return titleCase(lastSegment);
+}
+
+function getFormLabel(value) {
+  return titleCase(value);
+}
+
+function getDietLabel(value) {
+  return titleCase(value);
+}
+
+export function FiltersModal({ open, onClose, onClear, onApply, results, filters, onToggle, onToggleAvailability, onToggleOnSale }){
   const [activeIdx, setActiveIdx] = useState(0);
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden'; else document.body.style.overflow = '';
@@ -11,11 +43,10 @@ export function FiltersModal({ open, onClose, onClear, onApply, results, filters
     { title: 'Category', key: 'category' },
     { title: 'Brand', key: 'brand' },
     { title: 'Price', key: 'price' },
+    { title: 'Deals', key: 'deals' },
     { title: 'Flavour', key: 'flavour' },
     { title: 'Dietary', key: 'diet' },
     { title: 'Item Form', key: 'form' },
-    { title: 'Container Type', key: 'container' },
-    { title: 'Size', key: 'size' },
     { title: 'Availability', key: 'availability' },
   ];
 
@@ -34,6 +65,17 @@ export function FiltersModal({ open, onClose, onClear, onApply, results, filters
       });
       return Array.from(set);
     } catch(e){ return []; }
+  }, [results]);
+  
+  // Build brand name map from results
+  const brandNameMap = useMemo(() => {
+    const map = {};
+    (results?.items || []).forEach(item => {
+      if (item?.brand_slug && item?.brand) {
+        map[item.brand_slug] = item.brand;
+      }
+    });
+    return map;
   }, [results]);
 
   return (
@@ -58,18 +100,92 @@ export function FiltersModal({ open, onClose, onClear, onApply, results, filters
                   <div className="h"><span>{s.title}</span></div>
                   {s.key==='availability' ? (
                     <div id="fAvailability">
-                      <button className={"chip" + (filters?.available===null?" active":"")} onClick={(e)=>{ e.preventDefault(); onToggleAvailability && onToggleAvailability(); }}>Include Out of Stock</button>
+                      <button 
+                        className={"chip" + (filters?.available===null?" active":"")} 
+                        aria-pressed={filters?.available===null}
+                        onClick={(e)=>{ e.preventDefault(); onToggleAvailability && onToggleAvailability(); }}
+                      >
+                        Include Out of Stock
+                      </button>
+                    </div>
+                  ) : s.key==='deals' ? (
+                    <div id="fDeals">
+                      <button 
+                        className={"chip" + (filters?.onSale===true?" active":"")} 
+                        aria-pressed={filters?.onSale===true}
+                        onClick={(e)=>{ e.preventDefault(); onToggleOnSale && onToggleOnSale(); }}
+                      >
+                        On sale
+                      </button>
                     </div>
                   ) : s.key==='flavour' ? (
                     <div className="chips">
                       {flavourValues.map(val => (
-                        <div key={val} className={"chip" + (filters?.flavour?.has(val)?" active":"")} onClick={()=>onToggle && onToggle('flavour', val)}>{val}</div>
+                        <button 
+                          key={val} 
+                          type="button"
+                          className={"chip" + (filters?.flavour?.has(val)?" active":"")} 
+                          aria-pressed={filters?.flavour?.has(val)}
+                          onClick={()=>onToggle && onToggle('flavour', val)}
+                        >
+                          {titleCase(val)}
+                        </button>
                       ))}
                     </div>
-                  ) : s.key==='brand' || s.key==='category' || s.key==='form' || s.key==='diet' ? (
+                  ) : s.key==='brand' ? (
                     <div className="chips">
-                      {Object.entries(facetMaps[s.key] || {}).sort((a,b)=>b[1]-a[1]).slice(0, s.key==='diet'?12: (s.key==='brand'?20:8)).map(([val, cnt]) => (
-                        <button key={val} type="button" className={"chip" + (filters?.[s.key]?.has(val)?" active":"")} onClick={()=>onToggle && onToggle(s.key, val)}>{val} ({cnt})</button>
+                      {Object.entries(facetMaps.brand || {}).sort((a,b)=>b[1]-a[1]).slice(0, 20).map(([val, cnt]) => (
+                        <button 
+                          key={val} 
+                          type="button" 
+                          className={"chip" + (filters?.brand?.has(val)?" active":"")} 
+                          aria-pressed={filters?.brand?.has(val)}
+                          onClick={()=>onToggle && onToggle('brand', val)}
+                        >
+                          {getBrandLabel(val, brandNameMap)} ({cnt})
+                        </button>
+                      ))}
+                    </div>
+                  ) : s.key==='category' ? (
+                    <div className="chips">
+                      {Object.entries(facetMaps.category || {}).sort((a,b)=>b[1]-a[1]).slice(0, 8).map(([val, cnt]) => (
+                        <button 
+                          key={val} 
+                          type="button" 
+                          className={"chip" + (filters?.category?.has(val)?" active":"")} 
+                          aria-pressed={filters?.category?.has(val)}
+                          onClick={()=>onToggle && onToggle('category', val)}
+                        >
+                          {getCategoryLabel(val)} ({cnt})
+                        </button>
+                      ))}
+                    </div>
+                  ) : s.key==='form' ? (
+                    <div className="chips">
+                      {Object.entries(facetMaps.form || {}).sort((a,b)=>b[1]-a[1]).slice(0, 8).map(([val, cnt]) => (
+                        <button 
+                          key={val} 
+                          type="button" 
+                          className={"chip" + (filters?.form?.has(val)?" active":"")} 
+                          aria-pressed={filters?.form?.has(val)}
+                          onClick={()=>onToggle && onToggle('form', val)}
+                        >
+                          {getFormLabel(val)} ({cnt})
+                        </button>
+                      ))}
+                    </div>
+                  ) : s.key==='diet' ? (
+                    <div className="chips">
+                      {Object.entries(facetMaps.diet || {}).sort((a,b)=>b[1]-a[1]).slice(0, 12).map(([val, cnt]) => (
+                        <button 
+                          key={val} 
+                          type="button" 
+                          className={"chip" + (filters?.diet?.has(val)?" active":"")} 
+                          aria-pressed={filters?.diet?.has(val)}
+                          onClick={()=>onToggle && onToggle('diet', val)}
+                        >
+                          {getDietLabel(val)} ({cnt})
+                        </button>
                       ))}
                     </div>
                   ) : (
