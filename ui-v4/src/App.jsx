@@ -220,6 +220,84 @@ export default function App() {
     return { whole: s.slice(0, i), fraction: s.slice(i+1) };
   }
 
+  // Build brand name map from results for display
+  const brandNameMap = useMemo(() => {
+    const map = {};
+    (results?.items || []).forEach(item => {
+      if (item?.brand_slug && item?.brand) {
+        map[item.brand_slug] = item.brand;
+      }
+    });
+    return map;
+  }, [results]);
+
+  // Handlers for filter toggles
+  function toggleFilter(key, val) {
+    setFilters(prev => {
+      const next = { ...prev };
+      if (!next[key]) next[key] = new Set();
+      if (next[key].has(val)) {
+        next[key].delete(val);
+      } else {
+        next[key].add(val);
+      }
+      return next;
+    });
+    setPage(1);
+  }
+
+  function clearAllFilters() {
+    setFilters({
+      category: new Set(), 
+      brand: new Set(), 
+      flavour: new Set(), 
+      diet: new Set(), 
+      form: new Set(), 
+      container: new Set(), 
+      size: new Set(), 
+      price: null, 
+      priceMin: 4, 
+      priceMax: 390, 
+      ratingMin: null, 
+      available: true,
+      onSale: false
+    });
+    setTempPriceMin(4);
+    setTempPriceMax(390);
+    setPage(1);
+  }
+
+  function removeFilter(key, val) {
+    setFilters(prev => {
+      const next = { ...prev };
+      if (next[key] && next[key] instanceof Set) {
+        next[key].delete(val);
+      }
+      return next;
+    });
+    setPage(1);
+  }
+
+  // Get active filters for display
+  const activeFilters = useMemo(() => {
+    const active = [];
+    ['category', 'brand', 'form', 'diet', 'flavour'].forEach(key => {
+      if (filters[key] && filters[key].size > 0) {
+        filters[key].forEach(val => {
+          let label = val;
+          if (key === 'brand') label = getBrandLabel(val, brandNameMap);
+          else if (key === 'category') label = getCategoryLabel(val);
+          else if (key === 'form') label = getFormLabel(val);
+          else if (key === 'diet') label = getDietLabel(val);
+          active.push({ key, val, label });
+        });
+      }
+    });
+    if (filters.onSale) active.push({ key: 'onSale', val: true, label: 'On Sale' });
+    if (filters.available === null) active.push({ key: 'available', val: null, label: 'Include Out of Stock' });
+    return active;
+  }, [filters, brandNameMap]);
+
   return (
     <>
       <Topbar q={q} setQ={setQ} onSearch={onSearch} onInputChange={(val)=>{
@@ -259,19 +337,68 @@ export default function App() {
           <div className="panel">
             <div className="h">
               <div>Refine</div>
-              <button className="link" id="clearAll">Clear all</button>
+              <button className="link" id="clearAll" onClick={clearAllFilters}>Clear all</button>
             </div>
-            <div className="chips" id="activePills"></div>
+            <div className="chips" id="activePills">
+              {activeFilters.map((af, idx) => (
+                <div key={idx} className="chip active" onClick={() => {
+                  if (af.key === 'onSale') {
+                    setFilters(prev => ({ ...prev, onSale: false }));
+                    setPage(1);
+                  } else if (af.key === 'available') {
+                    setFilters(prev => ({ ...prev, available: true }));
+                    setPage(1);
+                  } else {
+                    removeFilter(af.key, af.val);
+                  }
+                }}>
+                  {af.label} ✕
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="panel" data-key="category">
             <div className="h"><span>Category</span></div>
-            <div id="fCategory"></div>
+            <div id="fCategory">
+              {Object.entries(results?.facets?.categories_slugs || {})
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8)
+                .map(([val, cnt]) => (
+                  <div key={val}>
+                    <label className="facet-item">
+                      <input 
+                        type="checkbox" 
+                        checked={filters.category?.has(val) || false}
+                        onChange={() => toggleFilter('category', val)}
+                      />
+                      <span>{getCategoryLabel(val)}</span>
+                      <span className="count">({cnt})</span>
+                    </label>
+                  </div>
+                ))}
+            </div>
           </div>
           <div className="panel" data-key="brand">
             <div className="h"><span>Brand</span></div>
-            <div id="fBrand"></div>
-            <button className="link" id="brandMore">Show more</button>
+            <div id="fBrand">
+              {Object.entries(results?.facets?.brand_slug || {})
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10)
+                .map(([val, cnt]) => (
+                  <div key={val}>
+                    <label className="facet-item">
+                      <input 
+                        type="checkbox" 
+                        checked={filters.brand?.has(val) || false}
+                        onChange={() => toggleFilter('brand', val)}
+                      />
+                      <span>{getBrandLabel(val, brandNameMap)}</span>
+                      <span className="count">({cnt})</span>
+                    </label>
+                  </div>
+                ))}
+            </div>
           </div>
           <div className="panel" data-key="price">
             <div className="h"><span>Price</span></div>
@@ -304,37 +431,110 @@ export default function App() {
               </div>
             </div>
           </div>
-          <div className="panel" data-key="flavour">
-            <div className="h"><span>Flavour</span></div>
-            <div id="fFlavour"></div>
-          </div>
+          {ENABLE_FLAVOR_FILTER && (
+            <div className="panel" data-key="flavour">
+              <div className="h"><span>Flavour</span></div>
+              <div id="fFlavour">
+                {(() => {
+                  const flavourSet = new Set();
+                  (results?.items || []).forEach(p => {
+                    const arr = p?.dynamic_attrs?.flavors;
+                    if (Array.isArray(arr)) arr.forEach(v => { if (v) flavourSet.add(v); });
+                  });
+                  return Array.from(flavourSet).slice(0, 8).map(val => (
+                    <div key={val}>
+                      <label className="facet-item">
+                        <input 
+                          type="checkbox" 
+                          checked={filters.flavour?.has(val) || false}
+                          onChange={() => toggleFilter('flavour', val)}
+                        />
+                        <span>{titleCase(val)}</span>
+                      </label>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
           <div className="panel" data-key="diet">
             <div className="h"><span>Dietary</span></div>
-            <div id="fDiet"></div>
+            <div id="fDiet">
+              {Object.entries(results?.facets?.diet_tags || {})
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8)
+                .map(([val, cnt]) => (
+                  <div key={val}>
+                    <label className="facet-item">
+                      <input 
+                        type="checkbox" 
+                        checked={filters.diet?.has(val) || false}
+                        onChange={() => toggleFilter('diet', val)}
+                      />
+                      <span>{getDietLabel(val)}</span>
+                      <span className="count">({cnt})</span>
+                    </label>
+                  </div>
+                ))}
+            </div>
           </div>
           <div className="panel" data-key="form">
             <div className="h"><span>Item Form</span></div>
-            <div id="fForm"></div>
-            <button className="link" id="formMore">See Less</button>
-          </div>
-          <div className="panel" data-key="container">
-            <div className="h"><span>Container Type</span></div>
-            <div id="fContainer"></div>
-          </div>
-          <div className="panel" data-key="size">
-            <div className="h"><span>Size</span></div>
-            <div id="fSize"></div>
+            <div id="fForm">
+              {Object.entries(results?.facets?.form || {})
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8)
+                .map(([val, cnt]) => (
+                  <div key={val}>
+                    <label className="facet-item">
+                      <input 
+                        type="checkbox" 
+                        checked={filters.form?.has(val) || false}
+                        onChange={() => toggleFilter('form', val)}
+                      />
+                      <span>{getFormLabel(val)}</span>
+                      <span className="count">({cnt})</span>
+                    </label>
+                  </div>
+                ))}
+            </div>
           </div>
           <div className="panel" data-key="availability">
             <div className="h"><span>Availability</span></div>
             <div id="fAvailability">
-              <button className="chip" id="availToggle" type="button">Include Out of Stock</button>
+              <button 
+                className={"chip" + (filters.available === null ? " active" : "")} 
+                id="availToggle" 
+                type="button"
+                onClick={() => {
+                  setFilters(prev => ({ ...prev, available: prev.available === null ? true : null }));
+                  setPage(1);
+                }}
+              >
+                Include Out of Stock
+              </button>
             </div>
           </div>
         </aside>
 
         <main className="main">
-          <div className="active-pills" id="pills"></div>
+          <div className="active-pills" id="pills">
+            {activeFilters.map((af, idx) => (
+              <div key={idx} className="pill" onClick={() => {
+                if (af.key === 'onSale') {
+                  setFilters(prev => ({ ...prev, onSale: false }));
+                  setPage(1);
+                } else if (af.key === 'available') {
+                  setFilters(prev => ({ ...prev, available: true }));
+                  setPage(1);
+                } else {
+                  removeFilter(af.key, af.val);
+                }
+              }}>
+                {af.label} <span className="x">✕</span>
+              </div>
+            ))}
+          </div>
           <Results items={results.items} />
           <div className="pager" id="pager">
             {Array.from({length: Math.max(1, Math.ceil((results.total||0)/32))}).slice(0,10).map((_,i)=>{
